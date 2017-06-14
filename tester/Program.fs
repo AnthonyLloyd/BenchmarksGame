@@ -29,7 +29,8 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
-    //isFasterThan CSharpOriginal.NBody.Test FSharpOriginalNBody.test "NBody C# Original faster then F# Original"
-    isFasterThan (fun () -> CSharpImproved.NBody.Test 5000000) (fun () -> CSharpOriginal.NBody.Test 5000000) "NBody C# Improved faster then C# Original"
+    //isFasterThan (fun () -> CSharpImproved.NBody.Test 5000000) (fun () -> CSharpOriginal.NBody.Test 5000000) "NBody C# Improved faster then C# Original"
+    //isFasterThan (fun () -> CSharpParallel.NBody.Test 5000000) (fun () -> CSharpOriginal.NBody.Test 5000000) "NBody C# Parallel faster then C# Original"
+    isFasterThan (fun () -> FSharpImprovedNBody.test 5000000) (fun () -> FSharpOriginalNBody.test 5000000) "NBody F# Improved faster then F# Original"
     0 // return an integer exit code
 

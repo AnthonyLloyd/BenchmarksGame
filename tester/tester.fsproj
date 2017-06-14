@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Remove="**/*.fs" />
     <Compile Include="FSharpOriginalNBody.fs" />
+    <Compile Include="FSharpImprovedNBody.fs" />
     <Compile Include="Performance.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
