@@ -1,8 +1,0 @@
-{
-  "runtimeOptions": {
-    "additionalProbingPaths": [
-      "C:\\Users\\Ant\\.dotnet\\store\\|arch|\\|tfm|",
-      "C:\\Users\\Ant\\.nuget\\packages"
-    ]
-  }
-}
