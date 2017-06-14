@@ -4,7 +4,7 @@
    contributed by Isaac Gouy, optimization and use of more C# idioms by Robert F. Tobler
 */
 
-namespace CSharpOriginal
+namespace CSharpImproved
 {
     using System;
 
@@ -13,25 +13,24 @@ namespace CSharpOriginal
             int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
             NBodySystem bodies = new NBodySystem();
             Console.WriteLine("{0:f9}", bodies.Energy());
-            for (int i = 0; i < n; i++) bodies.Advance(0.01);
+            bodies.Advance(0.01, n);
             Console.WriteLine("{0:f9}", bodies.Energy());
         }
         public static Tuple<double,double> Test(int n)
-        {
+        {            
             NBodySystem bodies = new NBodySystem();
             var startEnergy = bodies.Energy();
-            for (int i = 0; i < n; i++) bodies.Advance(0.01);
+            bodies.Advance(0.01, n);
             var endEnergy = bodies.Energy();
             return Tuple.Create(Math.Round(startEnergy,9),Math.Round(endEnergy,9));
         }
     }
 
     class Body { public double x, y, z, vx, vy, vz, mass; }
-    class Pair { public Body bi, bj; }
 
-    class NBodySystem {
-        private Body[] bodies;
-        private Pair[] pairs;
+    class NBodySystem
+    {
+        Body[] bodies;
 
         const double Pi = 3.141592653589793;
         const double Solarmass = 4 * Pi * Pi;
@@ -80,12 +79,6 @@ namespace CSharpOriginal
                 },
             };
             
-            pairs = new Pair[bodies.Length * (bodies.Length-1)/2];        
-            int pi = 0;
-            for (int i = 0; i < bodies.Length-1; i++)
-                for (int j = i+1; j < bodies.Length; j++)
-                    pairs[pi++] = new Pair() { bi = bodies[i], bj = bodies[j] };        
-
             double px = 0.0, py = 0.0, pz = 0.0;
             foreach (var b in bodies) {
                 px += b.vx * b.mass; py += b.vy * b.mass; pz += b.vz * b.mass;
@@ -94,27 +87,39 @@ namespace CSharpOriginal
             sol.vx = -px/Solarmass; sol.vy = -py/Solarmass; sol.vz = -pz/Solarmass;
         }
 
-        public void Advance(double dt) {
-            foreach (var p in pairs) {
-                Body bi = p.bi, bj = p.bj;
-                double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
-                double d2 = dx * dx + dy * dy + dz * dz;
-                double mag = dt / (d2 * Math.Sqrt(d2));
-                bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
-                bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
-                bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
-            }
-            foreach (var b in bodies) {
-                b.x += dt * b.vx; b.y += dt * b.vy; b.z += dt * b.vz;
+        public void Advance(double dt, int n)
+        {
+            var bodies = this.bodies;
+            for (int k=0; k<n; k++)
+            {
+                for(int i=0; i<bodies.Length; i++)
+                {
+                    var bi = bodies[i];
+                    for(int j=i+1; j<bodies.Length; j++)
+                    {
+                        var bj = bodies[j];
+                        double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
+                        double d2 = dx * dx + dy * dy + dz * dz;
+                        double mag = dt / (d2 * Math.Sqrt(d2));
+                        bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
+                        bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
+                        bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
+                    }
+                    bi.x += dt * bi.vx; bi.y += dt * bi.vy; bi.z += dt * bi.vz;
+                }
             }
         }
 
-        public double Energy() {
+        public double Energy()
+        {
+            var bodies = this.bodies;
             double e = 0.0;
-            for (int i = 0; i < bodies.Length; i++) {
+            for (int i=0; i<bodies.Length; i++)
+            {
                 var bi = bodies[i];
                 e += 0.5 * bi.mass * (bi.vx*bi.vx + bi.vy*bi.vy + bi.vz*bi.vz);
-                for (int j = i+1; j < bodies.Length; j++) {
+                for (int j=i+1; j<bodies.Length; j++)
+                {
                     var bj = bodies[j];
                     double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
                     e -= (bi.mass * bj.mass) / Math.Sqrt(dx*dx + dy*dy + dz*dz);

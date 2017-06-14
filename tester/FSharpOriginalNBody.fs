@@ -115,11 +115,10 @@ let energy {bodies=bodies;pairs=pairs} =
 //     energy bodies |> printf "%.9f\n"
 //     0
 
-let test() =
-    let repetitions = 50000000
+let test n =
     let bodies = initBodies
     let startEnergy = energy bodies
-    simulate bodies repetitions 0.01
+    simulate bodies n 0.01
     let endEnergy = energy bodies
-    System.Math.Round(endEnergy,9)
+    System.Math.Round(startEnergy,9),System.Math.Round(endEnergy,9)
     
