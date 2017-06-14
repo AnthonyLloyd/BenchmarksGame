@@ -105,6 +105,10 @@ namespace CSharpImproved
                         bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
                         bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
                     }
+                }
+                for(int i=0; i<bodies.Length; i++)
+                {
+                    var bi = bodies[i];
                     bi.x += dt * bi.vx; bi.y += dt * bi.vy; bi.z += dt * bi.vz;
                 }
             }
@@ -118,6 +122,10 @@ namespace CSharpImproved
             {
                 var bi = bodies[i];
                 e += 0.5 * bi.mass * (bi.vx*bi.vx + bi.vy*bi.vy + bi.vz*bi.vz);
+            }
+            for (int i=0; i<bodies.Length; i++)
+            {
+                var bi = bodies[i];
                 for (int j=i+1; j<bodies.Length; j++)
                 {
                     var bj = bodies[j];
