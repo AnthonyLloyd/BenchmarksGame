@@ -1,4 +1,4 @@
-module FSharpNBodyOrig
+module FSharpOriginalNBody
 // The Computer Language Benchmarks Game
 // http://benchmarksgame.alioth.debian.org/
 //
@@ -107,11 +107,19 @@ let energy {bodies=bodies;pairs=pairs} =
     ePlanets - ePairs
 
 //[<EntryPoint>]
-let main (args:string []) =
-    let repetitions = try int args.[0] with _ -> 20000000
-    let bodies = initBodies
-    energy bodies |> printf "%.9f\n"
-    simulate bodies repetitions 0.01
-    energy bodies |> printf "%.9f\n"
+// let main (args:string []) =
+//     let repetitions = try int args.[0] with _ -> 20000000
+//     let bodies = initBodies
+//     energy bodies |> printf "%.9f\n"
+//     simulate bodies repetitions 0.01
+//     energy bodies |> printf "%.9f\n"
+//     0
 
-    0
+let test() =
+    let repetitions = 50000000
+    let bodies = initBodies
+    let startEnergy = energy bodies
+    simulate bodies repetitions 0.01
+    let endEnergy = energy bodies
+    System.Math.Round(endEnergy,9)
+    

@@ -6,7 +6,6 @@
 
   <ItemGroup>
     <Compile Remove="**/*.fs" />
-    <Compile Include="NBody.fs" />
   </ItemGroup>
 
 </Project>
