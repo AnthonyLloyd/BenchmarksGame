@@ -1,0 +1,8 @@
+C:\Users\Ant\src\BenchmarksGame\csharp\bin\Debug\netstandard2.0\csharp.deps.json
+C:\Users\Ant\src\BenchmarksGame\csharp\bin\Debug\netstandard2.0\csharp.dll
+C:\Users\Ant\src\BenchmarksGame\csharp\bin\Debug\netstandard2.0\csharp.pdb
+C:\Users\Ant\src\BenchmarksGame\csharp\obj\Debug\netstandard2.0\csharp.csproj.CoreCompileInputs.cache
+C:\Users\Ant\src\BenchmarksGame\csharp\obj\Debug\netstandard2.0\csharp.AssemblyInfoInputs.cache
+C:\Users\Ant\src\BenchmarksGame\csharp\obj\Debug\netstandard2.0\csharp.AssemblyInfo.cs
+C:\Users\Ant\src\BenchmarksGame\csharp\obj\Debug\netstandard2.0\csharp.dll
+C:\Users\Ant\src\BenchmarksGame\csharp\obj\Debug\netstandard2.0\csharp.pdb

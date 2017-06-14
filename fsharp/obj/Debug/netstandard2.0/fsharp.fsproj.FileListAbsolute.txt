@@ -1,0 +1,6 @@
+C:\Users\Ant\src\BenchmarksGame\fsharp\bin\Debug\netstandard2.0\fsharp.deps.json
+C:\Users\Ant\src\BenchmarksGame\fsharp\bin\Debug\netstandard2.0\fsharp.dll
+C:\Users\Ant\src\BenchmarksGame\fsharp\bin\Debug\netstandard2.0\fsharp.pdb
+C:\Users\Ant\src\BenchmarksGame\fsharp\obj\Debug\netstandard2.0\fsharp.fsproj.CoreCompileInputs.cache
+C:\Users\Ant\src\BenchmarksGame\fsharp\obj\Debug\netstandard2.0\fsharp.dll
+C:\Users\Ant\src\BenchmarksGame\fsharp\obj\Debug\netstandard2.0\fsharp.pdb
