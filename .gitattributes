@@ -1,0 +1,22 @@
+* text=auto
+*.c text eol=lf
+*.fs text eol=lf
+*.fsx text eol=lf
+*.fsproj text eol=lf
+*.vcxproj text eol=lf
+*.filters text eol=lf
+*.sln text eol=lf
+*.props text eol=lf
+*.dna text eol=lf
+*.json text eol=lf
+*.config text eol=lf
+*.gitattributes text eol=lf
+*.gitignore text eol=lf
+*.cmd text eol=lf
+*.md text eol=lf
+*.dependencies text eol=lf
+*.references text eol=lf
+*.lock text eol=lf
+*.lib filter=lfs diff=lfs merge=lfs -text
+lib/** -text
+.paket/** -text
