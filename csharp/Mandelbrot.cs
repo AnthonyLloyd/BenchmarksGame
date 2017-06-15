@@ -95,7 +95,7 @@ public class MandelBrot
         Cib =new double[n+7];
         
         double invN=2.0/n; for(int i=0;i<n;i++){ Cib[i]=i*invN-1.0; Crb[i]=i*invN-1.5; }
-        
+        lineCount = -1;
         var threads = new Thread[Environment.ProcessorCount]; 
         for (int i = 0; i < threads.Length; i++)
         {   

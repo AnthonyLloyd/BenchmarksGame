@@ -10,117 +10,61 @@ namespace Improved
 
 using System;
 using System.Diagnostics;
-using System.Threading;
+using System.Threading.Tasks;
 using System.IO;
 using System.Runtime.CompilerServices;
 
 public class MandelBrot
 {
-    private static int n = 200;
-    private static byte[][] data;
-    private static int lineCount = -1;
-
-    private static double[] Crb;
-    private static double[] Cib;
+    // private static double[] Crb;
+    // private static double[] Cib;
 
      [MethodImpl(MethodImplOptions.AggressiveInlining)]
-     static int getByte(int x, int y){
-      int res=0;
-      for(int i=0;i<8;i+=2){
-         double Zr1=Crb[x+i];
-         double Zi1=Cib[y];
+     static byte getByte(double[] Crb, double Ciby, int x, int y)
+     {
+        int res=0;
+        for(int i=0;i<8;i+=2)
+        {
+            double Zr1=Crb[x+i], Zr2=Crb[x+i+1];
+            double Zi1=Ciby, Zi2=Ciby;
 
-         double Zr2=Crb[x+i+1];
-         double Zi2=Cib[y];
+            int b=0;
+            int j=49;
+            do
+            {
+                double nZr1=Zr1*Zr1-Zi1*Zi1+Crb[x+i];
+                Zi1=Zr1*Zi1+Zr1*Zi1+Ciby;
+                Zr1=nZr1;
 
-         int b=0;
-         int j=49;do{
-            double nZr1=Zr1*Zr1-Zi1*Zi1+Crb[x+i];
-            double nZi1=Zr1*Zi1+Zr1*Zi1+Cib[y];
-            Zr1=nZr1;Zi1=nZi1;
+                double nZr2=Zr2*Zr2-Zi2*Zi2+Crb[x+i+1];
+                Zi2=Zr2*Zi2+Zr2*Zi2+Ciby;
+                Zr2=nZr2;
 
-            double nZr2=Zr2*Zr2-Zi2*Zi2+Crb[x+i+1];
-            double nZi2=Zr2*Zi2+Zr2*Zi2+Cib[y];
-            Zr2=nZr2;Zi2=nZi2;
-
-            if(Zr1*Zr1+Zi1*Zi1>4){b|=2;if(b==3)break;}
-            if(Zr2*Zr2+Zi2*Zi2>4){b|=1;if(b==3)break;}
-         }while(--j>0);
-         res=(res<<2)+b;
-      }
-      return res^-1;
-    }
-
-    public static void Main (String[] args)
-    {
-        if (args.Length > 0) n = Int32.Parse(args[0]);
-       
-        int lineLen = (n-1)/8 + 1;
-        data = new byte[n][];
-           
-        Crb=new double[n+7];
-        Cib =new double[n+7];
-        
-        double invN=2.0/n; for(int i=0;i<n;i++){ Cib[i]=i*invN-1.0; Crb[i]=i*invN-1.5; }
-        
-        var threads = new Thread[Environment.ProcessorCount]; 
-        for (int i = 0; i < threads.Length; i++)
-        {   
-            threads[i] = new Thread(() => {
-                                               int y;
-                                               while ((y = Interlocked.Increment(ref lineCount)) < n)
-                                               {
-                                                   var buffer = new byte[lineLen];                    
-                                                   for (int x = 0; x < lineLen; x++)
-                                                   {
-                                                       buffer[x] = (byte) getByte(x*8, y);
-                                                   }
-                                                   data[y] = buffer; 
-                                               }
-            });
-            threads[i].Start();
+                if(Zr1*Zr1+Zi1*Zi1>4){b|=2;if(b==3)break;}
+                if(Zr2*Zr2+Zi2*Zi2>4){b|=1;if(b==3)break;}
+            } while(--j>0);
+            res=(res<<2)+b;
         }
-
-        foreach (var t in threads) t.Join();
-        
-        Console.Out.WriteLine("P4\n{0} {0}", n);        
-        var s = Console.OpenStandardOutput();
-        for (int y = 0; y < n; y++) s.Write(data[y], 0, lineLen);        
+        return (byte)(res^-1);
     }
+    
     public static byte[] Test (String[] args)
     {
-        if (args.Length > 0) n = Int32.Parse(args[0]);
-       
+        var n = args.Length > 0 ? Int32.Parse(args[0]) : 200;
+        var Crb = new double[n+7];
+        double invN=2.0/n; for(int i=0;i<n;i++){ Crb[i]=i*invN-1.5; }
+        var data = new byte[n][];
         int lineLen = (n-1)/8 + 1;
-        data = new byte[n][];
-           
-        Crb=new double[n+7];
-        Cib =new double[n+7];
-        
-        double invN=2.0/n; for(int i=0;i<n;i++){ Cib[i]=i*invN-1.0; Crb[i]=i*invN-1.5; }
-        
-        var threads = new Thread[Environment.ProcessorCount]; 
-        for (int i = 0; i < threads.Length; i++)
-        {   
-            threads[i] = new Thread(() => {
-                                               int y;
-                                               while ((y = Interlocked.Increment(ref lineCount)) < n)
-                                               {
-                                                   var buffer = new byte[lineLen];                    
-                                                   for (int x = 0; x < lineLen; x++)
-                                                   {
-                                                       buffer[x] = (byte) getByte(x*8, y);
-                                                   }
-                                                   data[y] = buffer; 
-                                               }
-            });
-            threads[i].Start();
-        }
-
-        foreach (var t in threads) t.Join();
-        
+        Parallel.For(0, n, y =>
+        {
+            var Ciby = y*invN-1.0;
+            var buffer = new byte[lineLen];
+            for(int x = 0; x<lineLen; x++)
+                 buffer[x] = getByte(Crb, Ciby, x*8, y);
+            data[y] = buffer;
+        });
         var s = new MemoryStream();
-        for (int y = 0; y < n; y++) s.Write(data[y], 0, lineLen);
+        for (int y = 0; y < data.Length; y++) s.Write(data[y], 0, lineLen);
         return s.ToArray();
     }
 }

@@ -33,8 +33,8 @@ let main argv =
     //Improved.NBody.Main([|"50000000"|])
     //isFasterThan (fun () -> Improved.NBody.Test 50000000) (fun () -> NBody.Test 50000000) "Improved C# NBody faster than original"
 
-    //MandelBrot.Main([|"16000"|])
-    //isFasterThan (fun () -> Improved.Mandelbrot.Test [|"16000"|]) (fun () -> Mandelbrot.Test [|"16000"|]) "Improved C# Mandelbrot faster than original"
+    //Improved.MandelBrot.Main([|"16000"|])
+    isFasterThan (fun () -> Improved.MandelBrot.Test [|"16000"|]) (fun () -> MandelBrot.Test [|"16000"|]) "Improved C# Mandelbrot faster than original"
     
     
     //isFasterThan (fun () -> FSharpImprovedNBody.test 5000000) (fun () -> FSharpOriginalNBody.test 5000000) "NBody F# Improved faster then F# Original"
