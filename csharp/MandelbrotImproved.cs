@@ -63,6 +63,18 @@ public class MandelBrot
         Console.OpenStandardOutput().Write(data, 0, data.Length);        
     }
     
+    static void ParallelChunkFor(int n, int chunkSize, Action<int> a)
+    {
+        var e = (n-1)/chunkSize + 1;
+        Parallel.For(0, e, offset =>
+        {
+            offset *= chunkSize;
+            var max = Math.Min(offset+chunkSize,n);
+            for(int i=offset;i<max;i++)
+                a(i);
+        });
+    }
+
     public static byte[] Test (String[] args)
     {
         var n = args.Length > 0 ? Int32.Parse(args[0]) : 200;
@@ -70,7 +82,7 @@ public class MandelBrot
         double invN=2.0/n; for(int i=0;i<n;i++){ Crb[i]=i*invN-1.5; }
         int lineLen = (n-1)/8 + 1;
         var data = new byte[n*lineLen];
-        Parallel.For(0, n, y =>
+        ParallelChunkFor(n, 2, y =>
         {
             var Ciby = y*invN-1.0;
             var offset = y*lineLen;
