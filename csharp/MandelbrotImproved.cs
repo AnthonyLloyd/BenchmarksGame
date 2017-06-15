@@ -56,8 +56,9 @@ public class MandelBrot
         Parallel.For(0, n, y =>
         {
             var Ciby = y*invN-1.0;
+            var offset = y*lineLen;
             for(int x=0; x<lineLen; x++)
-                data[y*lineLen+x] = getByte(Crb, Ciby, x*8, y);
+                data[offset+x] = getByte(Crb, Ciby, x*8, y);
         });
         return data;
     }
