@@ -9,7 +9,6 @@ namespace Improved
 {
 
 using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -44,6 +43,24 @@ public class MandelBrot
             res=(res<<2)+b;
         }
         return (byte)(res^-1);
+    }
+
+    public static void Main (String[] args)
+    {
+        var n = args.Length > 0 ? Int32.Parse(args[0]) : 200;
+        var Crb = new double[n+7];
+        double invN=2.0/n; for(int i=0;i<n;i++){ Crb[i]=i*invN-1.5; }
+        int lineLen = (n-1)/8 + 1;
+        var data = new byte[n*lineLen];
+        Parallel.For(0, n, y =>
+        {
+            var Ciby = y*invN-1.0;
+            var offset = y*lineLen;
+            for(int x=0; x<lineLen; x++)
+                data[offset+x] = getByte(Crb, Ciby, x*8, y);
+        });
+        Console.Out.WriteLine("P4\n{0} {0}", n);        
+        Console.OpenStandardOutput().Write(data, 0, data.Length);        
     }
     
     public static byte[] Test (String[] args)
