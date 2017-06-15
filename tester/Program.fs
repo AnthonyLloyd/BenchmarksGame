@@ -17,7 +17,7 @@ let isFasterThanSub (f1:Performance.Measurer<_,_>->'a) (f2:Performance.Measurer<
   | Performance.MetricMoreThan (s1,s2) ->
     printfn "%s. Expected f1 (%s) to be faster than f2 (%s) but is ~%.0f%% slower." format (toString s1) (toString s2) ((s1.mean/s2.mean-1.0)*100.0)
   | Performance.MetricLessThan (s1,s2) ->
-    printfn "%s. f1 (%s) is %s faster than f2 (%s)." format (toString s1) (sprintf "~%.0f%%" ((1.0-s1.mean/s2.mean)*100.0)) (toString s2)
+    printfn "%s. f1 (%s) is %s faster than f2 (%s)." format (toString s1) (sprintf "~%.1f%%" ((1.0-s1.mean/s2.mean)*100.0)) (toString s2)
 
 /// Expects function `f1` is faster than `f2`. Statistical test to 99.99%
 /// confidence level.
