@@ -4,17 +4,18 @@
    contributed by Isaac Gouy, optimization and use of more C# idioms by Robert F. Tobler
 */
 
-namespace CSharpImproved
+namespace Working
 {
     using System;
+    using System.Threading.Tasks;
 
     public class NBody {
         public static void Main(String[] args) {
             int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
-            NBodySystem bodies = new NBodySystem();
-            Console.WriteLine("{0:f9}", bodies.Energy());
+            var bodies = new NBodySystem();
+            Console.WriteLine(bodies.Energy().ToString("f9"));
             bodies.Advance(0.01, n);
-            Console.WriteLine("{0:f9}", bodies.Energy());
+            Console.WriteLine(bodies.Energy().ToString("f9"));
         }
         public static Tuple<double,double> Test(int n)
         {            
@@ -22,7 +23,7 @@ namespace CSharpImproved
             var startEnergy = bodies.Energy();
             bodies.Advance(0.01, n);
             var endEnergy = bodies.Energy();
-            return Tuple.Create(Math.Round(startEnergy,9), Math.Round(endEnergy,9));
+            return Tuple.Create(Math.Round(startEnergy,10), Math.Round(endEnergy,10));
         }
     }
 
@@ -91,20 +92,21 @@ namespace CSharpImproved
         {
             for (int k=0; k<n; k++)
             {
-                for (int i=0; i<bodies.Length; i++)
+                Parallel.For(0, 5, (int i) =>
                 {
                     var bi = bodies[i];
-                    for (int j=i+1; j<bodies.Length; j++)
+                    for (int j=0; j<bodies.Length; j++)
                     {
+                        if(i==j) continue;
                         var bj = bodies[j];
                         double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
                         double d2 = dx * dx + dy * dy + dz * dz;
                         double mag = dt / (d2 * Math.Sqrt(d2));
-                        bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
-                        bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
-                        bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
+                        bi.vx -= dx * bj.mass * mag;
+                        bi.vy -= dy * bj.mass * mag;
+                        bi.vz -= dz * bj.mass * mag;
                     }
-                }
+                });
                 for (int i=0; i<bodies.Length; i++)
                 {
                     var bi = bodies[i];
