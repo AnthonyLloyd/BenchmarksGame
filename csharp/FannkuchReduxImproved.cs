@@ -12,9 +12,6 @@ using System.Threading.Tasks;
 
 public class FannkuchRedux
 {
-    static int NCHUNKS = 150;
-    static int CHUNKSZ;
-    static int NTASKS;
     static int n;
     static int[] Fact;
     
@@ -138,19 +135,19 @@ public class FannkuchRedux
     public static Tuple<int,int> Test(string[] args)
     {
         n = args.Length > 0 ? int.Parse(args[0]) : 7;
-        var nLen = n + 1;
-
-        Fact = new int[nLen];
+        
+        Fact = new int[n+1];
         Fact[0] = 1;
         var fact = 1;
-        for (int i = 1; i < nLen; ++i)
+        for (int i=1; i<Fact.Length; i++)
         {
             fact *= i;
             Fact[i] = fact;
         }
 
-        CHUNKSZ = (Fact[n] + NCHUNKS - 1) / NCHUNKS;
-        NTASKS = (Fact[n] + CHUNKSZ - 1) / CHUNKSZ;
+        var NCHUNKS = 150;
+        var CHUNKSZ = (Fact[n] + NCHUNKS - 1) / NCHUNKS;
+        var NTASKS = (Fact[n] + CHUNKSZ - 1) / CHUNKSZ;
         var maxFlips = new int[NTASKS];
         var chkSums = new int[NTASKS];
 
