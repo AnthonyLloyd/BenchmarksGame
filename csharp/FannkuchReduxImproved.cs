@@ -12,12 +12,15 @@ using System.Threading.Tasks;
 
 public class FannkuchRedux
 {
+    const int INT_SIZE = 4;
     static int n;
     static int[] Fact;
     
     int[] p, pp, count;
+    public int MaxFlips = 1;
+    public int Chksum = 0;
 
-    const int INT_SIZE = 4;
+
 
     void FirstPermutation(int idx)
     {
@@ -54,7 +57,7 @@ public class FannkuchRedux
             int next = p[0] = p[1];
             for (int j = 1; j < i; ++j)
             {
-                p[j] = p[j + 1];
+                p[j] = p[j+1];
             }
             p[i] = first;
             first = next;
@@ -85,8 +88,12 @@ public class FannkuchRedux
         return flips;
     }
 
-    Tuple<int,int> Run(int i, int iMax)
+    void Run(int i, int iMax)
     {   
+        p = new int[n];
+        pp = new int[n];
+        count = new int[n];
+
         FirstPermutation(i);
 
         int maxflips = 1;
@@ -104,27 +111,9 @@ public class FannkuchRedux
 
             NextPermutation();
         }
-        return Tuple.Create(maxflips, chksum);
+        MaxFlips = maxflips;
+        Chksum = chksum;
     }
-
-    public FannkuchRedux()
-    {
-        p = new int[n];
-        pp = new int[n];
-        count = new int[n];
-    }
-
-    // static void ParallelChunkFor(int n, int chunkSize, Action<int> a)
-    // {
-    //     var e = (n-1)/chunkSize + 1;
-    //     Parallel.For(0, e, offset =>
-    //     {
-    //         offset *= chunkSize;
-    //         var max = Math.Min(offset+chunkSize,n);
-    //         for(int i=offset;i<max;i++)
-    //             a(i);
-    //     });
-    // }
 
     public static Tuple<int,int> Test(string[] args)
     {
@@ -136,30 +125,23 @@ public class FannkuchRedux
         for (int i=1; i<Fact.Length; i++) { Fact[i] = fact *= i; }
         fact *= n;
 
-        var nTasks = Environment.ProcessorCount;
+        var nTasks = Environment.ProcessorCount*4;
         var taskSize = (fact - 1) / nTasks + 1;
-        
-        var maxFlips = new int[nTasks];
-        var chkSums = new int[nTasks];
-
-        Console.WriteLine("nTasks="+nTasks+",taskSize="+taskSize+",Check="+(nTasks*taskSize-fact));
-
+        var results = new FannkuchRedux[nTasks];
         Parallel.For(0, nTasks, t =>
         {
+            var fr = new FannkuchRedux();
+            results[t] = fr;
             var i = t*taskSize;
-            var tuple = new FannkuchRedux().Run(i, Math.Min(fact, i + taskSize));
-            maxFlips[t] = tuple.Item1;
-            chkSums[t] = tuple.Item2;
+            fr.Run(i, Math.Min(fact, i + taskSize));
         });
 
         int res = 0, chk = 0;
-        for (int v=0; v < nTasks; v++)
+        for (int i=0; i<results.Length; i++)
         {
-            chk += chkSums[v];
-        }
-        for (int v=0; v < nTasks; v++)
-        {
-            if (res < maxFlips[v]) res = maxFlips[v];
+            var result = results[i];
+            chk += result.Chksum;
+            if (res < result.MaxFlips) res = result.MaxFlips;
         }
         return Tuple.Create(chk,res);
     }
