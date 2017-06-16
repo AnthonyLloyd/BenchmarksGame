@@ -8,7 +8,6 @@ namespace Improved
 {
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 public class FannkuchRedux
@@ -18,10 +17,7 @@ public class FannkuchRedux
     static int NTASKS;
     static int n;
     static int[] Fact;
-    static int[] maxFlips;
-    static int[] chkSums;
-    static int taskId;
-
+    
     int[] p, pp, count;
 
     const int INT_SIZE = 4;
@@ -93,16 +89,13 @@ public class FannkuchRedux
         return flips;
     }
 
-    void RunTask(int task)
-    {
-        int idxMin = task * CHUNKSZ;
-        int idxMax = Math.Min(Fact[n], idxMin + CHUNKSZ);
-
-        FirstPermutation(idxMin);
+    Tuple<int,int> Run(int i, int iMax)
+    {   
+        FirstPermutation(i);
 
         int maxflips = 1;
         int chksum = 0;
-        for (int i = idxMin; ;)
+        for (;;)
         {
             if (p[0] != 0)
             {
@@ -113,15 +106,14 @@ public class FannkuchRedux
                 chksum += i % 2 == 0 ? flips : -flips;
             }
 
-            if (++i == idxMax)
+            if (++i == iMax)
             {
                 break;
             }
 
             NextPermutation();
         }
-        maxFlips[task] = maxflips;
-        chkSums[task] = chksum;
+        return Tuple.Create(maxflips, chksum);
     }
 
     public FannkuchRedux()
@@ -131,85 +123,55 @@ public class FannkuchRedux
         count = new int[n];
     }
 
-    public void Run()
-    {
-        int task;
-        while ((task = Interlocked.Increment(ref taskId)) < NTASKS)
-        {
-            RunTask(task);
-        }
-    }
+    // static void ParallelChunkFor(int n, int chunkSize, Action<int> a)
+    // {
+    //     var e = (n-1)/chunkSize + 1;
+    //     Parallel.For(0, e, offset =>
+    //     {
+    //         offset *= chunkSize;
+    //         var max = Math.Min(offset+chunkSize,n);
+    //         for(int i=offset;i<max;i++)
+    //             a(i);
+    //     });
+    // }
 
-    public static int[] Test(string[] args)
+    public static Tuple<int,int> Test(string[] args)
     {
-        n = 7;
-        if (args.Length > 0) n = int.Parse(args[0]);
-
+        n = args.Length > 0 ? int.Parse(args[0]) : 7;
         var nLen = n + 1;
 
         Fact = new int[nLen];
         Fact[0] = 1;
+        var fact = 1;
         for (int i = 1; i < nLen; ++i)
         {
-            Fact[i] = Fact[i - 1] * i;
+            fact *= i;
+            Fact[i] = fact;
         }
 
-        
-        var test = new FannkuchRedux();
-        test.FirstPermutation(6);
+        CHUNKSZ = (Fact[n] + NCHUNKS - 1) / NCHUNKS;
+        NTASKS = (Fact[n] + CHUNKSZ - 1) / CHUNKSZ;
+        var maxFlips = new int[NTASKS];
+        var chkSums = new int[NTASKS];
 
-        return test.p;
+        Parallel.For(0, NTASKS, t =>
+        {
+            var i = t*CHUNKSZ;
+            var tuple = new FannkuchRedux().Run(i, Math.Min(Fact[n], i + CHUNKSZ));
+            maxFlips[t] = tuple.Item1;
+            chkSums[t] = tuple.Item2;
+        });
 
-        // CHUNKSZ = (Fact[n] + NCHUNKS - 1) / NCHUNKS;
-        // NTASKS = (Fact[n] + CHUNKSZ - 1) / CHUNKSZ;
-        // maxFlips = new int[NTASKS];
-        // chkSums = new int[NTASKS];
-        // taskId = -1;
-
-        // int nthreads = Environment.ProcessorCount + 1;
-
-        // Task[] tasks = new Task[nthreads];
-        // for (int i = 0; i < nthreads; ++i)
-        // {
-        //     tasks[i] = Task.Run(() =>
-        //    {
-        //        new FannkuchRedux().Run();
-        //    });
-        // }
-        // Task.WaitAll(tasks);
-
-        // int res = 0, chk = 0;
-
-        // //
-        // // Would parallelizing this loop make any difference?
-        // //
-        // //for (int v = 0; v < NTASKS; v++)
-        // //{
-        // //    if (res < maxFlips[v]) res = maxFlips[v];
-        // //    chk += chkSums[v];
-        // //}
-
-        // Task[] t2 =
-        // {
-        //     Task.Run(() =>
-        //     {
-        //         for (int v=0; v < NTASKS; v++)
-        //         {
-        //             chk += chkSums[v];
-        //         }
-        //     }),
-
-        //     Task.Run(() =>
-        //     {
-        //         for (int v=0; v < NTASKS; v++)
-        //         {
-        //             if (res < maxFlips[v]) res = maxFlips[v];
-        //         }
-        //     })
-        // };
-
-        // Task.WaitAll(t2);
-        // return Tuple.Create(chk,res);
+        int res = 0, chk = 0;
+        for (int v=0; v < NTASKS; v++)
+        {
+            chk += chkSums[v];
+        }
+        for (int v=0; v < NTASKS; v++)
+        {
+            if (res < maxFlips[v]) res = maxFlips[v];
+        }
+        return Tuple.Create(chk,res);
     }
 }
 
