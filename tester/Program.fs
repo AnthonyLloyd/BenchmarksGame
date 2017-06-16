@@ -35,9 +35,13 @@ let main argv =
 
     //Improved.MandelBrot.Main([|"16000"|])
     //isFasterThan (fun () -> Improved.MandelBrot.Test [|"16000"|]) (fun () -> MandelBrot.Test [|"16000"|]) "Improved C# Mandelbrot faster than original"
-    
-    FannkuchRedux.Test([|"7"|]) |> printfn "%A"
-    Improved.FannkuchRedux.Test([|"7"|]) |> printfn "%A"
+    let start = System.Diagnostics.Stopwatch.GetTimestamp();
+    FannkuchRedux.Test([|"12"|]) |> printfn "%A"
+    let end1 = System.Diagnostics.Stopwatch.GetTimestamp();
+    Improved.FannkuchRedux.Test([|"12"|]) |> printfn "%A"
+    let end2 = System.Diagnostics.Stopwatch.GetTimestamp();
+    Console.WriteLine(end1-start);
+    Console.WriteLine(end2-end1);
     //isFasterThan (fun () -> Improved.FannkuchRedux.Test [|"12"|]) (fun () -> FannkuchRedux.Test [|"12"|]) "Improved C# FannkuchRedux faster than original"
     //printfn "%A" (Improved.FannkuchRedux.Test([|"12"|]));
     

@@ -41,7 +41,7 @@ public class FannkuchRedux
         }
     }
 
-    bool NextPermutation()
+    void NextPermutation()
     {
         int first = p[1];
         p[1] = p[0];
@@ -59,7 +59,6 @@ public class FannkuchRedux
             p[i] = first;
             first = next;
         }
-        return true;
     }
 
     int CountFlips()
@@ -97,16 +96,11 @@ public class FannkuchRedux
             if (p[0] != 0)
             {
                 int flips = CountFlips();
-
                 if (maxflips < flips) maxflips = flips;
-
                 chksum += i % 2 == 0 ? flips : -flips;
             }
 
-            if (++i == iMax)
-            {
-                break;
-            }
+            if (++i == iMax) break;
 
             NextPermutation();
         }
@@ -136,35 +130,34 @@ public class FannkuchRedux
     {
         n = args.Length > 0 ? int.Parse(args[0]) : 7;
         
-        Fact = new int[n+1];
+        Fact = new int[n];
         Fact[0] = 1;
         var fact = 1;
-        for (int i=1; i<Fact.Length; i++)
-        {
-            fact *= i;
-            Fact[i] = fact;
-        }
+        for (int i=1; i<Fact.Length; i++) { Fact[i] = fact *= i; }
+        fact *= n;
 
-        var NCHUNKS = 150;
-        var CHUNKSZ = (Fact[n] + NCHUNKS - 1) / NCHUNKS;
-        var NTASKS = (Fact[n] + CHUNKSZ - 1) / CHUNKSZ;
-        var maxFlips = new int[NTASKS];
-        var chkSums = new int[NTASKS];
+        var nTasks = Environment.ProcessorCount;
+        var taskSize = (fact - 1) / nTasks + 1;
+        
+        var maxFlips = new int[nTasks];
+        var chkSums = new int[nTasks];
 
-        Parallel.For(0, NTASKS, t =>
+        Console.WriteLine("nTasks="+nTasks+",taskSize="+taskSize+",Check="+(nTasks*taskSize-fact));
+
+        Parallel.For(0, nTasks, t =>
         {
-            var i = t*CHUNKSZ;
-            var tuple = new FannkuchRedux().Run(i, Math.Min(Fact[n], i + CHUNKSZ));
+            var i = t*taskSize;
+            var tuple = new FannkuchRedux().Run(i, Math.Min(fact, i + taskSize));
             maxFlips[t] = tuple.Item1;
             chkSums[t] = tuple.Item2;
         });
 
         int res = 0, chk = 0;
-        for (int v=0; v < NTASKS; v++)
+        for (int v=0; v < nTasks; v++)
         {
             chk += chkSums[v];
         }
-        for (int v=0; v < NTASKS; v++)
+        for (int v=0; v < nTasks; v++)
         {
             if (res < maxFlips[v]) res = maxFlips[v];
         }
