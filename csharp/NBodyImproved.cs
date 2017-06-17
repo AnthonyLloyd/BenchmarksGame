@@ -89,7 +89,7 @@ namespace Improved
 
         public void Advance(double dt, int n)
         {
-            for (int k=0; k<n; k++)
+            for (; n>0; n--)
             {
                 for (int i=0; i<bodies.Length; i++)
                 {
