@@ -8,34 +8,16 @@ namespace Improved
 {
     using System;
 
-    public class NBody {
-        public static void Main(String[] args) {
-            int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
-            var bodies = new NBodySystem();
-            Console.WriteLine(bodies.Energy().ToString("f9"));
-            bodies.Advance(0.01, n);
-            Console.WriteLine(bodies.Energy().ToString("f9"));
-        }
-        public static Tuple<double,double> Test(int n)
-        {            
-            var bodies = new NBodySystem();
-            var startEnergy = bodies.Energy();
-            bodies.Advance(0.01, n);
-            var endEnergy = bodies.Energy();
-            return Tuple.Create(Math.Round(startEnergy,10), Math.Round(endEnergy,10));
-        }
-    }
-
     class Body { public double x, y, z, vx, vy, vz, mass; }
 
-    class NBodySystem
+    public class NBody
     {
         const double Pi = 3.141592653589793;
         const double Solarmass = 4 * Pi * Pi;
         const double DaysPeryear = 365.24;
         Body[] bodies;
 
-        public NBodySystem()
+        public NBody()
         {
             var sun = new Body {mass = Solarmass};
             bodies = new Body[]
@@ -128,6 +110,24 @@ namespace Improved
                 }
             }
             return e;
+        }
+
+        public static void Main(String[] args)
+        {
+            int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
+            var bodies = new NBody();
+            Console.WriteLine(bodies.Energy().ToString("f9"));
+            bodies.Advance(0.01, n);
+            Console.WriteLine(bodies.Energy().ToString("f9"));
+        }
+
+        public static Tuple<double,double> Test(int n)
+        {            
+            var bodies = new NBody();
+            var startEnergy = bodies.Energy();
+            bodies.Advance(0.01, n);
+            var endEnergy = bodies.Energy();
+            return Tuple.Create(Math.Round(startEnergy,10), Math.Round(endEnergy,10));
         }
     }
 }
