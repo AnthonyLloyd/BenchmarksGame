@@ -32,5 +32,5 @@ Java    21.54
 
 Improved C# NBody faster than original. f1 (6291.6044 ± 5.6276 ms) is ~4.1% faster than f2 (6557.9256 ± 7.2672 ms).
 
-Estimated to be 20.81
+Submitted, Estimated to be 20.80
 
