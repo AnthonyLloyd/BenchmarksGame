@@ -7,20 +7,22 @@
 namespace Improved
 {
     using System;
+    using System.Threading.Tasks;
+    using System.Runtime.CompilerServices;
 
     class Body { public double x, y, z, vx, vy, vz, mass; }
 
-    public class NBody
+    public static class NBody
     {
-        const double Pi = 3.141592653589793;
-        const double Solarmass = 4 * Pi * Pi;
-        const double DaysPeryear = 365.24;
-        Body[] bodies;
-
-        public NBody()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static Body[] createBodies()
         {
+            const double Pi = 3.141592653589793;
+            const double Solarmass = 4 * Pi * Pi;
+            const double DaysPeryear = 365.24;
+
             var sun = new Body {mass = Solarmass};
-            bodies = new Body[]
+            var bodies = new Body[]
             {
                 sun,
                 new Body { // Jupiter
@@ -67,9 +69,11 @@ namespace Improved
                 px += bi.vx * bi.mass; py += bi.vy * bi.mass; pz += bi.vz * bi.mass;
             }
             sun.vx = -px/Solarmass; sun.vy = -py/Solarmass; sun.vz = -pz/Solarmass;
+            return bodies;
         }
 
-        public void Advance(double dt, int n)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void advance(Body[] bodies, double dt, int n)
         {
             for (; n>0; n--)
             {
@@ -95,7 +99,8 @@ namespace Improved
             }
         }
 
-        public double Energy()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static double energy(Body[] bodies)
         {
             double e = 0.0;
             for (int i=0; i<bodies.Length; i++)
@@ -115,18 +120,18 @@ namespace Improved
         public static void Main(String[] args)
         {
             int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
-            var bodies = new NBody();
-            Console.WriteLine(bodies.Energy().ToString("f9"));
-            bodies.Advance(0.01, n);
-            Console.WriteLine(bodies.Energy().ToString("f9"));
+            var bodies = createBodies();
+            Console.WriteLine(energy(bodies).ToString("f9"));
+            advance(bodies, 0.01, n);
+            Console.WriteLine(energy(bodies).ToString("f9"));
         }
 
         public static Tuple<double,double> Test(int n)
         {            
-            var bodies = new NBody();
-            var startEnergy = bodies.Energy();
-            bodies.Advance(0.01, n);
-            var endEnergy = bodies.Energy();
+            var bodies = createBodies();
+            var startEnergy = energy(bodies);
+            advance(bodies, 0.01, n);
+            var endEnergy = energy(bodies);
             return Tuple.Create(Math.Round(startEnergy,10), Math.Round(endEnergy,10));
         }
     }
