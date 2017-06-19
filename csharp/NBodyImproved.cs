@@ -13,7 +13,6 @@ namespace Improved
 
     public static class NBody
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static Body[] createBodies()
         {
             const double Pi = 3.141592653589793;
