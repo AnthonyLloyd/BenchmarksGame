@@ -14,8 +14,9 @@ public class NBody {
         for (int i = 0; i < n; i++) bodies.Advance(0.01);
         Console.WriteLine("{0:f9}", bodies.Energy());
     }
-    public static Tuple<double,double> Test(int n)
+    public static Tuple<double,double> Test(String[] args)
     {
+        int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
         NBodySystem bodies = new NBodySystem();
         var startEnergy = bodies.Energy();
         for (int i = 0; i < n; i++) bodies.Advance(0.01);

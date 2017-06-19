@@ -72,29 +72,26 @@ namespace Improved
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static void advance(Body[] bodies, double dt, int n)
+        static void advance(Body[] bodies, double dt)
         {
-            for (; n>0; n--)
+            for (int i=0; i<bodies.Length-1; i++)
             {
-                for (int i=0; i<bodies.Length-1; i++)
+                var bi = bodies[i];
+                for (int j=i+1; j<bodies.Length; j++)
                 {
-                    var bi = bodies[i];
-                    for (int j=i+1; j<bodies.Length; j++)
-                    {
-                        var bj = bodies[j];
-                        double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
-                        double d2 = dx * dx + dy * dy + dz * dz;
-                        double mag = dt / (d2 * Math.Sqrt(d2));
-                        bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
-                        bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
-                        bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
-                    }
+                    var bj = bodies[j];
+                    double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
+                    double d2 = dx * dx + dy * dy + dz * dz;
+                    double mag = dt / (d2 * Math.Sqrt(d2));
+                    bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
+                    bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
+                    bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
                 }
-                for (int i=0; i<bodies.Length; i++)
-                {
-                    var bi = bodies[i];
-                    bi.x += dt * bi.vx; bi.y += dt * bi.vy; bi.z += dt * bi.vz;
-                }
+            }
+            for (int i=0; i<bodies.Length; i++)
+            {
+                var bi = bodies[i];
+                bi.x += dt * bi.vx; bi.y += dt * bi.vy; bi.z += dt * bi.vz;
             }
         }
 
@@ -118,18 +115,21 @@ namespace Improved
 
         public static void Main(String[] args)
         {
-            int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
+            int n = args.Length > 0 ? int.Parse(args[0]) : 10000;
             var bodies = createBodies();
             Console.WriteLine(energy(bodies).ToString("f9"));
-            advance(bodies, 0.01, n);
+            const double dt = 0.01;
+            for (;n>0;n--) advance(bodies, dt);
             Console.WriteLine(energy(bodies).ToString("f9"));
         }
 
-        public static Tuple<double,double> Test(int n)
+        public static Tuple<double,double> Test(String[] args)
         {            
+            int n = args.Length > 0 ? int.Parse(args[0]) : 10000;
             var bodies = createBodies();
             var startEnergy = energy(bodies);
-            advance(bodies, 0.01, n);
+            const double dt = 0.01;
+            for (;n>0;n--) advance(bodies, dt);
             var endEnergy = energy(bodies);
             return Tuple.Create(Math.Round(startEnergy,10), Math.Round(endEnergy,10));
         }
