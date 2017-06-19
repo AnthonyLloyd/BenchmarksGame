@@ -7,7 +7,6 @@
 namespace Improved
 {
     using System;
-    using System.Threading.Tasks;
     using System.Runtime.CompilerServices;
 
     class Body { public double x, y, z, vx, vy, vz, mass; }
@@ -77,7 +76,7 @@ namespace Improved
         {
             for (; n>0; n--)
             {
-                for (int i=0; i<bodies.Length; i++)
+                for (int i=0; i<bodies.Length-1; i++)
                 {
                     var bi = bodies[i];
                     for (int j=i+1; j<bodies.Length; j++)

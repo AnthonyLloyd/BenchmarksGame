@@ -34,7 +34,7 @@ let main argv =
     
     //NBody.Main([|"50000000"|])
     //Improved.NBody.Main([|"50000000"|])
-    isFasterThan (fun () -> Improved.NBody.Test 50000000) (fun () -> NBody.Test 50000000) "Improved C# NBody faster than original"
+    isFasterThan (fun () -> Improved.NBody.Test 500000) (fun () -> NBody.Test 500000) "Improved C# NBody faster than original"
 
     
 
