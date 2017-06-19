@@ -30,15 +30,19 @@ public class FannkuchRedux
 
         for (int i = count.Length-1; i>0; i--)
         {
-            int d = idx / Fact[i];
-            count[i] = d;
-            idx = idx % Fact[i];
-
-            Buffer.BlockCopy(p, 0, pp, 0, (i+1) * INT_SIZE);
-
-            for (int j = 0; j <= i; j++)
+            var f = Fact[i];
+            int d = idx / f;
+            if(d>0)
             {
-                p[j] = j + d <= i ? pp[j + d] : pp[j + d - i - 1];
+                count[i] = d;
+                idx = idx % f;
+
+                Buffer.BlockCopy(p, 0, pp, 0, (i+1) * INT_SIZE);
+
+                for (int j = 0; j <= i; j++)
+                {
+                    p[j] = pp[(j + d)%(i+1)];
+                }
             }
         }
     }
