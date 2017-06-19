@@ -10,6 +10,7 @@ namespace Improved
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 public class FannkuchRedux
 {
@@ -21,27 +22,31 @@ public class FannkuchRedux
     
     int[] p, pp, count;
 
+    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // void rotate(int i,int d)
+    // {
+    //     Buffer.BlockCopy(p, 0, pp, 0, d * INT_SIZE);
+    //     Buffer.BlockCopy(p, d * INT_SIZE, p, 0, (i-d) * INT_SIZE);
+    //     Buffer.BlockCopy(pp, 0, p, (i-d) * INT_SIZE, d * INT_SIZE);
+    // }
     void FirstPermutation(int idx)
     {
-        for (int i = 0; i<p.Length; i++)
+        for (int i = 0; i < p.Length; ++i)
         {
             p[i] = i;
         }
 
-        for (int i = count.Length-1; i>0; i--)
+        for (int i = count.Length - 1; i > 0; --i)
         {
-            var f = Fact[i];
-            int d = idx / f;
+            int d = idx / Fact[i];
+            count[i] = d;
             if(d>0)
             {
-                count[i] = d;
-                idx = idx % f;
-
-                Buffer.BlockCopy(p, 0, pp, 0, (i+1) * INT_SIZE);
-
-                for (int j = 0; j <= i; j++)
+                idx = idx % Fact[i];
+                Buffer.BlockCopy(p, 0, pp, 0, (i + 1) * INT_SIZE);
+                for (int j = 0; j <= i; ++j)
                 {
-                    p[j] = pp[(j + d)%(i+1)];
+                    p[j] = pp[(j+d)%(i+1)];
                 }
             }
         }
@@ -58,7 +63,7 @@ public class FannkuchRedux
         {
             count[i++] = 0;
             int next = p[0] = p[1];
-            for (int j = 0; j<i; j++)
+            for (int j = 1; j<i; j++)
             {
                 p[j] = p[j+1];
             }
@@ -138,7 +143,7 @@ public class FannkuchRedux
         MaxFlips = 1;
         Chksum = 0;
 
-        nTasks = 150;
+        nTasks = 12*11*10*9*8;
         taskSize = (fact-1) / nTasks + 1;
 
         var tasks = new Thread[Environment.ProcessorCount-1];
@@ -149,7 +154,6 @@ public class FannkuchRedux
             thread.Start();
             tasks[i] = thread;
         }
-        //Task.WaitAll(tasks);
         new FannkuchRedux().Run(--nTasks);
         for(int i=0; i<tasks.Length; i++)
         {
