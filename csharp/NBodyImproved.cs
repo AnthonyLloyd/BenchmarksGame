@@ -9,20 +9,21 @@ namespace Improved
     using System;
     using System.Runtime.CompilerServices;
 
+    class Body { public double x, y, z, vx, vy, vz, mass; }
+
     public class NBody
     {
-        double x, y, z, vx, vy, vz, mass;
-        static NBody[] createBodies()
+        static Body[] createBodies()
         {
             const double Pi = 3.141592653589793;
             const double Solarmass = 4 * Pi * Pi;
             const double DaysPeryear = 365.24;
 
-            var sun = new NBody {mass = Solarmass};
-            var bodies = new NBody[]
+            var sun = new Body {mass = Solarmass};
+            var bodies = new Body[]
             {
                 sun,
-                new NBody { // Jupiter
+                new Body { // Jupiter
                     x = 4.84143144246472090e+00,
                     y = -1.16032004402742839e+00,
                     z = -1.03622044471123109e-01,
@@ -31,7 +32,7 @@ namespace Improved
                     vz = -6.90460016972063023e-05 * DaysPeryear,
                     mass = 9.54791938424326609e-04 * Solarmass,
                 },
-                new NBody { // Saturn
+                new Body { // Saturn
                     x = 8.34336671824457987e+00,
                     y = 4.12479856412430479e+00,
                     z = -4.03523417114321381e-01,
@@ -40,7 +41,7 @@ namespace Improved
                     vz = 2.30417297573763929e-05 * DaysPeryear,
                     mass = 2.85885980666130812e-04 * Solarmass,
                 },
-                new NBody { // Uranus
+                new Body { // Uranus
                     x = 1.28943695621391310e+01,
                     y = -1.51111514016986312e+01,
                     z = -2.23307578892655734e-01,
@@ -49,7 +50,7 @@ namespace Improved
                     vz = -2.96589568540237556e-05 * DaysPeryear,
                     mass = 4.36624404335156298e-05 * Solarmass,
                 },
-                new NBody { // Neptune
+                new Body { // Neptune
                     x = 1.53796971148509165e+01,
                     y = -2.59193146099879641e+01,
                     z = 1.79258772950371181e-01,
@@ -70,7 +71,7 @@ namespace Improved
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static void advance(NBody[] bodies, double dt)
+        static void advance(Body[] bodies, double dt)
         {
             for (int i=0; i<bodies.Length-1; i++)
             {
@@ -94,7 +95,7 @@ namespace Improved
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static double energy(NBody[] bodies)
+        static double energy(Body[] bodies)
         {
             double e = 0.0;
             for (int i=0; i<bodies.Length; i++)
