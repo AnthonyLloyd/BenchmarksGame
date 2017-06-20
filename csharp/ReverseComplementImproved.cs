@@ -12,16 +12,19 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
 struct section { public byte[] data; public int length; }
+struct sequence { public List<section> data; public int startHead,start,end; }
 
 public static class revcompImproved
 {
     const int READER_BUFFER_SIZE = 1024*16;
     static BlockingCollection<section> readQue = new BlockingCollection<section>();
-    static BlockingCollection<section> writeQue = new BlockingCollection<section>();
+
+    static BlockingCollection<sequence> writeQue = new BlockingCollection<sequence>();
 
     static byte[] getBuffer()
     {
