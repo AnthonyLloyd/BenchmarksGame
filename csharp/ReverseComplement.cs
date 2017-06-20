@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-static class revcomp
+public static class revcomp
 {
     static BlockingCollection<byte[]> readQue = new BlockingCollection<byte[]>();
     static BlockingCollection<RCBlock> inQue = new BlockingCollection<RCBlock>();
@@ -30,7 +30,7 @@ static class revcomp
     const string Seq = "ABCDGHKMRTVYabcdghkmrtvy";
     const string Rev = "TVGHCDMKYABRTVGHCDMKYABR";
 
-    static void Main(string[] args)
+    public static void Main(string[] args)
     {
         Task.Run(() => Reader());
 
