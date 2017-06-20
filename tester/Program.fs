@@ -29,12 +29,16 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
+    //let v = 1.2345678901
+    //isFasterThan (fun () -> Console.WriteLine(v.ToString("f9"))) (fun () -> Console.WriteLine("{0:f9}",v)) "output"
+    
     //Improved.MandelBrot.Main([|"16000"|])
     //isFasterThan (fun () -> Improved.MandelBrot.Test [|"16000"|]) (fun () -> MandelBrot.Test [|"16000"|]) "Improved C# Mandelbrot faster than original"
     
     //NBody.Main([|"50000000"|])
     //Improved.NBody.Main([|"50000000"|])
-    //isFasterThan (fun () -> Improved.NBody.Test [|"50000000"|]) (fun () -> NBody.Test [|"50000000"|]) "Improved C# NBody faster than original"
+    // NBody.Test [|"50000000"|] |> ignore
+    isFasterThan (fun () -> Improved.NBody.Test [|"50000000"|]) (fun () -> NBody.Test [|"50000000"|]) "Improved C# NBody faster than original"
 
     
 
@@ -55,7 +59,7 @@ let main argv =
     // Console.WriteLine(end1-start);
     // Console.WriteLine(end2-end1);
 
-    isFasterThan (fun () -> Improved.FannkuchRedux.Test [|"12"|]) (fun () -> FannkuchRedux.Test [|"12"|]) "Improved C# FannkuchRedux faster than original"
+    //isFasterThan (fun () -> Improved.FannkuchRedux.Test [|"12"|]) (fun () -> FannkuchRedux.Test [|"12"|]) "Improved C# FannkuchRedux faster than original"
     //printfn "%A" (Improved.FannkuchRedux.Test([|"12"|]));
     
     //isFasterThan (fun () -> FSharpImprovedNBody.test 5000000) (fun () -> FSharpOriginalNBody.test 5000000) "NBody F# Improved faster then F# Original"
