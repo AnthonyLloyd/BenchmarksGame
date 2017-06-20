@@ -21,9 +21,7 @@ namespace Improved
             const double Solarmass = 4 * Pi * Pi;
             const double DaysPeryear = 365.24;
             var bodies = new Body[] {
-                new Body { // Sun
-                    mass = Solarmass,
-                },
+                null, // Sun
                 new Body { // Jupiter
                     x = 4.84143144246472090e+00,
                     y = -1.16032004402742839e+00,
@@ -63,12 +61,20 @@ namespace Improved
             };
 
             double px = 0.0, py = 0.0, pz = 0.0;
-            foreach (var b in bodies)
+            for(int i=1; i<bodies.Length; i++)
             {
+                var b = bodies[i];
                 px += b.vx * b.mass; py += b.vy * b.mass; pz += b.vz * b.mass;
             }
-            var sol = bodies[0];
-            sol.vx = -px/Solarmass; sol.vy = -py/Solarmass; sol.vz = -pz/Solarmass;
+
+            bodies[0] =
+                new Body { // Sun
+                    mass = Solarmass,
+                    vx = -px/Solarmass,
+                    vy = -py/Solarmass,
+                    vz = -pz/Solarmass,
+                };
+
             return bodies;
         }
 
@@ -124,8 +130,8 @@ namespace Improved
         {
             int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
             var bodies = createBodies();
-            var pairs = createPairs(bodies);
             Console.WriteLine(energy(bodies).ToString("f9"));
+            var pairs = createPairs(bodies);
             const double dt = 0.01;
             while(n-->0) advance(bodies, pairs, dt);
             Console.WriteLine(energy(bodies).ToString("f9"));
@@ -135,8 +141,8 @@ namespace Improved
         {            
             int n = args.Length > 0 ? int.Parse(args[0]) : 10000;
             var bodies = createBodies();
-            var pairs = createPairs(bodies);
             var startEnergy = energy(bodies);
+            var pairs = createPairs(bodies);
             const double dt = 0.01;
             while(n-->0) advance(bodies, pairs, dt);
             var endEnergy = energy(bodies);
