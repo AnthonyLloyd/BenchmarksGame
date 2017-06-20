@@ -20,9 +20,7 @@ namespace Improved
             const double Pi = 3.141592653589793;
             const double Solarmass = 4 * Pi * Pi;
             const double DaysPeryear = 365.24;
-            var bodies = new Body[] {
-                null, // Sun
-                new Body { // Jupiter
+            var jupiter = new Body {
                     x = 4.84143144246472090e+00,
                     y = -1.16032004402742839e+00,
                     z = -1.03622044471123109e-01,
@@ -30,8 +28,8 @@ namespace Improved
                     vy = 7.69901118419740425e-03 * DaysPeryear,
                     vz = -6.90460016972063023e-05 * DaysPeryear,
                     mass = 9.54791938424326609e-04 * Solarmass,
-                },
-                new Body { // Saturn
+                };
+            var saturn = new Body {
                     x = 8.34336671824457987e+00,
                     y = 4.12479856412430479e+00,
                     z = -4.03523417114321381e-01,
@@ -39,8 +37,8 @@ namespace Improved
                     vy = 4.99852801234917238e-03 * DaysPeryear,
                     vz = 2.30417297573763929e-05 * DaysPeryear,
                     mass = 2.85885980666130812e-04 * Solarmass,
-                },
-                new Body { // Uranus
+                };
+            var uranus = new Body {
                     x = 1.28943695621391310e+01,
                     y = -1.51111514016986312e+01,
                     z = -2.23307578892655734e-01,
@@ -48,8 +46,8 @@ namespace Improved
                     vy = 2.37847173959480950e-03 * DaysPeryear,
                     vz = -2.96589568540237556e-05 * DaysPeryear,
                     mass = 4.36624404335156298e-05 * Solarmass,
-                },
-                new Body { // Neptune
+                };
+            var neptune = new Body {
                     x = 1.53796971148509165e+01,
                     y = -2.59193146099879641e+01,
                     z = 1.79258772950371181e-01,
@@ -57,25 +55,17 @@ namespace Improved
                     vy = 1.62824170038242295e-03 * DaysPeryear,
                     vz = -9.51592254519715870e-05 * DaysPeryear,
                     mass = 5.15138902046611451e-05 * Solarmass,
-                },
-            };
-
-            double px = 0.0, py = 0.0, pz = 0.0;
-            for(int i=1; i<bodies.Length; i++)
-            {
-                var b = bodies[i];
-                px += b.vx * b.mass; py += b.vy * b.mass; pz += b.vz * b.mass;
-            }
-
-            bodies[0] =
-                new Body { // Sun
-                    mass = Solarmass,
-                    vx = -px/Solarmass,
-                    vy = -py/Solarmass,
-                    vz = -pz/Solarmass,
                 };
-
-            return bodies;
+            var sun = new Body {
+                    mass = Solarmass,
+                    vx = (jupiter.vx * jupiter.mass + saturn.vx * saturn.mass
+                         +uranus.vx * uranus.mass + neptune.vx * neptune.mass)/-Solarmass,
+                    vy = (jupiter.vy * jupiter.mass + saturn.vy * saturn.mass
+                         +uranus.vy * uranus.mass + neptune.vy * neptune.mass)/-Solarmass,
+                    vz = (jupiter.vz * jupiter.mass + saturn.vz * saturn.mass
+                         +uranus.vz * uranus.mass + neptune.vz * neptune.mass)/-Solarmass,
+                };
+            return new Body[] {sun, jupiter, saturn, uranus, neptune};
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -133,7 +123,7 @@ namespace Improved
             Console.WriteLine(energy(bodies).ToString("f9"));
             var pairs = createPairs(bodies);
             const double dt = 0.01;
-            while(n-->0) advance(bodies, pairs, dt);
+            for(;n>0;n--) advance(bodies, pairs, dt);
             Console.WriteLine(energy(bodies).ToString("f9"));
         }
 
@@ -144,7 +134,7 @@ namespace Improved
             var startEnergy = energy(bodies);
             var pairs = createPairs(bodies);
             const double dt = 0.01;
-            while(n-->0) advance(bodies, pairs, dt);
+            for(;n>0;n--) advance(bodies, pairs, dt);
             var endEnergy = energy(bodies);
             return Tuple.Create(Math.Round(startEnergy,10), Math.Round(endEnergy,10));
         }
