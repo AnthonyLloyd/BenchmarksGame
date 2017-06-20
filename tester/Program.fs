@@ -29,18 +29,16 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
-    //let v = 1.2345678901
-    //isFasterThan (fun () -> Console.WriteLine(v.ToString("f9"))) (fun () -> Console.WriteLine("{0:f9}",v)) "output"
-    
     //Improved.MandelBrot.Main([|"16000"|])
     //isFasterThan (fun () -> Improved.MandelBrot.Test [|"16000"|]) (fun () -> MandelBrot.Test [|"16000"|]) "Improved C# Mandelbrot faster than original"
     
     //NBody.Main([|"50000000"|])
     //Improved.NBody.Main([|"50000000"|])
     // NBody.Test [|"50000000"|] |> ignore
-    isFasterThan (fun () -> Improved.NBody.Test [|"50000000"|]) (fun () -> NBody.Test [|"50000000"|]) "Improved C# NBody faster than original"
+    //isFasterThan (fun () -> Improved.NBody.Test [|"50000000"|]) (fun () -> NBody.Test [|"50000000"|]) "Improved C# NBody faster than original"
 
-    
+    // Create big faster file
+    // Fasta.Main(argv)
 
 
     // let start = System.Diagnostics.Stopwatch.GetTimestamp();
