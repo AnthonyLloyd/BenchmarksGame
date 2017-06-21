@@ -21,7 +21,7 @@ class sequence { public List<page> pages; public int startHeader, endExclusive; 
 
 public static class revcompImproved
 {
-    const int READER_BUFFER_SIZE = 10;
+    const int READER_BUFFER_SIZE = 3;
     static BlockingCollection<page> readQue = new BlockingCollection<page>();
     static BlockingCollection<sequence> groupQue = new BlockingCollection<sequence>();
     static BlockingCollection<sequence> writeQue = new BlockingCollection<sequence>();
@@ -47,7 +47,6 @@ public static class revcompImproved
                 buffer = borrowBuffer();
                 bytesRead = stream.Read(buffer, 0, READER_BUFFER_SIZE);
                 if (bytesRead == 0) break;
-                //Console.Error.WriteLine("add");
                 readQue.Add(new page { data = buffer, length = bytesRead });
             }
             readQue.CompleteAdding();
@@ -72,7 +71,7 @@ public static class revcompImproved
             {
                 if (bytes[i] == GT)
                 {
-                    Console.Error.WriteLine("put on "+data.Count);
+                    Console.Error.WriteLine("grouped "+data.Count);
                     groupQue.Add(new sequence { pages = data, startHeader = startHeader, endExclusive = i });
                     startHeader = i;
                     data = new List<page> { page };
@@ -80,7 +79,7 @@ public static class revcompImproved
             }
             i = 0;
         }
-        Console.Error.WriteLine("put on "+data.Count);
+        Console.Error.WriteLine("grouped "+data.Count);
         groupQue.Add(new sequence { pages = data, startHeader = startHeader, endExclusive = page.length });
         groupQue.CompleteAdding();
     }
