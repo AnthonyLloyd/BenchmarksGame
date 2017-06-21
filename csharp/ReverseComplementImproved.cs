@@ -21,7 +21,7 @@ class sequence { public List<page> pages; public int startHeader, endExclusive; 
 
 public static class revcompImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 16;
+    const int READER_BUFFER_SIZE = 10;
     static BlockingCollection<page> readQue = new BlockingCollection<page>();
     static BlockingCollection<sequence> groupQue = new BlockingCollection<sequence>();
     static BlockingCollection<sequence> writeQue = new BlockingCollection<sequence>();
@@ -47,6 +47,7 @@ public static class revcompImproved
                 buffer = borrowBuffer();
                 bytesRead = stream.Read(buffer, 0, READER_BUFFER_SIZE);
                 if (bytesRead == 0) break;
+                //Console.Error.WriteLine("add");
                 readQue.Add(new page { data = buffer, length = bytesRead });
             }
             readQue.CompleteAdding();
@@ -71,6 +72,7 @@ public static class revcompImproved
             {
                 if (bytes[i] == GT)
                 {
+                    Console.Error.WriteLine("put on "+data.Count);
                     groupQue.Add(new sequence { pages = data, startHeader = startHeader, endExclusive = i });
                     startHeader = i;
                     data = new List<page> { page };
@@ -78,6 +80,7 @@ public static class revcompImproved
             }
             i = 0;
         }
+        Console.Error.WriteLine("put on "+data.Count);
         groupQue.Add(new sequence { pages = data, startHeader = startHeader, endExclusive = page.length });
         groupQue.CompleteAdding();
     }
@@ -121,75 +124,69 @@ public static class revcompImproved
         while (!groupQue.IsCompleted)
         {
             var sequence = groupQue.Take();
+            Console.Error.WriteLine("take off "+sequence.pages.Count);
             var startPageId = 0;
             var startPage = sequence.pages[0];
-            var startBytes = startPage.data;
-            var startLength = startPage.length;
             var startIndex = sequence.startHeader + 1;
 
             do
             {
-                if (startIndex == startLength)
+                if (startIndex == startPage.length)
                 {
-                    startPage = sequence.pages[startPageId++];
-                    startBytes = startPage.data;
-                    startLength = startPage.length;
+                    startPage = sequence.pages[++startPageId];
                     startIndex = 0;
                 }
-            } while (startBytes[startIndex++] != LF);
+            } while (startPage.data[startIndex++] != LF);
 
+            Console.Error.WriteLine("found end of header "+sequence.pages.Count);
 
             var endPageId = sequence.pages.Count - 1;
             var endPage = sequence.pages[endPageId];
-            var endBytes = endPage.data;
-            var endIndex = sequence.endExclusive - 2;
+            var endIndex = sequence.endExclusive - 1;
 
             do
             {
-                var startByte = startBytes[startIndex];
+                var startByte = startPage.data[startIndex];
                 if(startByte==LF)
                 {
-                    if (++startIndex == startLength)
+                    if (++startIndex == startPage.length)
                     {
+                        startPage = sequence.pages[++startPageId];
                         startIndex = 0;
-                        startPage = sequence.pages[startPageId++];
-                        startBytes = startPage.data;
-                        startLength = startPage.length;
                     }
                     if (startIndex == endIndex && startPageId == endPageId) break;
-                    startByte = startBytes[startIndex];
+                    startByte = startPage.data[startIndex];
                 }
-                var endByte = endBytes[endIndex];
+                var endByte = endPage.data[endIndex];
                 if(endByte==LF)
                 {
                     if (--endIndex == -1)
                     {
-                        endPage = sequence.pages[endPageId++];
-                        endBytes = endPage.data;
+                        endPage = sequence.pages[--endPageId];
                         endIndex = endPage.length - 1;
                     }
                     if (startIndex == endIndex && startPageId == endPageId) break;
-                    endByte = endBytes[endIndex];
+                    endByte = endPage.data[endIndex];
                 }
-                startBytes[startIndex] = map(endByte);
-                endBytes[endIndex] = map(startByte);
-                
-                if (++startIndex == startLength)
+
+                startPage.data[startIndex] = map(endByte);
+                endPage.data[endIndex] = map(startByte);
+
+                if (++startIndex == startPage.length)
                 {
+                    startPage = sequence.pages[++startPageId];
                     startIndex = 0;
-                    startPage = sequence.pages[startPageId++];
-                    startBytes = startPage.data;
-                    startLength = startPage.length;
                 }
                 if (--endIndex == -1)
                 {
-                    endPage = sequence.pages[endPageId++];
-                    endBytes = endPage.data;
+                    endPage = sequence.pages[--endPageId];
                     endIndex = endPage.length - 1;
                 }
+                //Console.Error.WriteLine("("+startPageId+","+startIndex+")-("+endPageId+","+endIndex+")");    
             } while (startPageId < endPageId || (startPageId == endPageId && startIndex < endIndex));
 
-            if (startIndex == endIndex) startBytes[startIndex] = map(startBytes[startIndex]);
+            if (startIndex == endIndex) startPage.data[startIndex] = map(startPage.data[startIndex]);
+            Console.Error.WriteLine("reversed "+sequence.pages.Count);
             writeQue.Add(sequence);
         }
         writeQue.CompleteAdding();
