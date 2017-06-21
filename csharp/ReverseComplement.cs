@@ -48,9 +48,16 @@ public static class revcomp
         writer.Wait();
     }
 
+    public static void Reset()
+    {
+        readQue = new BlockingCollection<byte[]>();
+        inQue = new BlockingCollection<RCBlock>();
+        outQue = new BlockingCollection<RCBlock>();
+    }
+
     static void Reader()
     {
-        using (var inS = Console.OpenStandardInput())
+        using (var inS = File.OpenRead(@"C:\Users\Ant\src\BenchmarksGame\revcomp-inputlarge.txt"))//Console.OpenStandardInput())
         {
             byte[] buf;
             int bytesRead;
@@ -107,7 +114,7 @@ public static class revcomp
 
     static void Writer()
     {
-        using (var outS = Console.OpenStandardOutput())
+        using (var outS = Stream.Null)//Console.OpenStandardOutput())
         {
             try
             {
