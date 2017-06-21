@@ -16,17 +16,17 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
-struct section { public byte[] data; public int length; }
-struct sequence { public List<section> data; public int startHead,start,end; }
+class page { public byte[] data; public int length; }
+class sequence { public List<page> pages; public int startHeader, endExclusive; }
 
 public static class revcompImproved
 {
-    const int READER_BUFFER_SIZE = 1024*16;
-    static BlockingCollection<section> readQue = new BlockingCollection<section>();
-
+    const int READER_BUFFER_SIZE = 1024 * 16;
+    static BlockingCollection<page> readQue = new BlockingCollection<page>();
+    static BlockingCollection<sequence> groupQue = new BlockingCollection<sequence>();
     static BlockingCollection<sequence> writeQue = new BlockingCollection<sequence>();
 
-    static byte[] getBuffer()
+    static byte[] borrowBuffer()
     {
         return new byte[READER_BUFFER_SIZE];
     }
@@ -44,70 +44,110 @@ public static class revcompImproved
             int bytesRead;
             for (;;)
             {
-                buffer = getBuffer();
+                buffer = borrowBuffer();
                 bytesRead = stream.Read(buffer, 0, READER_BUFFER_SIZE);
                 if (bytesRead == 0) break;
-                readQue.Add(new section { data = buffer, length = bytesRead });
+                readQue.Add(new page { data = buffer, length = bytesRead });
             }
             readQue.CompleteAdding();
+        }
+    }
+
+    static void Grouper()
+    {
+        const byte GT = (byte)'>';
+        var startHeader = 0;
+        var i = 1;
+        var data = new List<page>();
+        page page = null;
+
+        while (!readQue.IsCompleted)
+        {
+            page = readQue.Take();
+            data.Add(page);
+            var bytes = page.data;
+            var l = page.length;
+            for (; i < l; i++)
+            {
+                if (bytes[i] == GT)
+                {
+                    groupQue.Add(new sequence { pages = data, startHeader = startHeader, endExclusive = i });
+                    startHeader = i;
+                    data = new List<page> { page };
+                }
+            }
+            i = 0;
+        }
+        groupQue.Add(new sequence { pages = data, startHeader = startHeader, endExclusive = page.length });
+        groupQue.CompleteAdding();
+    }
+
+    static byte map(byte b)
+    {
+        switch (b)
+        {
+            case (byte)'A': return (byte)'T';
+            case (byte)'B': return (byte)'V';
+            case (byte)'C': return (byte)'G';
+            case (byte)'D': return (byte)'H';
+            case (byte)'G': return (byte)'C';
+            case (byte)'H': return (byte)'D';
+            case (byte)'K': return (byte)'M';
+            case (byte)'M': return (byte)'K';
+            case (byte)'R': return (byte)'Y';
+            case (byte)'T': return (byte)'A';
+            case (byte)'V': return (byte)'B';
+            case (byte)'Y': return (byte)'R';
+            case (byte)'a': return (byte)'T';
+            case (byte)'b': return (byte)'V';
+            case (byte)'c': return (byte)'G';
+            case (byte)'d': return (byte)'H';
+            case (byte)'g': return (byte)'C';
+            case (byte)'h': return (byte)'D';
+            case (byte)'k': return (byte)'M';
+            case (byte)'m': return (byte)'K';
+            case (byte)'r': return (byte)'Y';
+            case (byte)'t': return (byte)'A';
+            case (byte)'v': return (byte)'B';
+            case (byte)'y': return (byte)'R';
+            default: return b;
         }
     }
 
     static void Reverser()
     {
         const byte LF = 10;
-        const byte GT = (byte)'>';
-        bool doMapping = false;
 
-        while (!readQue.IsCompleted)
+        while (!groupQue.IsCompleted)
         {
-            var section = readQue.Take();
+            var sequence = groupQue.Take();
+            var startPageId = 0;
+            var startPage = sequence.pages[0];
+            var bytes = startPage.data;
+            var startPageLength = startPage.length;
+            var startIndex = sequence.startHeader + 1;
 
-            var bytes = section.data;
-            var len = section.length;
-            for (int i = 0; i < bytes.Length && i < len; i++)
+            do
             {
-                var b = bytes[i];
-                if (b == GT)
+                if (startIndex == startPageLength)
                 {
-                    doMapping = false;
+                    startIndex = 0;
+                    startPage = sequence.pages[startPageId++];
+                    bytes = startPage.data;
+                    startPageLength = startPage.length;
                 }
-                else if (b == LF)
-                {
-                    doMapping = true;
-                }
-                else if (doMapping)
-                {
-                    switch(b)
-                    {
-                        case (byte)'A': bytes[i] = (byte)'T'; break;
-                        case (byte)'B': bytes[i] = (byte)'V'; break;
-                        case (byte)'C': bytes[i] = (byte)'G'; break;
-                        case (byte)'D': bytes[i] = (byte)'H'; break;
-                        case (byte)'G': bytes[i] = (byte)'C'; break;
-                        case (byte)'H': bytes[i] = (byte)'D'; break;
-                        case (byte)'K': bytes[i] = (byte)'M'; break;
-                        case (byte)'M': bytes[i] = (byte)'K'; break;
-                        case (byte)'R': bytes[i] = (byte)'Y'; break;
-                        case (byte)'T': bytes[i] = (byte)'A'; break;
-                        case (byte)'V': bytes[i] = (byte)'B'; break;
-                        case (byte)'Y': bytes[i] = (byte)'R'; break;
-                        case (byte)'a': bytes[i] = (byte)'T'; break;
-                        case (byte)'b': bytes[i] = (byte)'V'; break;
-                        case (byte)'c': bytes[i] = (byte)'G'; break;
-                        case (byte)'d': bytes[i] = (byte)'H'; break;
-                        case (byte)'g': bytes[i] = (byte)'C'; break;
-                        case (byte)'h': bytes[i] = (byte)'D'; break;
-                        case (byte)'k': bytes[i] = (byte)'M'; break;
-                        case (byte)'m': bytes[i] = (byte)'K'; break;
-                        case (byte)'r': bytes[i] = (byte)'Y'; break;
-                        case (byte)'t': bytes[i] = (byte)'A'; break;
-                        case (byte)'v': bytes[i] = (byte)'B'; break;
-                        case (byte)'y': bytes[i] = (byte)'R'; break;
-                    }
-                }
+            } while (bytes[startIndex++] != LF);
+
+
+            var endPage = sequence.pages.Count - 1;
+            var endIndex = sequence.endExclusive - 1;
+
+            for (;;)
+            {
+
             }
-            writeQue.Add(section);
+
+            writeQue.Add(sequence);
         }
         writeQue.CompleteAdding();
     }
@@ -118,9 +158,18 @@ public static class revcompImproved
         {
             while (!writeQue.IsCompleted)
             {
-                var section = writeQue.Take();
-                stream.Write(section.data, 0, section.length);
-                returnBuffer(section.data);
+                var sequence = writeQue.Take();
+                var startIndex = sequence.startHeader;
+                var pages = sequence.pages;
+
+                for (int i = 0; i < pages.Count - 1; i++)
+                {
+                    var page = pages[i];
+                    stream.Write(page.data, startIndex, page.length - startIndex);
+                    returnBuffer(page.data);
+                    startIndex = 0;
+                }
+                stream.Write(pages[pages.Count - 1].data, startIndex, sequence.endExclusive - startIndex);
             }
         }
     }
@@ -128,6 +177,7 @@ public static class revcompImproved
     public static void Main(string[] args)
     {
         Task.Run((Action)Reader);
+        Task.Run((Action)Grouper);
         Task.Run((Action)Reverser);
         Task.Run((Action)Writer).Wait();
     }
