@@ -39,7 +39,7 @@ let main argv =
 
     // Create big faster file
     // Fasta.Main(argv)
-    revcomp.Main argv
+    revcompImproved.Main argv
 
 
     // let start = System.Diagnostics.Stopwatch.GetTimestamp();

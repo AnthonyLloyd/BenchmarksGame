@@ -123,30 +123,73 @@ public static class revcompImproved
             var sequence = groupQue.Take();
             var startPageId = 0;
             var startPage = sequence.pages[0];
-            var bytes = startPage.data;
-            var startPageLength = startPage.length;
+            var startBytes = startPage.data;
+            var startLength = startPage.length;
             var startIndex = sequence.startHeader + 1;
 
             do
             {
-                if (startIndex == startPageLength)
+                if (startIndex == startLength)
+                {
+                    startPage = sequence.pages[startPageId++];
+                    startBytes = startPage.data;
+                    startLength = startPage.length;
+                    startIndex = 0;
+                }
+            } while (startBytes[startIndex++] != LF);
+
+
+            var endPageId = sequence.pages.Count - 1;
+            var endPage = sequence.pages[endPageId];
+            var endBytes = endPage.data;
+            var endIndex = sequence.endExclusive - 2;
+
+            do
+            {
+                var startByte = startBytes[startIndex];
+                if(startByte==LF)
+                {
+                    if (++startIndex == startLength)
+                    {
+                        startIndex = 0;
+                        startPage = sequence.pages[startPageId++];
+                        startBytes = startPage.data;
+                        startLength = startPage.length;
+                    }
+                    if (startIndex == endIndex && startPageId == endPageId) break;
+                    startByte = startBytes[startIndex];
+                }
+                var endByte = endBytes[endIndex];
+                if(endByte==LF)
+                {
+                    if (--endIndex == -1)
+                    {
+                        endPage = sequence.pages[endPageId++];
+                        endBytes = endPage.data;
+                        endIndex = endPage.length - 1;
+                    }
+                    if (startIndex == endIndex && startPageId == endPageId) break;
+                    endByte = endBytes[endIndex];
+                }
+                startBytes[startIndex] = map(endByte);
+                endBytes[endIndex] = map(startByte);
+                
+                if (++startIndex == startLength)
                 {
                     startIndex = 0;
                     startPage = sequence.pages[startPageId++];
-                    bytes = startPage.data;
-                    startPageLength = startPage.length;
+                    startBytes = startPage.data;
+                    startLength = startPage.length;
                 }
-            } while (bytes[startIndex++] != LF);
+                if (--endIndex == -1)
+                {
+                    endPage = sequence.pages[endPageId++];
+                    endBytes = endPage.data;
+                    endIndex = endPage.length - 1;
+                }
+            } while (startPageId < endPageId || (startPageId == endPageId && startIndex < endIndex));
 
-
-            var endPage = sequence.pages.Count - 1;
-            var endIndex = sequence.endExclusive - 1;
-
-            for (;;)
-            {
-
-            }
-
+            if (startIndex == endIndex) startBytes[startIndex] = map(startBytes[startIndex]);
             writeQue.Add(sequence);
         }
         writeQue.CompleteAdding();
