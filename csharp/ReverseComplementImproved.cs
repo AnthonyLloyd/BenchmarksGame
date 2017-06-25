@@ -23,8 +23,7 @@ class sequence { public List<page> pages; public int startHeader, endExclusive; 
 
 public static class revcompImproved
 {
-    const int READER_BUFFER_SIZE = 1024*1024*16;
-    const int POOL_ADD = 8;
+    const int READER_BUFFER_SIZE = 1024 * 128;
     static BlockingCollection<page> readQue = new BlockingCollection<page>();
     static BlockingCollection<sequence> groupQue = new BlockingCollection<sequence>();
     static BlockingCollection<sequence> writeQue = new BlockingCollection<sequence>();
@@ -41,14 +40,9 @@ public static class revcompImproved
         bytePool.Add(bytes);
     }
 
-    static void Pooler()
-    {
-        for(int i=0; i<POOL_ADD; i++) bytePool.Add(new byte[READER_BUFFER_SIZE]);
-    }
-
     static void Reader()
     {
-        using (var stream = File.OpenRead(@"C:\Users\Ant\src\BenchmarksGame\revcomp-inputlarge.txt"))//Console.OpenStandardInput())
+        using (var stream = File.OpenRead(@"C:\Users\Ant\src\BenchmarksGame\input25000000.txt"))//Console.OpenStandardInput())
         {
             byte[] buffer;
             int bytesRead;
@@ -66,7 +60,7 @@ public static class revcompImproved
     static bool tryTake<T>(BlockingCollection<T> q, out T t) where T : class
     {
         t = null;
-        while(!q.IsCompleted && !q.TryTake(out t, 100));
+        while(!q.IsCompleted && !q.TryTake(out t)) Thread.SpinWait(0);
         return t!=null;
     }
 
@@ -212,7 +206,7 @@ public static class revcompImproved
                 {
                     var page = pages[i];
                     stream.Write(page.data, startIndex, page.length - startIndex);
-                    returnBuffer(page.data);
+                    if(!readQue.IsCompleted) returnBuffer(page.data);
                     startIndex = 0;
                 }
                 stream.Write(pages[pages.Count - 1].data, startIndex, sequence.endExclusive - startIndex);
@@ -223,7 +217,6 @@ public static class revcompImproved
     public static void Main(string[] args)
     {
         new Thread(Reader).Start();
-        new Thread(Pooler).Start();
         new Thread(Grouper).Start();
         new Thread(Reverser).Start();
         var writer = new Thread(Writer);
