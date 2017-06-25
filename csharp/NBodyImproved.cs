@@ -7,14 +7,13 @@
 namespace Improved
 {
     using System;
-    using System.Runtime.CompilerServices;
+    using System.Threading;
 
     class Body { public double x, y, z, vx, vy, vz, mass; }
     struct Pair { public Body bi, bj; }
 
     public class NBody
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static Body[] createBodies()
         {
             const double Pi = 3.141592653589793;
@@ -68,7 +67,6 @@ namespace Improved
             return new Body[] {sun, jupiter, saturn, uranus, neptune};
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static Pair[] createPairs(Body[] bodies)
         {
             var pairs = new Pair[bodies.Length * (bodies.Length-1)/2];        
@@ -79,26 +77,42 @@ namespace Improved
             return pairs;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static void advance(Body[] bodies, Pair[] pairs, double dt)
+        static int largeLoopLength;
+        static volatile int largeLoopId = 0;
+        static volatile int secondLoopId = 0;
+        
+        static void advance(Body[] bodies, Pair[] pairs, int step, int istep)
         {
-            foreach (var p in pairs)
+            const double dt = 0.01;
+            var mod = pairs.Length;
+            var modStep = mod/step;
+            while(true)
             {
+                while(largeLoopId%modStep!=istep) {}
+                int i = largeLoopId%mod;
+                if(i!=mod-1) largeLoopId++;
+                if(largeLoopId>=largeLoopLength) break;
+                var p = pairs[i];
                 Body bi = p.bi, bj = p.bj;
                 double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
                 double d2 = dx * dx + dy * dy + dz * dz;
                 double mag = dt / (d2 * Math.Sqrt(d2));
+                while(secondLoopId%mod!=i) {}
                 bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
                 bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
                 bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
-            };
-            foreach (var b in bodies)
-            {
-                b.x += dt * b.vx; b.y += dt * b.vy; b.z += dt * b.vz;
+                secondLoopId++;
+                if(i==mod-1)
+                {
+                    foreach (var b in bodies)
+                    {
+                        b.x += dt * b.vx; b.y += dt * b.vy; b.z += dt * b.vz;
+                    }
+                    largeLoopId++;
+                }
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static double energy(Body[] bodies)
         {
             double e = 0.0;
@@ -118,23 +132,35 @@ namespace Improved
 
         public static void Main(String[] args)
         {
-            int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
+            
             var bodies = createBodies();
             Console.WriteLine(energy(bodies).ToString("f9"));
             var pairs = createPairs(bodies);
-            const double dt = 0.01;
-            for(;n>0;n--) advance(bodies, pairs, dt);
+            largeLoopLength =
+                (args.Length > 0 ? Int32.Parse(args[0]) : 10000)
+                * pairs.Length;
+            new Thread(() => advance(bodies, pairs, 2, 0)).Start();
+            new Thread(() => advance(bodies, pairs, 2, 1)).Start();
+            new Thread(() => advance(bodies, pairs, 2, 2)).Start();
+            new Thread(() => advance(bodies, pairs, 2, 3)).Start();
+            advance(bodies, pairs, 2, 4);
             Console.WriteLine(energy(bodies).ToString("f9"));
         }
 
         public static Tuple<double,double> Test(String[] args)
         {            
-            int n = args.Length > 0 ? int.Parse(args[0]) : 10000;
             var bodies = createBodies();
             var startEnergy = energy(bodies);
             var pairs = createPairs(bodies);
-            const double dt = 0.01;
-            for(;n>0;n--) advance(bodies, pairs, dt);
+            largeLoopId = secondLoopId = 0;
+            largeLoopLength =
+                (args.Length > 0 ? Int32.Parse(args[0]) : 10000)
+                * pairs.Length;
+            new Thread(() => advance(bodies, pairs, 2, 0)).Start();
+            new Thread(() => advance(bodies, pairs, 2, 1)).Start();
+            new Thread(() => advance(bodies, pairs, 2, 2)).Start();
+            new Thread(() => advance(bodies, pairs, 2, 3)).Start();
+            advance(bodies, pairs, 2, 4);
             var endEnergy = energy(bodies);
             return Tuple.Create(Math.Round(startEnergy,10), Math.Round(endEnergy,10));
         }
