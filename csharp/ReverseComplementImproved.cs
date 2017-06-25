@@ -44,12 +44,10 @@ public static class revcompImproved
     {
         using (var stream = File.OpenRead(@"C:\Users\Ant\src\BenchmarksGame\input25000000.txt"))//Console.OpenStandardInput())
         {
-            byte[] buffer;
-            int bytesRead;
             for (;;)
             {
-                buffer = borrowBuffer();
-                bytesRead = stream.Read(buffer, 0, READER_BUFFER_SIZE);
+                var buffer = borrowBuffer();
+                var bytesRead = stream.Read(buffer, 0, READER_BUFFER_SIZE);
                 if (bytesRead == 0) break;
                 readQue.Add(new page { data = buffer, length = bytesRead });
             }
@@ -219,9 +217,7 @@ public static class revcompImproved
         new Thread(Reader).Start();
         new Thread(Grouper).Start();
         new Thread(Reverser).Start();
-        var writer = new Thread(Writer);
-        writer.Start();
-        writer.Join();
+        Writer();
     }
 
     public static void Reset()
