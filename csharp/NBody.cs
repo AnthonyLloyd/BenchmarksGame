@@ -25,23 +25,23 @@ public class NBody {
     }
 }
 
-class Body { public double x, y, z, vx, vy, vz, mass; }
-class Pair { public Body bi, bj; }
+class BodyX { public double x, y, z, vx, vy, vz, mass; }
+class PairX { public BodyX bi, bj; }
 
 class NBodySystem {
-    private Body[] bodies;
-    private Pair[] pairs;
+    private BodyX[] bodies;
+    private PairX[] pairs;
 
     const double Pi = 3.141592653589793;
     const double Solarmass = 4 * Pi * Pi;
     const double DaysPeryear = 365.24;
 
     public NBodySystem() {
-        bodies = new Body[] {
-            new Body() { // Sun
+        bodies = new BodyX[] {
+            new BodyX() { // Sun
                 mass = Solarmass,
             },
-            new Body() { // Jupiter
+            new BodyX() { // Jupiter
                 x = 4.84143144246472090e+00,
                 y = -1.16032004402742839e+00,
                 z = -1.03622044471123109e-01,
@@ -50,7 +50,7 @@ class NBodySystem {
                 vz = -6.90460016972063023e-05 * DaysPeryear,
                 mass = 9.54791938424326609e-04 * Solarmass,
             },
-            new Body() { // Saturn
+            new BodyX() { // Saturn
                 x = 8.34336671824457987e+00,
                 y = 4.12479856412430479e+00,
                 z = -4.03523417114321381e-01,
@@ -59,7 +59,7 @@ class NBodySystem {
                 vz = 2.30417297573763929e-05 * DaysPeryear,
                 mass = 2.85885980666130812e-04 * Solarmass,
             },
-            new Body() { // Uranus
+            new BodyX() { // Uranus
                 x = 1.28943695621391310e+01,
                 y = -1.51111514016986312e+01,
                 z = -2.23307578892655734e-01,
@@ -68,7 +68,7 @@ class NBodySystem {
                 vz = -2.96589568540237556e-05 * DaysPeryear,
                 mass = 4.36624404335156298e-05 * Solarmass,
             },
-            new Body() { // Neptune
+            new BodyX() { // Neptune
                 x = 1.53796971148509165e+01,
                 y = -2.59193146099879641e+01,
                 z = 1.79258772950371181e-01,
@@ -79,11 +79,11 @@ class NBodySystem {
             },
         };
         
-        pairs = new Pair[bodies.Length * (bodies.Length-1)/2];        
+        pairs = new PairX[bodies.Length * (bodies.Length-1)/2];        
         int pi = 0;
         for (int i = 0; i < bodies.Length-1; i++)
             for (int j = i+1; j < bodies.Length; j++)
-                pairs[pi++] = new Pair() { bi = bodies[i], bj = bodies[j] };        
+                pairs[pi++] = new PairX() { bi = bodies[i], bj = bodies[j] };        
 
         double px = 0.0, py = 0.0, pz = 0.0;
         foreach (var b in bodies) {
@@ -95,7 +95,7 @@ class NBodySystem {
 
     public void Advance(double dt) {
         foreach (var p in pairs) {
-            Body bi = p.bi, bj = p.bj;
+            BodyX bi = p.bi, bj = p.bj;
             double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
             double d2 = dx * dx + dy * dy + dz * dz;
             double mag = dt / (d2 * Math.Sqrt(d2));

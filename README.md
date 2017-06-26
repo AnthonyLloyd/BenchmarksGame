@@ -34,10 +34,13 @@ Improved C# NBody faster than original. f1 (6291.6044 ± 5.6276 ms) is ~4.1% fas
 
 Submitted and accepted but 21.95s, what the heck.
 
-Can't make this faster. Put back the pairs and tried to make it parallel but this was slowing.
+Can't make this faster. Put back the pairs and tried to make it parallel but this was slow.
 
 Stumped. Best I submitted was 21.80s.
 
+Scale out dt?
+Move writeline to bottom.
+0.5 * on total 2.
 
 ### Reverse-Complement
 
