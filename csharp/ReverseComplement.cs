@@ -48,13 +48,6 @@ public static class revcomp
         writer.Wait();
     }
 
-    public static void Reset()
-    {
-        readQue = new BlockingCollection<byte[]>();
-        inQue = new BlockingCollection<RCBlock>();
-        outQue = new BlockingCollection<RCBlock>();
-    }
-
     static void Reader()
     {
         using (var inS = File.OpenRead(@"C:\temp\input25000000.txt"))//Console.OpenStandardInput())
