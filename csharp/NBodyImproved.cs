@@ -121,30 +121,14 @@ public static class NBodyImproved
         const double dtToMinus4 = 1.0/(dt * dt * dt * dt);
         var bodies = createBodies();
         foreach(var b in bodies)
-        {
+        {   // Move dt out of inner loop by rescaling
             b.vx *= dt; b.vy *= dt; b.vz *= dt; b.mass *= dt * dt;    
         }
         var pairs = createPairs(bodies);
         var startEnergy = energy(bodies, pairs);
         for(int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000; n>0; n--)
             advance(bodies, pairs);
-        Console.WriteLine((startEnergy * dtToMinus4).ToString("f9"));
-        Console.WriteLine((energy(bodies, pairs) * dtToMinus4).ToString("f9"));
-    }
-    public static Tuple<double,double> Test(String[] args)
-    {
-        const double dt = 0.01;
-        const double dtToMinus4 = 1.0/(dt * dt * dt * dt);
-        var bodies = createBodies();
-        foreach(var b in bodies)
-        {
-            b.vx *= dt; b.vy *= dt; b.vz *= dt; b.mass *= dt * dt;    
-        }
-        var pairs = createPairs(bodies);
-        var startEnergy = energy(bodies, pairs);
-        for(int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000; n>0; n--)
-            advance(bodies, pairs);
-        return Tuple.Create(Math.Round(startEnergy * dtToMinus4,10)
-                          , Math.Round(energy(bodies, pairs) * dtToMinus4,10));
+        Console.WriteLine((startEnergy * dtToMinus4).ToString("f9") + '\n'
+            + (energy(bodies, pairs) * dtToMinus4).ToString("f9"));
     }
 }
