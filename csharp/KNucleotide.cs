@@ -106,7 +106,7 @@ public class KNucleotide
         int amountRead, threebuflen, indexOfFirstByteInThreeSequence, indexOfGreaterThan, threepos, tocopy;
         amountRead = threebuflen = indexOfFirstByteInThreeSequence = indexOfGreaterThan = threepos = tocopy = 0;
         bool threeFound = false;
-        var source = new BufferedStream(Console.OpenStandardInput());
+        var source = new BufferedStream(File.OpenRead("input25000000.txt") /*Console.OpenStandardInput()*/);
         while (!threeFound && (amountRead = source.Read(buffer, 0, buffersize)) > 0)
         {
             indexOfGreaterThan = Array.LastIndexOf(buffer, (byte)'>');

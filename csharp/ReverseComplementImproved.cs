@@ -42,7 +42,7 @@ public static class revcompImproved
 
     static void Reader()
     {
-        using (var stream = File.OpenRead(@"C:\Users\Ant\src\BenchmarksGame\input25000000.txt"))//Console.OpenStandardInput())
+        using (var stream = File.OpenRead(@"C:\temp\input25000000.txt"))//Console.OpenStandardInput())
         {
             for (;;)
             {

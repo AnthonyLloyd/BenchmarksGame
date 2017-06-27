@@ -10,41 +10,47 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 public class KNucleotideImproved
 {
     public static void Main(string[] args)
     {   
         PrepareLookups();
-        var buffer = GetBytesForThirdSequence();   
-        var fragmentLengths = new[] { 1, 2, 3, 4, 6, 12, 18 };
-        var dicts =
-            (from fragmentLength in fragmentLengths.AsParallel()
-             select CountFrequency(buffer, fragmentLength)).ToArray();
-        int buflen = dicts[0].Values.Sum(i => i.v);
-        WriteFrequencies(dicts[0], buflen, 1);
-        WriteFrequencies(dicts[1], buflen, 2);
-        WriteCount(dicts[2], "GGT");
-        WriteCount(dicts[3], "GGTA");
-        WriteCount(dicts[4], "GGTATT");
-        WriteCount(dicts[5], "GGTATTTTAATT");
-        WriteCount(dicts[6], "GGTATTTTAATTTATAGT");
+        var buffer = GetBytesForThirdSequence();
+        var task1 = Task.Factory.StartNew(() => CountFrequency(buffer, 1));
+        var task2 = Task.Factory.StartNew(() => CountFrequency(buffer, 2));
+        var task3 = Task.Factory.StartNew(() => CountFrequency(buffer, 3));
+        var task4 = Task.Factory.StartNew(() => CountFrequency(buffer, 4));
+        var task6 = Task.Factory.StartNew(() => CountFrequency(buffer, 6));
+        var task12 = Task.Factory.StartNew(() => CountFrequency(buffer, 12));
+        var task18 = Task.Factory.StartNew(() => CountFrequency(buffer, 18));
+        var sb = new StringBuilder();
+        int buflen = task1.Result.Values.Sum(i => i.v);
+        WriteFrequencies(sb, task1.Result, buflen, 1);
+        WriteFrequencies(sb, task2.Result, buflen, 2);
+        WriteCount(sb, task3.Result, "GGT");
+        WriteCount(sb, task4.Result, "GGTA");
+        WriteCount(sb, task6.Result, "GGTATT");
+        WriteCount(sb, task12.Result, "GGTATTTTAATT");
+        WriteCount(sb, task18.Result, "GGTATTTTAATTTATAGT");
+        Console.Write(sb);
     }
 
-    private static void WriteFrequencies(Dictionary<ulong, Wrapper2> freq, int buflen, int fragmentLength)
+    private static void WriteFrequencies(StringBuilder sb, Dictionary<ulong, Wrapper2> freq, int buflen, int fragmentLength)
     {
-
         double percent = 100.0 / (buflen - fragmentLength + 1);
         foreach(var kv in freq.OrderByDescending(i => i.Value.v))
         {
-            Console.Write(PrintKey(kv.Key, fragmentLength));
-            Console.Write(" ");
-            Console.WriteLine((kv.Value.v * percent).ToString("f3"));
+            
+            sb.Append(PrintKey(kv.Key, fragmentLength));
+            sb.Append(" ");
+            sb.AppendLine((kv.Value.v * percent).ToString("f3"));
         }
-        Console.WriteLine();
+        sb.AppendLine();
     }
 
-    private static void WriteCount(Dictionary<ulong, Wrapper2> dictionary, string fragment)
+    private static void WriteCount(StringBuilder sb, Dictionary<ulong, Wrapper2> dictionary, string fragment)
     {
         ulong key = 0;
         var keybytes = Encoding.ASCII.GetBytes(fragment.ToLower());
@@ -54,9 +60,9 @@ public class KNucleotideImproved
             key |= tonum[keybytes[i]];
         }
         Wrapper2 w;
-        Console.WriteLine("{0}\t{1}",
-            dictionary.TryGetValue(key, out w) ? w.v : 0,
-            fragment);
+        sb.Append(dictionary.TryGetValue(key, out w) ? w.v : 0);
+        sb.Append("\t");
+        sb.AppendLine(fragment);
     }
 
     private static string PrintKey(ulong key, int fragmentLength)
@@ -102,7 +108,7 @@ public class KNucleotideImproved
     private static byte[] GetBytesForThirdSequence()
     {
         var bytes = new List<byte>();
-        using (var r = File.OpenText("fastabig.txt"))//new StreamReader(Console.OpenStandardInput()))
+        using (var r = File.OpenText("input25000000.txt"))//new StreamReader(Console.OpenStandardInput()))
         {
             while (!r.ReadLine().StartsWith(">THREE"));
             var line = r.ReadLine();

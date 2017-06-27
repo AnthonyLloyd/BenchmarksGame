@@ -57,7 +57,7 @@ public static class revcomp
 
     static void Reader()
     {
-        using (var inS = File.OpenRead(@"C:\Users\Ant\src\BenchmarksGame\input25000000.txt"))//Console.OpenStandardInput())
+        using (var inS = File.OpenRead(@"C:\temp\input25000000.txt"))//Console.OpenStandardInput())
         {
             byte[] buf;
             int bytesRead;
