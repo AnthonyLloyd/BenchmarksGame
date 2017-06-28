@@ -14,15 +14,13 @@
 // using System.Threading;
 // using System.Threading.Tasks;
 
-// class KNucleotidePage { public byte[] Data; public volatile KNucleotidePage NextPage; }
-
 // public static class KNucleotideImproved
 // {
 //     const int READER_BUFFER_SIZE = 1024 * 128;
 //     static ConcurrentBag<byte[]> bytePool = new ConcurrentBag<byte[]>(); 
-//     static BlockingCollection<KNucleotidePage> readQue = new BlockingCollection<KNucleotidePage>();
-//     static int blockThreeStart = -1;
-//     static volatile KNucleotidePage blockThree;
+//     static BlockingCollection<byte[]> readQue = new BlockingCollection<byte[]>();
+//     static BlockingCollection<byte[]> threeQue = new BlockingCollection<byte[]>();
+//     static int threeStart;
 
 //     static byte[] borrowBuffer()
 //     {
@@ -45,17 +43,17 @@
 //                 var bytesRead = stream.Read(buffer, 0, READER_BUFFER_SIZE);
 //                 if (bytesRead == 0) break;
 //                 if(bytesRead != READER_BUFFER_SIZE) Array.Resize(ref buffer, bytesRead);
-//                 readQue.Add(new KNucleotidePage { Data = buffer });
+//                 readQue.Add(buffer);
 //             }
 //             readQue.CompleteAdding();
 //         }
 //     }
 
-//     static KNucleotidePage NextPage()
+//     static byte[] NextPage()
 //     {
-//         KNucleotidePage page = null;
-//         while(!readQue.IsCompleted && !readQue.TryTake(out page)) Thread.SpinWait(0);
-//         return page;
+//         byte[] bytes = null;
+//         while(!readQue.IsCompleted && !readQue.TryTake(out bytes)) Thread.SpinWait(0);
+//         return bytes;
 //     }
 
 //     static void Locator()

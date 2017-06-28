@@ -81,15 +81,15 @@ module Performance =
 
       let s1,s2,precision =
         let seq = Seq.zip3 (stats f1) (stats f2) (stats (fun m -> m (fun () -> Unchecked.defaultof<_>) ()))
-        Seq.item 2 seq |> ignore
-        Seq.item 5 seq
-
+        Seq.item 1 seq |> ignore
+        Seq.item 1 seq
       if max s1.mean s2.mean < precision.mean * 5.0 then
         MetricTooShort ((if s1.mean<s2.mean then s2 else s1),precision)
       else
         Seq.zip (stats f1) (stats f2)
         |> Seq.pick (fun (s1,s2) ->
-
+          let inline toString (s:SampleStatistics) = sprintf "%.4f \u00B1 %.4f ms" (s.mean*1000.0/float Stopwatch.Frequency) (s.meanStandardError*1000.0/float Stopwatch.Frequency)
+          printfn "f1 (%s) is %s faster than f2 (%s)." (toString s1) (sprintf "~%.1f%%" ((1.0-s1.mean/s2.mean)*100.0)) (toString s2)
           let inline areCloseEnough() =
             let s1,s2 = if s1.mean>s2.mean then s1,s2 else s2,s1
             let numberOfSD = 2.325 // Equivalent to 99.99% confidence level

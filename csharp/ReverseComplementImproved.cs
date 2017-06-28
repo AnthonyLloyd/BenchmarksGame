@@ -19,7 +19,7 @@ class RevCompSequence { public List<byte[]> Pages; public int StartHeader, EndEx
 
 public static class revcompImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 128;
+    const int READER_BUFFER_SIZE = 1024 * 1024 * 4;
     static BlockingCollection<byte[]> readQue = new BlockingCollection<byte[]>();
     static BlockingCollection<RevCompSequence> groupQue = new BlockingCollection<RevCompSequence>();
     static BlockingCollection<RevCompSequence> writeQue = new BlockingCollection<RevCompSequence>();
@@ -125,14 +125,17 @@ public static class revcompImproved
             var startIndex = sequence.StartHeader;
 
             // Skip header line
-            do
+            for(;;)
             {
-                if (++startIndex == startBytes.Length)
+                for(; startIndex<startBytes.Length; startIndex++)
                 {
-                    startBytes = sequence.Pages[++startPageId];
-                    startIndex = 0;
+                    var b = startBytes[startIndex];
+                    if(b==LF) break;
                 }
-            } while (startBytes[startIndex] != LF);
+                if(startIndex<startBytes.Length) break;
+                startBytes = sequence.Pages[++startPageId];
+                startIndex = 0;
+            }
 
             var endPageId = sequence.Pages.Count - 1;
             var endIndex = sequence.EndExclusive - 1;

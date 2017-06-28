@@ -14,14 +14,12 @@ public class NBody {
         for (int i = 0; i < n; i++) bodies.Advance(0.01);
         Console.WriteLine("{0:f9}", bodies.Energy());
     }
-    public static Tuple<double,double> Test(String[] args)
-    {
+    public static double Test(String[] args) {
         int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
         NBodySystem bodies = new NBodySystem();
-        var startEnergy = bodies.Energy();
+        var energyBefore = bodies.Energy();
         for (int i = 0; i < n; i++) bodies.Advance(0.01);
-        var endEnergy = bodies.Energy();
-        return Tuple.Create(Math.Round(startEnergy,10), Math.Round(endEnergy,10));
+        return Math.Round(energyBefore,10) + Math.Round(bodies.Energy(),10);
     }
 }
 
