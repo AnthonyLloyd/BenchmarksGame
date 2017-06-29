@@ -124,16 +124,19 @@ public static class NBodyImproved
         foreach (var p in pairs)
         {
             Body bi = p.bi, bj = p.bj;
-            double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
+            double dx = bj.x - bi.x, dy = bj.y - bi.y, dz = bj.z - bi.z;
             double d2 = dx * dx + dy * dy + dz * dz;
             double mag = dt / (d2 * Math.Sqrt(d2));
-            bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
-            bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
-            bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
+            bi.vx += bj.mass * dx * mag;
+            bj.vx -= bi.mass * dx * mag;
+            bi.vy += bj.mass * dy * mag;
+            bj.vy -= bi.mass * dy * mag;
+            bi.vz += bj.mass * dz * mag;
+            bj.vz -= bi.mass * dz * mag;
         }
         foreach (var b in bodies)
         {
-            b.x += dt * b.vx; b.y += dt * b.vy; b.z += dt * b.vz;
+            b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
         }
     }
 
