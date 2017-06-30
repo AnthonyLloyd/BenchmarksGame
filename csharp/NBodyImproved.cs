@@ -6,6 +6,7 @@
 */
 
 using System;
+using System.Threading;
 using System.Runtime.CompilerServices;
 
 class Body { public double vx, vy, vz, x, y, z, mass; }
@@ -93,32 +94,6 @@ public static class NBodyImproved
         }
         return e;
     }
-
-    // public static void Main(String[] args)
-    // {
-    //     const double dt = 0.01;
-    //     var bodies = createBodies();
-    //     var pairs = createPairs(bodies);
-    //     Console.WriteLine(energy(bodies, pairs).ToString("f9"));
-    //     for(int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000; n>0; n--)
-    //     {
-    //         foreach (var p in pairs)
-    //         {
-    //             Body bi = p.bi, bj = p.bj;
-    //             double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
-    //             double d2 = dx * dx + dy * dy + dz * dz;
-    //             double mag = dt / (d2 * Math.Sqrt(d2));
-    //             bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
-    //             bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
-    //             bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
-    //         }
-    //         foreach (var b in bodies)
-    //         {
-    //             b.x += dt * b.vx; b.y += dt * b.vy; b.z += dt * b.vz;
-    //         }
-    //     }
-    //     Console.WriteLine(energy(bodies, pairs).ToString("f9"));
-    // }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void advance(Pair[] pairs, Body[] bodies)
@@ -139,12 +114,13 @@ public static class NBodyImproved
         }
     }
 
-    public static double Test(String[] args)
+    public static void Main(String[] args)
     {
+        Thread.CurrentThread.Priority = ThreadPriority.Highest;
         var bodies = createBodies();
         var pairs = createPairs(bodies);
-        var energyBefore = energy(bodies, pairs);
+        Console.WriteLine(energy(bodies, pairs).ToString("f9"));
         for(int i=args.Length > 0 ? int.Parse(args[0]) : 10000; i>0; i--) advance(pairs, bodies);
-        return Math.Round(energyBefore,10) + Math.Round(energy(bodies, pairs),10);
+        Console.WriteLine(energy(bodies, pairs).ToString("f9"));
     }
 }
