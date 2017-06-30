@@ -2,10 +2,6 @@
    http://benchmarksgame.alioth.debian.org/
 
    Contributed by Peperud
-
-   Attempt at introducing concurrency.
-   Ideas and code borrowed from various other contributions and places. 
-
    Modified to reduce memory use by Anthony Lloyd
 */
 
@@ -15,15 +11,16 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 
-class RevCompSequence { public List<byte[]> Pages; public int StartHeader, EndExclusive; }
+class RevCompSequenceImproved { public List<byte[]> Pages; public int StartHeader, EndExclusive; public Thread ReverseThread; }
 
 public static class revcompImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 1024 * 4;
+    const int READER_BUFFER_SIZE = 1024 * 128;
+    const byte LF = 10, GT = (byte)'>';
     static BlockingCollection<byte[]> readQue = new BlockingCollection<byte[]>();
-    static BlockingCollection<RevCompSequence> groupQue = new BlockingCollection<RevCompSequence>();
-    static BlockingCollection<RevCompSequence> writeQue = new BlockingCollection<RevCompSequence>();
+    static BlockingCollection<RevCompSequenceImproved> writeQue = new BlockingCollection<RevCompSequenceImproved>();
     static ConcurrentBag<byte[]> bytePool = new ConcurrentBag<byte[]>(); 
+    static byte[] map;
 
     static byte[] borrowBuffer()
     {
@@ -33,7 +30,7 @@ public static class revcompImproved
 
     static void returnBuffer(byte[] bytes)
     {
-        if(bytes.Length==READER_BUFFER_SIZE) bytePool.Add(bytes);
+        if(bytes.Length==READER_BUFFER_SIZE && !readQue.IsCompleted) bytePool.Add(bytes);
     }
 
     static void Reader()
@@ -61,37 +58,9 @@ public static class revcompImproved
 
     static void Grouper()
     {
-        const byte GT = (byte)'>';
-        var startHeader = 0;
-        var i = 1;
-        var data = new List<byte[]>();
-        byte[] bytes;
-        while (tryTake(readQue, out bytes))
-        {
-            data.Add(bytes);
-            for (;i<bytes.Length; i++)
-            {
-                var b = bytes[i];
-                if (b == GT)
-                {
-                    groupQue.Add(new RevCompSequence { Pages = data, StartHeader = startHeader, EndExclusive = i });
-                    startHeader = i;
-                    data = new List<byte[]> { bytes };
-                }
-            }
-            i = 0;
-        }
-        groupQue.Add(new RevCompSequence { Pages = data, StartHeader = startHeader, EndExclusive = data[data.Count-1].Length });
-        groupQue.CompleteAdding();
-    }
-
-    static void Reverser()
-    {
-        const byte LF = 10;
-
         // Set up complements map
-        var map = new byte[256];
-        for (byte i=0; i<255; i++) map[i]=i;
+        map = new byte[256];
+        for (byte b=0; b<255; b++) map[b]=b;
         map[(byte)'A'] = (byte)'T';
         map[(byte)'B'] = (byte)'V';
         map[(byte)'C'] = (byte)'G';
@@ -117,92 +86,131 @@ public static class revcompImproved
         map[(byte)'v'] = (byte)'B';
         map[(byte)'y'] = (byte)'R';
 
-        RevCompSequence sequence;
-        while (tryTake(groupQue, out sequence))
+        var startHeader = 0;
+        var i = 1;
+        bool afterFirst = false;
+        var data = new List<byte[]>();
+        byte[] bytes;
+        while (tryTake(readQue, out bytes))
         {
-            var startPageId = 0;
-            var startBytes = sequence.Pages[0];
-            var startIndex = sequence.StartHeader;
-
-            // Skip header line
-            for(;;)
+            data.Add(bytes);
+            for (;i<bytes.Length; i++)
             {
-                for(; startIndex<startBytes.Length; startIndex++)
+                if (bytes[i] == GT)
                 {
-                    var b = startBytes[startIndex];
-                    if(b==LF) break;
+                    var sequence = new RevCompSequenceImproved { Pages = data, StartHeader = startHeader, EndExclusive = i };
+                    if(afterFirst)
+                    {
+                        Console.Error.WriteLine("New thread");
+                        var t = new Thread(() => Reverse(sequence));
+                        t.Start();
+                        sequence.ReverseThread = t;
+                    }
+                    else
+                    {
+                        afterFirst = true;
+                    }
+                    writeQue.Add(sequence);
+                    startHeader = i;
+                    data = new List<byte[]> { bytes };
                 }
-                if(startIndex<startBytes.Length) break;
-                startBytes = sequence.Pages[++startPageId];
-                startIndex = 0;
             }
+            i = 0;
+        }
+        var lastSequence = new RevCompSequenceImproved { Pages = data, StartHeader = startHeader, EndExclusive = data[data.Count-1].Length };
+        Reverse(lastSequence);
+        writeQue.Add(lastSequence);
+        writeQue.CompleteAdding();
+    }
 
-            var endPageId = sequence.Pages.Count - 1;
-            var endIndex = sequence.EndExclusive - 1;
-            if(endIndex==-1) endIndex = sequence.Pages[--endPageId].Length-1;
-            var endBytes = sequence.Pages[endPageId];
-            
-            // Swap in place across pages
-            do
+    static void Reverse(RevCompSequenceImproved sequence)
+    {
+        var startPageId = 0;
+        var startBytes = sequence.Pages[0];
+        var startIndex = sequence.StartHeader;
+
+        // Skip header line
+        for(;;)
+        {
+            for(; startIndex<startBytes.Length; startIndex++)
+                if(startBytes[startIndex]==LF) break;
+            if(startIndex<startBytes.Length) break;
+            startBytes = sequence.Pages[++startPageId];
+            startIndex = 0;
+        }
+
+        var endPageId = sequence.Pages.Count - 1;
+        var endIndex = sequence.EndExclusive - 1;
+        if(endIndex==-1) endIndex = sequence.Pages[--endPageId].Length-1;
+        var endBytes = sequence.Pages[endPageId];
+        
+        // Swap in place across pages
+        do
+        {
+            var startByte = startBytes[startIndex];
+            if(startByte==LF)
             {
-                var startByte = startBytes[startIndex];
-                if(startByte==LF)
-                {
-                    if (++startIndex == startBytes.Length)
-                    {
-                        startBytes = sequence.Pages[++startPageId];
-                        startIndex = 0;
-                    }
-                    if (startIndex == endIndex && startPageId == endPageId) break;
-                    startByte = startBytes[startIndex];
-                }
-                var endByte = endBytes[endIndex];
-                if(endByte==LF)
-                {
-                    if (--endIndex == -1)
-                    {
-                        endBytes = sequence.Pages[--endPageId];
-                        endIndex = endBytes.Length - 1;
-                    }
-                    if (startIndex == endIndex && startPageId == endPageId) break;
-                    endByte = endBytes[endIndex];
-                }
-
-                startBytes[startIndex] = map[endByte];
-                endBytes[endIndex] = map[startByte];
-
                 if (++startIndex == startBytes.Length)
                 {
                     startBytes = sequence.Pages[++startPageId];
                     startIndex = 0;
                 }
+                if (startIndex == endIndex && startPageId == endPageId) break;
+                startByte = startBytes[startIndex];
+            }
+            var endByte = endBytes[endIndex];
+            if(endByte==LF)
+            {
                 if (--endIndex == -1)
                 {
                     endBytes = sequence.Pages[--endPageId];
                     endIndex = endBytes.Length - 1;
                 }
-            } while (startPageId < endPageId || (startPageId == endPageId && startIndex < endIndex));
-            if (startIndex == endIndex) startBytes[startIndex] = map[startBytes[startIndex]];
-            writeQue.Add(sequence);
-        }
-        writeQue.CompleteAdding();
+                if (startIndex == endIndex && startPageId == endPageId) break;
+                endByte = endBytes[endIndex];
+            }
+
+            startBytes[startIndex] = map[endByte];
+            endBytes[endIndex] = map[startByte];
+
+            if (++startIndex == startBytes.Length)
+            {
+                startBytes = sequence.Pages[++startPageId];
+                startIndex = 0;
+            }
+            if (--endIndex == -1)
+            {
+                endBytes = sequence.Pages[--endPageId];
+                endIndex = endBytes.Length - 1;
+            }
+        } while (startPageId < endPageId || (startPageId == endPageId && startIndex < endIndex));
+        if (startIndex == endIndex) startBytes[startIndex] = map[startBytes[startIndex]];
     }
 
     static void Writer()
     {
         using (var stream = Stream.Null)//Console.OpenStandardOutput())
         {
-            RevCompSequence sequence;
+            bool first = true;
+            RevCompSequenceImproved sequence;
             while (tryTake(writeQue, out sequence))
             {
                 var startIndex = sequence.StartHeader;
                 var pages = sequence.Pages;
-
+                if(first)
+                {
+                    Reverse(sequence);
+                    first = false;
+                }
+                else
+                {
+                    sequence.ReverseThread?.Join();
+                }
                 for (int i = 0; i < pages.Count - 1; i++)
                 {
                     var bytes = pages[i];
                     stream.Write(bytes, startIndex, bytes.Length - startIndex);
-                    if(!readQue.IsCompleted) returnBuffer(bytes);
+                    returnBuffer(bytes);
                     startIndex = 0;
                 }
                 stream.Write(pages[pages.Count-1], startIndex, sequence.EndExclusive - startIndex);
@@ -214,7 +222,6 @@ public static class revcompImproved
     {
         new Thread(Reader).Start();
         new Thread(Grouper).Start();
-        new Thread(Reverser).Start();
         Writer();
     }
 }
