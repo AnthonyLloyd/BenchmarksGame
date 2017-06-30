@@ -36,7 +36,7 @@ let main argv =
     // Improved.NBody.Main([|"5"|])
     // NBody.Test [|"50000000"|] |> ignore
     
-    isFasterThan (fun () -> NBodyImproved.Test [|"500000"|]) (fun () -> NBody.Test [|"500000"|]) "Improved C# NBody faster than original"
+    // isFasterThan (fun () -> NBodyImproved.Test [|"500000"|]) (fun () -> NBody.Test [|"500000"|]) "Improved C# NBody faster than original"
 
     // Create big faster file
     // Fasta.Main(argv)
@@ -44,10 +44,10 @@ let main argv =
     // isFasterThanSub (fun m -> m (fun () -> revcompImproved.Main argv) (); revcompImproved.Reset())
     //                 (fun m -> m (fun () -> revcomp.Main argv) (); revcomp.Reset()) "Improved C# ReverseComplement faster than original"
     
-    // let start = System.Diagnostics.Stopwatch.GetTimestamp();
-    // NBody.Main [|"50000000"|]
-    // let end1 = System.Diagnostics.Stopwatch.GetTimestamp();
-    // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
+    let start = System.Diagnostics.Stopwatch.GetTimestamp();
+    NBody.Main [|"50000000"|]
+    let end1 = System.Diagnostics.Stopwatch.GetTimestamp();
+    Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
     
     // let start = System.Diagnostics.Stopwatch.GetTimestamp();
     // FannkuchRedux.Test([|"12"|]) |> printfn "%A"
