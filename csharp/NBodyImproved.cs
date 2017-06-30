@@ -6,9 +6,9 @@
 */
 
 using System;
-using System.Numerics;
+using System.Runtime.CompilerServices;
 
-class Body { public Vector<double> X, V; public double Mass; }
+class Body { public double vx, vy, vz, x, y, z, mass; }
 class Pair { public Body bi, bj; }
 
 public static class NBodyImproved
@@ -19,67 +19,57 @@ public static class NBodyImproved
         const double Pi = 3.141592653589793;
         const double Solarmass = 4 * Pi * Pi;
         const double DaysPeryear = 365.24;
-        //Console.WriteLine(Vector<double>.Count);
-        //Console.WriteLine("Hardware acc: " + Vector.IsHardwareAccelerated);
         var jupiter = new Body {
-            
-            X = new Vector<double>(new double[] { 4.84143144246472090e+00
-                                                , -1.16032004402742839e+00
-                                                , -1.03622044471123109e-01
-                                                , 0 }),
-            V = new Vector<double>(new double[] { 1.66007664274403694e-03 * DaysPeryear
-                                                , 7.69901118419740425e-03 * DaysPeryear
-                                                , -6.90460016972063023e-05 * DaysPeryear
-                                                , 0 }),
-            Mass = 9.54791938424326609e-04 * Solarmass,
-        };
+                x = 4.84143144246472090e+00,
+                y = -1.16032004402742839e+00,
+                z = -1.03622044471123109e-01,
+                vx = 1.66007664274403694e-03 * DaysPeryear,
+                vy = 7.69901118419740425e-03 * DaysPeryear,
+                vz = -6.90460016972063023e-05 * DaysPeryear,
+                mass = 9.54791938424326609e-04 * Solarmass,
+            };
         var saturn = new Body {
-            X = new Vector<double>(new double[] { 8.34336671824457987e+00
-                                                , 4.12479856412430479e+00
-                                                , -4.03523417114321381e-01
-                                                , 0 }),
-            V = new Vector<double>(new double[] { -2.76742510726862411e-03 * DaysPeryear
-                                                , 4.99852801234917238e-03 * DaysPeryear
-                                                , 2.30417297573763929e-05 * DaysPeryear
-                                                , 0 }),
-            Mass = 2.85885980666130812e-04 * Solarmass,
-        };
+                x = 8.34336671824457987e+00,
+                y = 4.12479856412430479e+00,
+                z = -4.03523417114321381e-01,
+                vx = -2.76742510726862411e-03 * DaysPeryear,
+                vy = 4.99852801234917238e-03 * DaysPeryear,
+                vz = 2.30417297573763929e-05 * DaysPeryear,
+                mass = 2.85885980666130812e-04 * Solarmass,
+            };
         var uranus = new Body {
-            X = new Vector<double>(new double[] { 1.28943695621391310e+01
-                                                , -1.51111514016986312e+01
-                                                , -2.23307578892655734e-01
-                                                , 0 }),
-            V = new Vector<double>(new double[] { 2.96460137564761618e-03 * DaysPeryear
-                                                , 2.37847173959480950e-03 * DaysPeryear
-                                                , -2.96589568540237556e-05 * DaysPeryear
-                                                , 0 }),
-            Mass = 4.36624404335156298e-05 * Solarmass,
-        };
+                x = 1.28943695621391310e+01,
+                y = -1.51111514016986312e+01,
+                z = -2.23307578892655734e-01,
+                vx = 2.96460137564761618e-03 * DaysPeryear,
+                vy = 2.37847173959480950e-03 * DaysPeryear,
+                vz = -2.96589568540237556e-05 * DaysPeryear,
+                mass = 4.36624404335156298e-05 * Solarmass,
+            };
         var neptune = new Body {
-            X = new Vector<double>(new double[] { 1.53796971148509165e+01
-                                                , -2.59193146099879641e+01
-                                                , 1.79258772950371181e-01
-                                                , 0 }),
-            V = new Vector<double>(new double[] { 2.68067772490389322e-03 * DaysPeryear
-                                                , 1.62824170038242295e-03 * DaysPeryear
-                                                , -9.51592254519715870e-05 * DaysPeryear
-                                                , 0 }),
-            Mass = 5.15138902046611451e-05 * Solarmass,
-        };
+                x = 1.53796971148509165e+01,
+                y = -2.59193146099879641e+01,
+                z = 1.79258772950371181e-01,
+                vx = 2.68067772490389322e-03 * DaysPeryear,
+                vy = 1.62824170038242295e-03 * DaysPeryear,
+                vz = -9.51592254519715870e-05 * DaysPeryear,
+                mass = 5.15138902046611451e-05 * Solarmass,
+            };
         var sun = new Body {
-                V = (jupiter.V * jupiter.Mass
-                    + saturn.V * saturn.Mass
-                    + uranus.V * uranus.Mass
-                    + neptune.V * neptune.Mass
-                    ) * (-1.0 / Solarmass),
-                Mass = Solarmass,
+                mass = Solarmass,
+                vx = (jupiter.vx * jupiter.mass + saturn.vx * saturn.mass
+                        +uranus.vx * uranus.mass + neptune.vx * neptune.mass)/-Solarmass,
+                vy = (jupiter.vy * jupiter.mass + saturn.vy * saturn.mass
+                        +uranus.vy * uranus.mass + neptune.vy * neptune.mass)/-Solarmass,
+                vz = (jupiter.vz * jupiter.mass + saturn.vz * saturn.mass
+                        +uranus.vz * uranus.mass + neptune.vz * neptune.mass)/-Solarmass,
             };
         return new Body[] {sun, jupiter, saturn, uranus, neptune};
     }
 
     static Pair[] createPairs(Body[] bodies)
     {
-        var pairs = new Pair[bodies.Length * (bodies.Length-1)/2];
+        var pairs = new Pair[bodies.Length * (bodies.Length-1)/2];        
         int pi = 0;
         for (int i = 0; i < bodies.Length-1; i++)
             for (int j = i+1; j < bodies.Length; j++)
@@ -92,52 +82,69 @@ public static class NBodyImproved
         double e = 0.0;
         foreach (var b in bodies)
         {
-            e += b.Mass * Vector.Dot(b.V, b.V);
+            e += b.mass * (b.vx*b.vx + b.vy*b.vy + b.vz*b.vz);
         }
         e *= 0.5;
         foreach (var p in pairs)
         {
             Body bi = p.bi, bj = p.bj;
-            var dx = bi.X - bj.X;
-            e -= (bi.Mass * bj.Mass) / Math.Sqrt(Vector.Dot(dx, dx));
+            double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
+            e -= bi.mass * bj.mass / Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
         return e;
     }
 
-    public static void Main(String[] args)
-    {
-        int n = args.Length > 0 ? int.Parse(args[0]) : 10000;
-        var bodies = createBodies();
-        var pairs = createPairs(bodies);
-        Console.WriteLine(energy(bodies, pairs).ToString("f9"));
-        for(int i=0; i<n; i++) advance(pairs, bodies);
-        Console.WriteLine(energy(bodies, pairs).ToString("f9"));
-    }
-
+    // public static void Main(String[] args)
+    // {
+    //     const double dt = 0.01;
+    //     var bodies = createBodies();
+    //     var pairs = createPairs(bodies);
+    //     Console.WriteLine(energy(bodies, pairs).ToString("f9"));
+    //     for(int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000; n>0; n--)
+    //     {
+    //         foreach (var p in pairs)
+    //         {
+    //             Body bi = p.bi, bj = p.bj;
+    //             double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
+    //             double d2 = dx * dx + dy * dy + dz * dz;
+    //             double mag = dt / (d2 * Math.Sqrt(d2));
+    //             bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
+    //             bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
+    //             bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
+    //         }
+    //         foreach (var b in bodies)
+    //         {
+    //             b.x += dt * b.vx; b.y += dt * b.vy; b.z += dt * b.vz;
+    //         }
+    //     }
+    //     Console.WriteLine(energy(bodies, pairs).ToString("f9"));
+    // }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void advance(Pair[] pairs, Body[] bodies)
     {
         foreach (var p in pairs)
         {
             Body bi = p.bi, bj = p.bj;
-            var dx = bj.X - bi.X;
-            double d2 = Vector.Dot(dx, dx);
+            double dx = bj.x - bi.x, dy = bj.y - bi.y, dz = bj.z - bi.z;
+            double d2 = dx * dx + dy * dy + dz * dz;
             double mag = dt / (d2 * Math.Sqrt(d2));
-            bi.V += (bj.Mass * mag) * dx;
-            bj.V -= (bi.Mass * mag) * dx;
+            bi.vx += bj.mass * dx * mag; bj.vx -= bi.mass * dx * mag;
+            bi.vy += bj.mass * dy * mag; bj.vy -= bi.mass * dy * mag;
+            bi.vz += bj.mass * dz * mag; bj.vz -= bi.mass * dz * mag;
         }
         foreach (var b in bodies)
         {
-            b.X += b.V * dt;
+            b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
         }
     }
 
     public static double Test(String[] args)
     {
-        int n = args.Length > 0 ? int.Parse(args[0]) : 10000;
         var bodies = createBodies();
         var pairs = createPairs(bodies);
         var energyBefore = energy(bodies, pairs);
-        for(int i=0; i<n; i++) advance(pairs, bodies);
+        for(int i=args.Length > 0 ? int.Parse(args[0]) : 10000; i>0; i--) advance(pairs, bodies);
         return Math.Round(energyBefore,10) + Math.Round(energy(bodies, pairs),10);
     }
 }
