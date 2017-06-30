@@ -122,8 +122,8 @@ public static class NBodyImproved
             var dx = bj.X - bi.X;
             double d2 = Vector.Dot(dx, dx);
             double mag = dt / (d2 * Math.Sqrt(d2));
-            bi.V += bj.Mass * mag * dx;
-            bj.V -= bi.Mass * mag * dx;
+            bi.V += (bj.Mass * mag) * dx;
+            bj.V -= (bi.Mass * mag) * dx;
         }
         foreach (var b in bodies)
         {
