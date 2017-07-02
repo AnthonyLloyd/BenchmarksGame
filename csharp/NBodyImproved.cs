@@ -90,25 +90,28 @@ public static class NBodyImproved
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void advance(Body[] bodies)
     {
-        for(int i=0; i<bodies.Length-1; ++i)
+        for(int i=0; i<bodies.Length; ++i)
         {
             var bi = bodies[i];
             double ix = bi.x, iy = bi.y, iz = bi.z, imass = bi.mass;
+            double ivx = bi.vx, ivy = bi.vy, ivz = bi.vz; 
             for(int j=i+1; j<bodies.Length; ++j)
             {
                 var bj = bodies[j];
                 double dx = bj.x - ix, dy = bj.y - iy, dz = bj.z - iz;
                 double d2 = dx * dx + dy * dy + dz * dz;
                 double mag = dt / (d2 * Math.Sqrt(d2));
-                bi.vx += bj.mass * dx * mag; bj.vx -= imass * dx * mag;
-                bi.vy += bj.mass * dy * mag; bj.vy -= imass * dy * mag;
-                bi.vz += bj.mass * dz * mag; bj.vz -= imass * dz * mag;
+                ivx += bj.mass * dx * mag; bj.vx -= imass * dx * mag;
+                ivy += bj.mass * dy * mag; bj.vy -= imass * dy * mag;
+                ivz += bj.mass * dz * mag; bj.vz -= imass * dz * mag;
             }
+            bi.vx = ivx; bi.vy = ivy; bi.vz = ivz;
+            bi.x = ix + ivx * dt; bi.y = iy + ivy * dt; bi.z = iz + ivz * dt;
         }
-        foreach (var b in bodies)
-        {
-            b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
-        }
+        // foreach (var b in bodies)
+        // {
+        //     b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
+        // }
     }
 
     public static void Main(String[] args)
