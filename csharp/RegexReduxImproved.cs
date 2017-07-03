@@ -7,8 +7,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
@@ -19,17 +17,7 @@ public static class regexreduxImproved
         var sequence = System.IO.File.ReadAllText(@"C:\temp\input5000000.txt");//Console.In.ReadToEnd();
         int initialLength = sequence.Length;
 
-        sequence = Regex.Replace(sequence, ">.*\n|\n", "");
-        int codeLength = sequence.Length;
-
-        var substitution = Task.Run(() => {
-            string newseq = Regex.Replace(sequence, "tHa[Nt]", "<4>");
-            newseq = Regex.Replace(newseq, "aND|caN|Ha[DS]|WaS", "<3>");
-            newseq = Regex.Replace(newseq, "a[NSt]|BY", "<2>");
-            newseq = Regex.Replace(newseq, "<[^>]*>", "|");
-            newseq = Regex.Replace(newseq, "\\|[^|][^|]*\\|" , "-");
-            return newseq.Length;
-        });
+        sequence = Regex.Replace(sequence, ">.*\n|\n", String.Empty);
 
         var variants = new string[] {
             "agggtaaa|tttaccct"
@@ -42,18 +30,29 @@ public static class regexreduxImproved
             ,"agggta[cgt]a|t[acg]taccct"
             ,"agggtaa[cgt]|[acg]ttaccct"
         };
-
-        var tasks = new Task<int>[9];
-        for(int i=0; i<9; i++)
+        
+        var counts = new int[10];
+        Parallel.For(0, 10, i =>
         {
-            var variant = variants[i];
-            tasks[i] = Task.Run(() => Regex.Matches(sequence, variant).Count);
-        }
+            if(i==0)
+            {
+                var newseq = Regex.Replace(sequence, "tHa[Nt]", "<4>");
+                newseq = Regex.Replace(newseq, "aND|caN|Ha[DS]|WaS", "<3>");
+                newseq = Regex.Replace(newseq, "a[NSt]|BY", "<2>");
+                newseq = Regex.Replace(newseq, "<[^>]*>", "|");
+                newseq = Regex.Replace(newseq, "\\|[^|][^|]*\\|", "-");
+                counts[0] = newseq.Length;
+            }
+            else
+            {
+                int c = 0;
+                var m = Regex.Match(sequence, variants[i-1]);
+                while(m.Success) { c++; m = m.NextMatch(); }
+                counts[i] = c;
+            }
+        });
 
-        for (int i = 0; i < 9; i++)
-            Console.WriteLine("{0} {1}", variants[i], tasks[i].Result);
-
-        Console.WriteLine("\n{0}\n{1}\n{2}",
-           initialLength, codeLength, substitution.Result);
+        for (int i=0; i<9; ++i) Console.Out.WriteLineAsync(variants[i] + " " + counts[i+1]);
+        Console.Out.WriteLineAsync("\n"+initialLength+"\n"+sequence.Length+"\n"+counts[0]);
     }
 }
