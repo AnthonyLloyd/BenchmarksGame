@@ -14,6 +14,7 @@ class Body { public double vx, vy, vz, x, y, z, mass; }
 public static class NBodyImproved
 {
     const double dt = 0.01;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static Body[] createBodies()
     {
         const double Pi = 3.141592653589793;
@@ -66,7 +67,8 @@ public static class NBodyImproved
             };
         return new Body[] {sun, jupiter, saturn, uranus, neptune};
     }
-
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static double energy(Body[] bodies)
     {
         double e = 0.0;
@@ -77,11 +79,13 @@ public static class NBodyImproved
         e *= 0.5;
         for(int i=0; i<bodies.Length-1; ++i)
         {
+            var bi = bodies[i];
+            double ix = bi.x, iy = bi.y, iz = bi.z, imass = bi.mass;
             for(int j=i+1; j<bodies.Length; ++j)
             {
-                Body bi = bodies[i], bj = bodies[j];
-                double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
-                e -= bi.mass * bj.mass / Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                var bj = bodies[j];
+                double dx = ix - bj.x, dy = iy - bj.y, dz = iz - bj.z;
+                e -= imass * bj.mass / Math.Sqrt(dx * dx + dy * dy + dz * dz);
             }
         }
         return e;
@@ -93,8 +97,8 @@ public static class NBodyImproved
         for(int i=0; i<bodies.Length; ++i)
         {
             var bi = bodies[i];
-            double ix = bi.x, iy = bi.y, iz = bi.z, imass = bi.mass;
-            double ivx = bi.vx, ivy = bi.vy, ivz = bi.vz; 
+            double ix = bi.x, iy = bi.y, iz = bi.z;
+            double ivx = bi.vx, ivy = bi.vy, ivz = bi.vz, imass = bi.mass; 
             for(int j=i+1; j<bodies.Length; ++j)
             {
                 var bj = bodies[j];
@@ -108,17 +112,14 @@ public static class NBodyImproved
             bi.vx = ivx; bi.vy = ivy; bi.vz = ivz;
             bi.x = ix + ivx * dt; bi.y = iy + ivy * dt; bi.z = iz + ivz * dt;
         }
-        // foreach (var b in bodies)
-        // {
-        //     b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
-        // }
     }
 
     public static void Main(String[] args)
     {
         var bodies = createBodies();
         Console.WriteLine(energy(bodies).ToString("f9"));
-        for(int i=args.Length > 0 ? int.Parse(args[0]) : 10000; i>0; i--) advance(bodies);
+        for(int i=args.Length > 0 ? int.Parse(args[0]) : 10000; i>0; --i)
+            advance(bodies);
         Console.WriteLine(energy(bodies).ToString("f9"));
     }
 
@@ -126,7 +127,8 @@ public static class NBodyImproved
     {
         var bodies = createBodies();
         var startEnergy = energy(bodies);
-        for(int i=args.Length > 0 ? int.Parse(args[0]) : 10000; i>0; i--) advance(bodies);
+        for(int i=args.Length > 0 ? int.Parse(args[0]) : 10000; i>0; --i)
+            advance(bodies);
         return Tuple.Create(Math.Round(startEnergy,10),Math.Round(energy(bodies),10));
     }
 }
