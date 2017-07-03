@@ -92,14 +92,14 @@ public static class NBodyImproved
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void advance(Body[] bodies)
+    static void advance(Body[] bodies, int iLastBody)
     {
-        for(int i=0; i<bodies.Length; ++i)
+        for(int i=0; i<=iLastBody; ++i)
         {
             var bi = bodies[i];
             double ix = bi.x, iy = bi.y, iz = bi.z;
             double ivx = bi.vx, ivy = bi.vy, ivz = bi.vz, imass = bi.mass; 
-            for(int j=i+1; j<bodies.Length; ++j)
+            for(int j=i+1; j<=iLastBody; ++j)
             {
                 var bj = bodies[j];
                 double dx = bj.x - ix, dy = bj.y - iy, dz = bj.z - iz;
@@ -109,7 +109,7 @@ public static class NBodyImproved
                 ivy += bj.mass * dy * mag; bj.vy -= imass * dy * mag;
                 ivz += bj.mass * dz * mag; bj.vz -= imass * dz * mag;
             }
-            bi.vx = ivx; bi.vy = ivy; bi.vz = ivz;
+            if(i!=iLastBody) { bi.vx = ivx; bi.vy = ivy; bi.vz = ivz; }
             bi.x = ix + ivx * dt; bi.y = iy + ivy * dt; bi.z = iz + ivz * dt;
         }
     }
@@ -117,18 +117,20 @@ public static class NBodyImproved
     public static void Main(String[] args)
     {
         var bodies = createBodies();
-        Console.WriteLine(energy(bodies).ToString("f9"));
+        Console.Out.WriteLineAsync(energy(bodies).ToString("F9"));
+        var iLastBody = bodies.Length-1;
         for(int i=args.Length > 0 ? int.Parse(args[0]) : 10000; i>0; --i)
-            advance(bodies);
-        Console.WriteLine(energy(bodies).ToString("f9"));
+            advance(bodies, iLastBody);
+        Console.WriteLine(energy(bodies).ToString("F9"));
     }
 
     public static Tuple<double,double> Test(String[] args)
     {
         var bodies = createBodies();
         var startEnergy = energy(bodies);
+        var iLastBody = bodies.Length-1;
         for(int i=args.Length > 0 ? int.Parse(args[0]) : 10000; i>0; --i)
-            advance(bodies);
+            advance(bodies, iLastBody);
         return Tuple.Create(Math.Round(startEnergy,10),Math.Round(energy(bodies),10));
     }
 }
