@@ -1,9 +1,8 @@
 /* The Computer Language Benchmarks Game
    http://benchmarksgame.alioth.debian.org/
- * 
- * Regex-Redux
- * by Josh Goldfoot
- *
+ 
+   Regex-Redux by Josh Goldfoot
+   parallelize by each sequence by Anthony Lloyd
 */
 
 using System;
@@ -14,42 +13,18 @@ using System.Text.RegularExpressions;
 
 public static class regexreduxImproved
 {
-    static int initialLength, strippedLength;
-    static string[] sequences;
-
-    static void strip()
-    {
-        var sequencesString = System.IO.File.ReadAllText(@"C:\temp\input5000000.txt");//Console.In.ReadToEnd();
-        initialLength = sequencesString.Length;
-        var starts = new List<int>();
-        int removed = 0;
-        sequencesString = Regex.Replace(sequencesString, ">.*\n|\n", (Match m) =>
-        {
-            if(m.Value[0]=='>') starts.Add(m.Index-removed);
-            removed += m.Length;
-            return String.Empty;
-        });
-        starts.Add(strippedLength = sequencesString.Length);
-        sequences = new string[starts.Count-1];
-        var noSequences = sequences.Length;
-
-        for(int i=0; i<noSequences; i++)
-            sequences[i] = sequencesString.Substring(starts[i],starts[i+1]-starts[i]);
-        Array.Sort(sequences, (x,y) => -x.Length.CompareTo(y.Length));
-    }
+    static Regex[] variants;
+    static Regex magic1, magic2, magic3, magic4, magic5;
     static Regex regex(string re)
     {
         var r = new Regex(re, RegexOptions.Compiled);
+        // Regex doesn't look to be compiled on .Net Core, hence poor benchmark results.
         //r.Matches("dummy");
         return r;
-    }  
-    public static void Main(string[] args)
+    }
+    static void createRegex()
     {
-        Console.Out.WriteLineAsync("Start:"+DateTime.Now.ToString("HH:mm:ss.ffff"));
-        var stripThread = new Thread(strip);
-        stripThread.Start();
-
-        var variants = new [] {
+        variants = new [] {
              regex("agggtaaa|tttaccct")
             ,regex("[cgt]gggtaaa|tttaccc[acg]")
             ,regex("a[act]ggtaaa|tttacc[agt]t")
@@ -61,16 +36,35 @@ public static class regexreduxImproved
             ,regex("agggtaa[cgt]|[acg]ttaccct")
         };
 
-        var magic1 = regex("tHa[Nt]");
-        var magic2 = regex("aND|caN|Ha[DS]|WaS");
-        var magic3 = regex("a[NSt]|BY");
-        var magic4 = regex("<[^>]*>");
-        var magic5 = regex("\\|[^|][^|]*\\|");
-        
-        Console.Out.WriteLineAsync("Regex finish:"+DateTime.Now.ToString("HH:mm:ss.ffff"));
-        
-        stripThread.Join();
+        magic1 = regex("tHa[Nt]");
+        magic2 = regex("aND|caN|Ha[DS]|WaS");
+        magic3 = regex("a[NSt]|BY");
+        magic4 = regex("<[^>]*>");
+        magic5 = regex("\\|[^|][^|]*\\|");
+    }
+    public static void Main(string[] args)
+    {
+        new Thread(createRegex).Start();
+
+        var sequencesString = System.IO.File.ReadAllText(@"C:\temp\input5000000.txt");//Console.In.ReadToEnd();
+        var initialLength = sequencesString.Length;
+        var starts = new List<int>();
+        int removed = 0;
+        sequencesString = Regex.Replace(sequencesString, ">.*\n|\n", (Match m) =>
+        {
+            if(m.Value[0]=='>') starts.Add(m.Index-removed);
+            removed += m.Length;
+            return String.Empty;
+        });
+
+        starts.Add(sequencesString.Length);
+        var sequences = new string[starts.Count-1];
         var noSequences = sequences.Length;
+
+        for(int i=0; i<noSequences; i++)
+            sequences[i] = sequencesString.Substring(starts[i],starts[i+1]-starts[i]);
+        Array.Sort(sequences, (x,y) => -x.Length.CompareTo(y.Length));
+
         var counts = new int[10*noSequences];
         Parallel.For(0, 10*noSequences, i =>
         {
@@ -102,6 +96,6 @@ public static class regexreduxImproved
         }
         var sCount = 0;
         for(int s=0; s<counts.Length; s+=10) sCount += counts[s];
-        Console.Out.WriteLineAsync("\n"+initialLength+"\n"+strippedLength+"\n"+sCount);
+        Console.Out.WriteLineAsync("\n"+initialLength+"\n"+sequencesString.Length+"\n"+sCount);
     }
 }
