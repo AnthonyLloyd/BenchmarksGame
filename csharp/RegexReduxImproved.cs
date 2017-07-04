@@ -35,7 +35,7 @@ public static class regexreduxImproved
 
         for(int i=0; i<noSequences; i++)
             sequences[i] = sequencesString.Substring(starts[i],starts[i+1]-starts[i]);
-        Console.Out.WriteLineAsync("Strip finish:"+DateTime.Now.ToString("HH:mm:ss.ffff"));
+        Array.Sort(sequences, (x,y) => -x.Length.CompareTo(y.Length));
     }
     static Regex regex(string re)
     {
@@ -74,8 +74,8 @@ public static class regexreduxImproved
         var counts = new int[10*noSequences];
         Parallel.For(0, 10*noSequences, i =>
         {
-            var task = i / noSequences;
-            var sequence = sequences[i % noSequences];
+            var task = i%10;
+            var sequence = sequences[i/10];
             if(task==0)
             {
                 var newseq = magic1.Replace(sequence, "<4>");
@@ -96,13 +96,12 @@ public static class regexreduxImproved
 
         for (int i=0; i<9; ++i)
         {
-            var countStart = (i+1)*noSequences;
             var vCount = 0;
-            for(int s=0; s<noSequences; s++) vCount += counts[countStart + s];
+            for(int s=i+1; s<counts.Length; s+=10) vCount += counts[s];
             Console.Out.WriteLineAsync(variants[i] + " " + vCount);
         }
         var sCount = 0;
-        for(int s=0; s<noSequences; s++) sCount += counts[s];
+        for(int s=0; s<counts.Length; s+=10) sCount += counts[s];
         Console.Out.WriteLineAsync("\n"+initialLength+"\n"+strippedLength+"\n"+sCount);
     }
 }
