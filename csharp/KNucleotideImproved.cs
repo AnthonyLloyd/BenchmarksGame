@@ -16,7 +16,7 @@ using System.Threading;
 class WrapperImproved { public int v; }
 public static class KNucleotideImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 128, LARGEST_SEQUENCE = 250000000;
+    const int READER_BUFFER_SIZE = 1024 * 1024, LARGEST_SEQUENCE = 250000000;
     static volatile int threeStart = -1, threeEnd = -1, threeBlockLastId;
     static byte[][] threeBlocks = new byte[LARGEST_SEQUENCE/READER_BUFFER_SIZE+3][];
     const int COUNT_LENGTH = 7;
