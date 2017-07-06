@@ -16,12 +16,15 @@ using System.Threading;
 class WrapperImproved { public int v; }
 public static class KNucleotideImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 128;
-    const int LARGEST_SEQUENCE = 25000000;
-    const byte GT = (byte)'>';
-    static int threeStart = -1, threeEnd = -1;
-    static byte[][] threeBlocks = new byte[LARGEST_SEQUENCE/READER_BUFFER_SIZE+2][];
-    
+    const int READER_BUFFER_SIZE = 1024 * 128, LARGEST_SEQUENCE = 250000000;
+    static volatile int threeStart = -1, threeEnd = -1, threeBlockLastId;
+    static byte[][] threeBlocks = new byte[LARGEST_SEQUENCE/READER_BUFFER_SIZE+3][];
+    const int COUNT_LENGTH = 7;
+    static int[] countKeyLengths = new []{18,12,6,4,3,2,1};
+    static Dictionary<ulong,WrapperImproved>[] countDictionary = new Dictionary<ulong,WrapperImproved>[COUNT_LENGTH];
+    static int[] countBlockWorking = new int[COUNT_LENGTH];
+    static ulong[] countRollingKey = new ulong[COUNT_LENGTH];
+    static ulong[] countMask = new ulong[COUNT_LENGTH];
     static int find(byte[] buffer, byte[] toFind, int i, ref int matchIndex)
     {
         if(matchIndex==0)
@@ -55,11 +58,103 @@ public static class KNucleotideImproved
 
     static void process()
     {
+        const byte A = (byte)'a';
+        while(true)
+        {
+            bool finished = threeEnd>=0;
+            int countId=0,working=0,lastId=threeBlockLastId;
+            for(; countId<COUNT_LENGTH; countId++)
+            {
+                working = countBlockWorking[countId];
+                if(working>=0 && working<=lastId
+                && Interlocked.CompareExchange(ref countBlockWorking[countId], -1, working)==working) break;
+            }
+            
+            if(countId==COUNT_LENGTH)
+            {
+                if(finished) break; 
+                else continue;
+            }
+            
+            // work block working
+            if(working==0)
+            {
+                var dictionary = countDictionary[countId] = new Dictionary<ulong,WrapperImproved>();
+                int i = threeStart;
 
+                ulong rollingKey = 0;
+                ulong mask = 0;
+                var block = threeBlocks[working];
+                var cursorEnd = countKeyLengths[countId]-1;
+                for (int cursor = 0; cursor<cursorEnd; cursor++)
+                {
+                    rollingKey <<= 2;
+                    rollingKey |= tonum[block[i]];
+                    mask = (mask << 2) + 3;
+                    
+                    if(++i==READER_BUFFER_SIZE)
+                    {
+                        while(threeBlocks[1]==null) Thread.Sleep(0);
+                        block = threeBlocks[1];
+                        working = 1;
+                        i = 0;
+                    }
+                }
+                mask = (mask << 2) + 3;
+                countMask[countId] = mask;
+
+                for(;i<block.Length;i++)
+                {
+                    var cursorByte = block[i];
+                    if(cursorByte>=A)
+                    {
+                        rollingKey = ((rollingKey << 2) & mask) | tonum[cursorByte];
+                        WrapperImproved w;
+                        if (dictionary.TryGetValue(rollingKey, out w))
+                            w.v++;
+                        else
+                            dictionary.Add(rollingKey, new WrapperImproved { v = 1 });
+                    }
+                    else if(cursorByte==0)
+                    {
+                        break;
+                    }
+                }
+                countRollingKey[countId] = rollingKey;
+            }
+            else
+            {
+                var dictionary = countDictionary[countId];
+                var rollingKey = countRollingKey[countId];
+                var mask = countMask[countId];
+                foreach(var cursorByte in threeBlocks[working])
+                {
+                    if(cursorByte>=A)
+                    {
+                        rollingKey = ((rollingKey << 2) & mask) | tonum[cursorByte];
+                        WrapperImproved w;
+                        if (dictionary.TryGetValue(rollingKey, out w))
+                            w.v++;
+                        else
+                            dictionary.Add(rollingKey, new WrapperImproved { v = 1 });
+                    }
+                    else if(cursorByte==0)
+                    {
+                        break;
+                    }
+                }
+                countRollingKey[countId] = rollingKey;
+            }
+
+            // end block working
+
+            countBlockWorking[countId] = working+1;
+        }
     }
 
     public static void Main(string[] args)
     {
+        PrepareLookups();
         var threads = new Thread[Environment.ProcessorCount-1];
         for(int i=0; i<threads.Length; i++) threads[i] = new Thread(process);
 
@@ -67,7 +162,7 @@ public static class KNucleotideImproved
         {
             // find three sequence
             int matchIndex = 0;
-            var toFind = new [] {GT, (byte)'T', (byte)'H', (byte)'R', (byte)'E', (byte)'E'};
+            var toFind = new [] {(byte)'>', (byte)'T', (byte)'H', (byte)'R', (byte)'E', (byte)'E'};
             var buffer = new byte[READER_BUFFER_SIZE];
             do
             {
@@ -90,70 +185,49 @@ public static class KNucleotideImproved
             foreach(var thread in threads) thread.Start();
 
             // find next seq or end of input
-            int blockId = 0;
             matchIndex = 0;
-            toFind = new [] {GT};
+            toFind = new [] {(byte)'>'};
             threeEnd = find(buffer, toFind, threeStart, ref matchIndex);
+            
             while(threeEnd==-1)
             {
                 buffer = new byte[READER_BUFFER_SIZE];
                 var bytesRead = read(stream, buffer, 0, READER_BUFFER_SIZE);
                 threeEnd =  bytesRead==READER_BUFFER_SIZE ? find(buffer, toFind, 0, ref matchIndex) : bytesRead;
-                threeBlocks[++blockId] = buffer;
+                threeBlocks[threeBlockLastId+1] = buffer;
+                threeBlockLastId++;
             }
         }
 
         process();
         foreach(var thread in threads) thread.Join();
-
-
-        // new Thread(Reader).Start();
-        // var locator = new Thread(Locator);
-        // locator.Start();
-        // PrepareLookups();
-        // var lengths = new int[]{1,2,3,4,6,12,18};
-        // var lookups = new string[]{null,null,"GGT","GGTA","GGTATT","GGTATTTTAATT","GGTATTTTAATTTATAGT"};
-        // var results = new StringBuilder[7];
-        // for(int i=0; i<results.Length; i++) results[i] = new StringBuilder();
-        // //while(blockThree==null) Thread.SpinWait(0);
-        // locator.Join();
-        // int buflen = -1;
-        // Parallel.For(0, 7, i =>
-        // {
-        //     var l = lengths[i];
-        //     var p = lookups[i];
-        //     var dict = CountFrequency(l);
-        //     if(p==null)
-        //     {
-        //         if(i==0) buflen = dict.Values.Sum(w => w.v);
-        //         WriteFrequencies(results[i], dict, buflen, l);
-        //     }
-        //     else
-        //         WriteCount(results[i], dict, p);     
-        // });
-        // foreach(var sb in results) Console.Write(sb);
+            
+        var dict6 = countDictionary[6];
+        int buflen = 0;
+        foreach(var w in dict6.Values) buflen += w.v;
+        WriteFrequencies(dict6, buflen, countKeyLengths[6]);
+        WriteFrequencies(countDictionary[5], buflen, countKeyLengths[5]);
+        WriteCount(countDictionary[4], "GGT");
+        WriteCount(countDictionary[3], "GGTA");
+        WriteCount(countDictionary[2], "GGTATT");
+        WriteCount(countDictionary[1], "GGTATTTTAATT");
+        WriteCount(countDictionary[0], "GGTATTTTAATTTATAGT");
     }
 
-    // static byte[] NextPage()
-    // {
-    //     byte[] bytes = null;
-    //     while(!readQue.IsCompleted && !readQue.TryTake(out bytes)) Thread.SpinWait(0);
-    //     return bytes;
-    // }
-
-    private static void WriteFrequencies(StringBuilder sb, Dictionary<ulong, WrapperImproved> freq, int buflen, int fragmentLength)
+    static void WriteFrequencies(Dictionary<ulong, WrapperImproved> freq, int buflen, int fragmentLength)
     {
+        var sb = new StringBuilder();
         double percent = 100.0 / (buflen - fragmentLength + 1);
         foreach(var kv in freq.OrderByDescending(i => i.Value.v))
         {       
             sb.Append(PrintKey(kv.Key, fragmentLength));
             sb.Append(" ");
-            sb.AppendLine((kv.Value.v * percent).ToString("f3"));
+            sb.AppendLine((kv.Value.v * percent).ToString("F3"));
         }
-        sb.AppendLine();
+        Console.Out.WriteLine(sb.ToString());
     }
 
-    private static void WriteCount(StringBuilder sb, Dictionary<ulong, WrapperImproved> dictionary, string fragment)
+    static void WriteCount(Dictionary<ulong, WrapperImproved> dictionary, string fragment)
     {
         ulong key = 0;
         var keybytes = Encoding.ASCII.GetBytes(fragment.ToLower());
@@ -163,12 +237,11 @@ public static class KNucleotideImproved
             key |= tonum[keybytes[i]];
         }
         WrapperImproved w;
-        sb.Append(dictionary.TryGetValue(key, out w) ? w.v : 0);
-        sb.Append("\t");
-        sb.AppendLine(fragment);
+        var n = dictionary.TryGetValue(key, out w) ? w.v : 0;
+        Console.Out.WriteLine(n+"\t"+fragment);
     }
 
-    private static string PrintKey(ulong key, int fragmentLength)
+    static string PrintKey(ulong key, int fragmentLength)
     {
         char[] items = new char[fragmentLength];
         for (int i = 0; i < fragmentLength; ++i)
@@ -178,60 +251,6 @@ public static class KNucleotideImproved
         }
         return new string(items);
     }
-
-    // private static Dictionary<ulong, WrapperImproved> CountFrequency(int fragmentLength)
-    // {
-    //     var dictionary = new Dictionary<ulong, WrapperImproved>();
-    //     var page = blockThree;
-    //     int i = blockThreeStart;
-
-    //     ulong rollingKey = 0;
-    //     ulong mask = 0;
-        
-    //     for (int cursor = 0; cursor < fragmentLength - 1; cursor++)
-    //     {
-    //         rollingKey <<= 2;
-    //         rollingKey |= tonum[page.Data[i]];
-    //         mask = (mask << 2) + 3;
-            
-    //         if(++i==page.Length)
-    //         {
-    //             while(page.NextPage==null) Thread.Sleep(0);
-    //             page = page.NextPage;
-    //             i = 0;
-    //         }
-    //     }
-
-    //     mask = (mask << 2) + 3;
-    //     WrapperImproved w;
-    //     const byte a = (byte)'a';
-    //     const byte GT = (byte)'>';
-    //     for(;;)
-    //     {
-    //         var cursorByte = page.Data[i];
-    //         if(cursorByte >= a)
-    //         {
-    //             rollingKey = ((rollingKey << 2) & mask) | tonum[cursorByte];
-    //             if (dictionary.TryGetValue(rollingKey, out w))
-    //                 w.v++;
-    //             else
-    //                 dictionary.Add(rollingKey, new WrapperImproved { v = 1 });
-    //         }
-    //         else if(cursorByte==GT)
-    //         {
-    //             break;
-    //         }
-
-    //         if(++i==page.Length)
-    //         {
-    //             while(page.NextPage==null) Thread.Sleep(0);
-    //             page = page.NextPage;
-    //             if(page.Length==0) break;
-    //             i = 0;
-    //         }
-    //     }
-    //     return dictionary;
-    // }
 
     private static byte[] tonum = new byte[256];
     private static char[] tochar = new char[4];
