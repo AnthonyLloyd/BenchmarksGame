@@ -7,20 +7,20 @@
 
 using System;
 using System.IO;
+using System.Text;
+using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 class WrapperImproved { public int v; }
 public static class KNucleotideImproved
 {
     const int READER_BUFFER_SIZE = 1024 * 128;
+    const int LARGEST_SEQUENCE = 25000000;
     const byte GT = (byte)'>';
     static int threeStart = -1, threeEnd = -1;
-    static LinkedList<byte[]> threeBlocks = new LinkedList<byte[]>();
+    static byte[][] threeBlocks = new byte[LARGEST_SEQUENCE/READER_BUFFER_SIZE+2][];
     
     static int find(byte[] buffer, byte[] toFind, int i, ref int matchIndex)
     {
@@ -52,9 +52,17 @@ public static class KNucleotideImproved
              : bytesRead==0 ? offset
              : read(stream, buffer, offset+bytesRead, count-bytesRead);
     }
-    
-    static void Reader()
+
+    static void process()
     {
+
+    }
+
+    public static void Main(string[] args)
+    {
+        var threads = new Thread[Environment.ProcessorCount-1];
+        for(int i=0; i<threads.Length; i++) threads[i] = new Thread(process);
+
         using (var stream = File.OpenRead(@"C:\temp\input25000000.txt"))//Console.OpenStandardInput())
         {
             // find three sequence
@@ -63,7 +71,7 @@ public static class KNucleotideImproved
             var buffer = new byte[READER_BUFFER_SIZE];
             do
             {
-                stream.Read(buffer, 0, READER_BUFFER_SIZE);
+                read(stream, buffer, 0, READER_BUFFER_SIZE);
                 threeStart = find(buffer, toFind, 0, ref matchIndex);
             } while (threeStart==-1);
             
@@ -73,12 +81,16 @@ public static class KNucleotideImproved
             threeStart = find(buffer, toFind, threeStart, ref matchIndex);
             while(threeStart==-1)
             {
-                stream.Read(buffer, 0, READER_BUFFER_SIZE);
+                read(stream, buffer, 0, READER_BUFFER_SIZE);
                 threeStart = find(buffer, toFind, 0, ref matchIndex);
             }
-            threeBlocks.AddLast(buffer);
+            threeBlocks[0] = buffer;
+            
+            // something to work on now 
+            foreach(var thread in threads) thread.Start();
 
             // find next seq or end of input
+            int blockId = 0;
             matchIndex = 0;
             toFind = new [] {GT};
             threeEnd = find(buffer, toFind, threeStart, ref matchIndex);
@@ -86,27 +98,14 @@ public static class KNucleotideImproved
             {
                 buffer = new byte[READER_BUFFER_SIZE];
                 var bytesRead = read(stream, buffer, 0, READER_BUFFER_SIZE);
-                threeBlocks.AddLast(buffer);
-                threeEnd = bytesRead==READER_BUFFER_SIZE ? find(buffer, toFind, 0, ref matchIndex) : bytesRead;
+                threeEnd =  bytesRead==READER_BUFFER_SIZE ? find(buffer, toFind, 0, ref matchIndex) : bytesRead;
+                threeBlocks[++blockId] = buffer;
             }
         }
-    }
 
-    // static byte[] NextPage()
-    // {
-    //     byte[] bytes = null;
-    //     while(!readQue.IsCompleted && !readQue.TryTake(out bytes)) Thread.SpinWait(0);
-    //     return bytes;
-    // }
+        process();
+        foreach(var thread in threads) thread.Join();
 
-
-    public static void Main(string[] args)
-    {   
-        Reader();
-
-        Console.WriteLine("start: " + threeStart);
-        Console.WriteLine("end: " + threeEnd);
-        Console.WriteLine("block length: " + threeBlocks.Count);
 
         // new Thread(Reader).Start();
         // var locator = new Thread(Locator);
@@ -134,6 +133,13 @@ public static class KNucleotideImproved
         // });
         // foreach(var sb in results) Console.Write(sb);
     }
+
+    // static byte[] NextPage()
+    // {
+    //     byte[] bytes = null;
+    //     while(!readQue.IsCompleted && !readQue.TryTake(out bytes)) Thread.SpinWait(0);
+    //     return bytes;
+    // }
 
     private static void WriteFrequencies(StringBuilder sb, Dictionary<ulong, WrapperImproved> freq, int buflen, int fragmentLength)
     {
