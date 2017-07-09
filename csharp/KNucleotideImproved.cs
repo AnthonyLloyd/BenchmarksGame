@@ -16,15 +16,15 @@ using System.Threading;
 class WrapperImproved { public int v; }
 public static class KNucleotideImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 1024, LARGEST_SEQUENCE = 250000000;
+    const int READER_BUFFER_SIZE = 1024 * 1024 * 4, LARGEST_SEQUENCE = 250000000;
     static volatile int threeStart = -1, threeEnd = -1, threeBlockLastId;
     static byte[][] threeBlocks = new byte[LARGEST_SEQUENCE/READER_BUFFER_SIZE+3][];
     const int COUNT_LENGTH = 7;
     static int[] countKeyLengths = new []{18,12,6,4,3,2,1};
-    static Dictionary<ulong,WrapperImproved>[] countDictionary = new Dictionary<ulong,WrapperImproved>[COUNT_LENGTH];
+    static Dictionary<long,WrapperImproved>[] countDictionary = new Dictionary<long,WrapperImproved>[COUNT_LENGTH];
     static int[] countBlockWorking = new int[COUNT_LENGTH];
-    static ulong[] countRollingKey = new ulong[COUNT_LENGTH];
-    static ulong[] countMask = new ulong[COUNT_LENGTH];
+    static long[] countRollingKey = new long[COUNT_LENGTH];
+    static long[] countMask = new long[COUNT_LENGTH];
     static int find(byte[] buffer, byte[] toFind, int i, ref int matchIndex)
     {
         if(matchIndex==0)
@@ -58,7 +58,7 @@ public static class KNucleotideImproved
 
     static void process()
     {
-        const byte A = (byte)'a';
+        const byte A = (byte)'a';//, C = (byte)'c', G = (byte)'g', T = (byte)'t';
         while(true)
         {
             bool finished = threeEnd>=0;
@@ -73,17 +73,18 @@ public static class KNucleotideImproved
             if(countId==COUNT_LENGTH)
             {
                 if(finished) break; 
-                else continue;
+                Thread.Sleep(0);
+                continue;
             }
             
             // work block working
             if(working==0)
             {
-                var dictionary = countDictionary[countId] = new Dictionary<ulong,WrapperImproved>();
+                var dictionary = countDictionary[countId] = new Dictionary<long,WrapperImproved>();
                 int i = threeStart;
 
-                ulong rollingKey = 0;
-                ulong mask = 0;
+                long rollingKey = 0;
+                long mask = 0;
                 var block = threeBlocks[working];
                 var cursorEnd = countKeyLengths[countId]-1;
                 for (int cursor = 0; cursor<cursorEnd; cursor++)
@@ -113,11 +114,7 @@ public static class KNucleotideImproved
                         if (dictionary.TryGetValue(rollingKey, out w))
                             w.v++;
                         else
-                            dictionary.Add(rollingKey, new WrapperImproved { v = 1 });
-                    }
-                    else if(cursorByte==0)
-                    {
-                        break;
+                            dictionary.Add(rollingKey, new WrapperImproved());
                     }
                 }
                 countRollingKey[countId] = rollingKey;
@@ -130,17 +127,13 @@ public static class KNucleotideImproved
                 foreach(var cursorByte in threeBlocks[working])
                 {
                     if(cursorByte>=A)
-                    {
+                    {   
                         rollingKey = ((rollingKey << 2) & mask) | tonum[cursorByte];
                         WrapperImproved w;
                         if (dictionary.TryGetValue(rollingKey, out w))
                             w.v++;
                         else
-                            dictionary.Add(rollingKey, new WrapperImproved { v = 1 });
-                    }
-                    else if(cursorByte==0)
-                    {
-                        break;
+                            dictionary.Add(rollingKey, new WrapperImproved());
                     }
                 }
                 countRollingKey[countId] = rollingKey;
@@ -182,18 +175,17 @@ public static class KNucleotideImproved
             threeBlocks[0] = buffer;
             
             // something to work on now 
-            foreach(var thread in threads) thread.Start();
+            for(int i=0; i<threads.Length; i++) threads[i].Start();
 
             // find next seq or end of input
             matchIndex = 0;
             toFind = new [] {(byte)'>'};
             threeEnd = find(buffer, toFind, threeStart, ref matchIndex);
-            
             while(threeEnd==-1)
             {
                 buffer = new byte[READER_BUFFER_SIZE];
                 var bytesRead = read(stream, buffer, 0, READER_BUFFER_SIZE);
-                threeEnd =  bytesRead==READER_BUFFER_SIZE ? find(buffer, toFind, 0, ref matchIndex) : bytesRead;
+                threeEnd = bytesRead==READER_BUFFER_SIZE ? find(buffer, toFind, 0, ref matchIndex) : bytesRead;
                 threeBlocks[threeBlockLastId+1] = buffer;
                 threeBlockLastId++;
             }
@@ -204,7 +196,7 @@ public static class KNucleotideImproved
             
         var dict6 = countDictionary[6];
         int buflen = 0;
-        foreach(var w in dict6.Values) buflen += w.v;
+        foreach(var w in dict6.Values) buflen += w.v+1;
         WriteFrequencies(dict6, buflen, countKeyLengths[6]);
         WriteFrequencies(countDictionary[5], buflen, countKeyLengths[5]);
         WriteCount(countDictionary[4], "GGT");
@@ -214,7 +206,7 @@ public static class KNucleotideImproved
         WriteCount(countDictionary[0], "GGTATTTTAATTTATAGT");
     }
 
-    static void WriteFrequencies(Dictionary<ulong, WrapperImproved> freq, int buflen, int fragmentLength)
+    static void WriteFrequencies(Dictionary<long, WrapperImproved> freq, int buflen, int fragmentLength)
     {
         var sb = new StringBuilder();
         double percent = 100.0 / (buflen - fragmentLength + 1);
@@ -222,14 +214,14 @@ public static class KNucleotideImproved
         {       
             sb.Append(PrintKey(kv.Key, fragmentLength));
             sb.Append(" ");
-            sb.AppendLine((kv.Value.v * percent).ToString("F3"));
+            sb.AppendLine(((kv.Value.v+1) * percent).ToString("F3"));
         }
         Console.Out.WriteLine(sb.ToString());
     }
 
-    static void WriteCount(Dictionary<ulong, WrapperImproved> dictionary, string fragment)
+    static void WriteCount(Dictionary<long, WrapperImproved> dictionary, string fragment)
     {
-        ulong key = 0;
+        long key = 0;
         var keybytes = Encoding.ASCII.GetBytes(fragment.ToLower());
         for (int i = 0; i < keybytes.Length; i++)
         {
@@ -237,11 +229,11 @@ public static class KNucleotideImproved
             key |= tonum[keybytes[i]];
         }
         WrapperImproved w;
-        var n = dictionary.TryGetValue(key, out w) ? w.v : 0;
+        var n = dictionary.TryGetValue(key, out w) ? w.v+1 : 1;
         Console.Out.WriteLine(n+"\t"+fragment);
     }
 
-    static string PrintKey(ulong key, int fragmentLength)
+    static string PrintKey(long key, int fragmentLength)
     {
         char[] items = new char[fragmentLength];
         for (int i = 0; i < fragmentLength; ++i)
