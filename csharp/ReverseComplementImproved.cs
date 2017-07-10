@@ -15,9 +15,8 @@ class RevCompSequenceImproved { public List<byte[]> Pages; public int StartHeade
 
 public static class revcompImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 128;
+    const int READER_BUFFER_SIZE = 1024 * 1024;
     const byte LF = 10, GT = (byte)'>', SP = 32;
-    static BlockingCollection<byte[]> readQue = new BlockingCollection<byte[]>();
     static BlockingCollection<RevCompSequenceImproved> writeQue = new BlockingCollection<RevCompSequenceImproved>();
     static byte[] map;
     
@@ -32,14 +31,39 @@ public static class revcompImproved
     {
         using (var stream = File.OpenRead(@"C:\temp\input25000000.txt"))//Console.OpenStandardInput())
         {
+            var startHeader = 0;
+            var i = 0;
+            bool afterFirst = false;
+            var data = new List<byte[]>();
+            
             int bytesRead;
             do
             {
-                var buffer = new byte[READER_BUFFER_SIZE];
-                bytesRead = read(stream, buffer, 0, READER_BUFFER_SIZE);
-                readQue.Add(buffer);
+                var bytes = new byte[READER_BUFFER_SIZE];
+                bytesRead = read(stream, bytes, 0, READER_BUFFER_SIZE);
+                data.Add(bytes);
+
+                while((i=Array.IndexOf<byte>(bytes, GT, i+1))!=-1)
+                {
+                    var sequence = new RevCompSequenceImproved { Pages = data
+                        , StartHeader = startHeader, EndExclusive = i };
+                    if(afterFirst)
+                        (sequence.ReverseThread = new Thread(() => Reverse(sequence))).Start();
+                    else
+                        afterFirst = true;
+                    writeQue.Add(sequence);
+                    startHeader = i;
+                    data = new List<byte[]> { bytes };
+                }
+
             } while(bytesRead==READER_BUFFER_SIZE);
-            readQue.CompleteAdding();
+
+            i = Array.IndexOf<byte>(data[data.Count-1],0,0);
+            var lastSequence = new RevCompSequenceImproved { Pages = data
+                , StartHeader = startHeader, EndExclusive = i==-1 ? data[data.Count-1].Length : i };
+            Reverse(lastSequence);
+            writeQue.Add(lastSequence);
+            writeQue.CompleteAdding();
         }
     }
 
@@ -48,65 +72,6 @@ public static class revcompImproved
         t = null;
         while(!q.IsCompleted && !q.TryTake(out t)) Thread.SpinWait(0);
         return t!=null;
-    }
-
-    static void Grouper()
-    {
-        // Set up complements map
-        map = new byte[256];
-        for (byte b=0; b<255; b++) map[b]=b;
-        map[(byte)'A'] = (byte)'T';
-        map[(byte)'B'] = (byte)'V';
-        map[(byte)'C'] = (byte)'G';
-        map[(byte)'D'] = (byte)'H';
-        map[(byte)'G'] = (byte)'C';
-        map[(byte)'H'] = (byte)'D';
-        map[(byte)'K'] = (byte)'M';
-        map[(byte)'M'] = (byte)'K';
-        map[(byte)'R'] = (byte)'Y';
-        map[(byte)'T'] = (byte)'A';
-        map[(byte)'V'] = (byte)'B';
-        map[(byte)'Y'] = (byte)'R';
-        map[(byte)'a'] = (byte)'T';
-        map[(byte)'b'] = (byte)'V';
-        map[(byte)'c'] = (byte)'G';
-        map[(byte)'d'] = (byte)'H';
-        map[(byte)'g'] = (byte)'C';
-        map[(byte)'h'] = (byte)'D';
-        map[(byte)'k'] = (byte)'M';
-        map[(byte)'m'] = (byte)'K';
-        map[(byte)'r'] = (byte)'Y';
-        map[(byte)'t'] = (byte)'A';
-        map[(byte)'v'] = (byte)'B';
-        map[(byte)'y'] = (byte)'R';
-
-        var startHeader = 0;
-        var i = 0;
-        bool afterFirst = false;
-        var data = new List<byte[]>();
-        byte[] bytes;
-        while (tryTake(readQue, out bytes))
-        {
-            data.Add(bytes);
-            while((i=Array.IndexOf<byte>(bytes, GT, i+1))!=-1)
-            {
-                var sequence = new RevCompSequenceImproved { Pages = data
-                    , StartHeader = startHeader, EndExclusive = i };
-                if(afterFirst)
-                    (sequence.ReverseThread = new Thread(() => Reverse(sequence))).Start();
-                else
-                    afterFirst = true;
-                writeQue.Add(sequence);
-                startHeader = i;
-                data = new List<byte[]> { bytes };
-            }
-        }
-        i = Array.IndexOf<byte>(data[data.Count-1],0,0);
-        var lastSequence = new RevCompSequenceImproved { Pages = data
-            , StartHeader = startHeader, EndExclusive = i==-1 ? data[data.Count-1].Length : i };
-        Reverse(lastSequence);
-        writeQue.Add(lastSequence);
-        writeQue.CompleteAdding();
     }
 
     static void Reverse(RevCompSequenceImproved sequence)
@@ -172,6 +137,34 @@ public static class revcompImproved
 
     static void Writer()
     {
+        // Set up complements map
+        map = new byte[256];
+        for (byte b=0; b<255; b++) map[b]=b;
+        map[(byte)'A'] = (byte)'T';
+        map[(byte)'B'] = (byte)'V';
+        map[(byte)'C'] = (byte)'G';
+        map[(byte)'D'] = (byte)'H';
+        map[(byte)'G'] = (byte)'C';
+        map[(byte)'H'] = (byte)'D';
+        map[(byte)'K'] = (byte)'M';
+        map[(byte)'M'] = (byte)'K';
+        map[(byte)'R'] = (byte)'Y';
+        map[(byte)'T'] = (byte)'A';
+        map[(byte)'V'] = (byte)'B';
+        map[(byte)'Y'] = (byte)'R';
+        map[(byte)'a'] = (byte)'T';
+        map[(byte)'b'] = (byte)'V';
+        map[(byte)'c'] = (byte)'G';
+        map[(byte)'d'] = (byte)'H';
+        map[(byte)'g'] = (byte)'C';
+        map[(byte)'h'] = (byte)'D';
+        map[(byte)'k'] = (byte)'M';
+        map[(byte)'m'] = (byte)'K';
+        map[(byte)'r'] = (byte)'Y';
+        map[(byte)'t'] = (byte)'A';
+        map[(byte)'v'] = (byte)'B';
+        map[(byte)'y'] = (byte)'R';
+
         using (var stream = Stream.Null)//Console.OpenStandardOutput())
         {
             bool first = true;
@@ -203,7 +196,6 @@ public static class revcompImproved
     public static void Main(string[] args)
     {
         new Thread(Reader).Start();
-        new Thread(Grouper).Start();
         Writer();
     }
 }
