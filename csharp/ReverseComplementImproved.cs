@@ -20,21 +20,25 @@ public static class revcompImproved
     static BlockingCollection<byte[]> readQue = new BlockingCollection<byte[]>();
     static BlockingCollection<RevCompSequenceImproved> writeQue = new BlockingCollection<RevCompSequenceImproved>();
     static byte[] map;
-    static bool shortRead = false, shortReadBeforeEnd = false;
     
+    static int read(Stream stream, byte[] buffer, int offset, int count)
+    {
+        var bytesRead = stream.Read(buffer, offset, count);
+        return bytesRead==count ? offset+count
+             : bytesRead==0 ? offset
+             : read(stream, buffer, offset+bytesRead, count-bytesRead);
+    }
     static void Reader()
     {
         using (var stream = File.OpenRead(@"C:\temp\input25000000.txt"))//Console.OpenStandardInput())
         {
-            for (;;)
+            int bytesRead;
+            do
             {
                 var buffer = new byte[READER_BUFFER_SIZE];
-                var bytesRead = stream.Read(buffer, 0, READER_BUFFER_SIZE);
-                if (bytesRead == 0) break;
-                if(shortRead) shortReadBeforeEnd = true;
-                if(bytesRead != READER_BUFFER_SIZE) shortRead = true;
+                bytesRead = read(stream, buffer, 0, READER_BUFFER_SIZE);
                 readQue.Add(buffer);
-            }
+            } while(bytesRead==READER_BUFFER_SIZE);
             readQue.CompleteAdding();
         }
     }
@@ -77,43 +81,31 @@ public static class revcompImproved
         map[(byte)'y'] = (byte)'R';
 
         var startHeader = 0;
-        var i = 1;
+        var i = 0;
         bool afterFirst = false;
         var data = new List<byte[]>();
         byte[] bytes;
         while (tryTake(readQue, out bytes))
         {
             data.Add(bytes);
-            for (;i<bytes.Length; i++)
+            while((i=Array.IndexOf(bytes, GT, i+1))!=-1)
             {
-                var b = bytes[i];
-                if(b==0) break;
-                if(b==GT)
-                {
-                    var sequence = new RevCompSequenceImproved { Pages = data, StartHeader = startHeader, EndExclusive = i };
-                    if(afterFirst)
-                        (sequence.ReverseThread = new Thread(() => Reverse(sequence))).Start();
-                    else
-                        afterFirst = true;
-                    writeQue.Add(sequence);
-                    startHeader = i;
-                    data = new List<byte[]> { bytes };
-                }
+                var sequence = new RevCompSequenceImproved { Pages = data
+                    , StartHeader = startHeader, EndExclusive = i };
+                if(afterFirst)
+                    (sequence.ReverseThread = new Thread(() => Reverse(sequence))).Start();
+                else
+                    afterFirst = true;
+                writeQue.Add(sequence);
+                startHeader = i;
+                data = new List<byte[]> { bytes };
             }
-            i = 0;
         }
-
-        var lastSequence = new RevCompSequenceImproved { Pages = data, StartHeader = startHeader, EndExclusive = ZeroEnd(data[data.Count-1]) };
+        var lastSequence = new RevCompSequenceImproved { Pages = data
+            , StartHeader = startHeader, EndExclusive = Array.IndexOf(data[data.Count-1],0,0) };
         Reverse(lastSequence);
         writeQue.Add(lastSequence);
         writeQue.CompleteAdding();
-    }
-
-    static int ZeroEnd(byte[] bytes)
-    {
-        for(int i=bytes.Length-1;i>=0;i--)
-            if(bytes[i]!=0) return i+1;
-        return 0;
     }
 
     static void Reverse(RevCompSequenceImproved sequence)
@@ -202,8 +194,7 @@ public static class revcompImproved
                 for (int i = 0; i < pages.Count - 1; i++)
                 {
                     var bytes = pages[i];
-                    var length = shortReadBeforeEnd ? ZeroEnd(bytes) : bytes.Length;
-                    stream.Write(bytes, startIndex, length - startIndex);
+                    stream.Write(bytes, startIndex, bytes.Length - startIndex);
                     startIndex = 0;
                 }
                 stream.Write(pages[pages.Count-1], startIndex, sequence.EndExclusive - startIndex);
