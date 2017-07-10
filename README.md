@@ -22,6 +22,7 @@ Now:
 C#      6.79s  
 Java    7.10s  
 
+DONE
 
 ### NBody
 
@@ -38,9 +39,14 @@ Can't make this faster. Put back the pairs and tried to make it parallel but thi
 
 Stumped. Best I submitted was 21.80s.
 
-Scale out dt?
-Move writeline to bottom.
-0.5 * on total 2.
+Using more local variables as the Java version works well for me but not the test machine.
+It's too close to measure in 5 runs given the variability. I think my last one beats Java but doesn't show in the test results.
+
+Rescaled velocity to move dt out of the loop. Works well but not accepted as changes the algo.
+
+Need a bigger improvement to show easily but not possible in such a close low level calc.
+
+FAIL. I GIVE UP.
 
 ### Reverse-Complement
 
@@ -51,16 +57,37 @@ Java    1.10s
 
 Improved by reversing in place and reusing byte arrays. Hard to test performance as involves large file load.
 
-Submitted. Hopeful...
+Submitted and accepted
 
+Now:
+
+C#      1.16s  
+Java    1.10s  
+
+Submitted again with improvements. Lets see...
 
 ### Frankuch-Redux
 
 I can't improve this. It seems small array manipulation is more costly in .Net than Java?
 
+Will have another go soon.
+
 ### K-Nucleotide
 
-Working on it. Waiting for Reverse-Complement result as I will reuse some of the code/ideas.
+Java code cheats and has a very bespoke dictionary from an obscure lib.
+
+Working on it. Waiting for Reverse-Complement result as I will reuse some of the code/ideas. Not rolling like Java could be an idea if it makes it more parallel.
+
+
+### Regex-Redux
+
+Can't get anywhere near Java here. Regex isn't compiled in .Net Core.
+
+Now
+C#      32.02
+Java    12.31
+
+Submitted some ordering optimisations but can only go to 30 something. Lets see...
 
 
 
