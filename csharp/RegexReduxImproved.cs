@@ -6,6 +6,7 @@
 */
 
 using System;
+using System.Linq; //take out
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ using System.Text.RegularExpressions;
 public static class regexreduxImproved
 {
     static Regex[] variants;
+    static int[] printOrder = new []{4,5,6,7,8,3,1,0,2}; 
     static Regex magic1, magic2, magic3, magic4, magic5;
     static Regex regex(string re)
     {
@@ -22,18 +24,19 @@ public static class regexreduxImproved
         //r.Matches("dummy");
         return r;
     }
+
     static void createRegex()
     {
         variants = new [] {
-             regex("agggtaaa|tttaccct")
-            ,regex("[cgt]gggtaaa|tttaccc[acg]")
-            ,regex("a[act]ggtaaa|tttacc[agt]t")
-            ,regex("ag[act]gtaaa|tttac[agt]ct")
-            ,regex("agg[act]taaa|ttta[agt]cct")
-            ,regex("aggg[acg]aaa|ttt[cgt]ccct")
-            ,regex("agggt[cgt]aa|tt[acg]accct")
-            ,regex("agggta[cgt]a|t[acg]taccct")
-            ,regex("agggtaa[cgt]|[acg]ttaccct")
+             regex("agggta[cgt]a|t[acg]taccct") //7
+            ,regex("agggt[cgt]aa|tt[acg]accct") //6
+            ,regex("agggtaa[cgt]|[acg]ttaccct") //8
+            ,regex("aggg[acg]aaa|ttt[cgt]ccct") //5
+            ,regex("agggtaaa|tttaccct") //0
+            ,regex("[cgt]gggtaaa|tttaccc[acg]") //1
+            ,regex("a[act]ggtaaa|tttacc[agt]t") //2
+            ,regex("ag[act]gtaaa|tttac[agt]ct") //3
+            ,regex("agg[act]taaa|ttta[agt]cct") //4
         };
 
         magic1 = regex("tHa[Nt]");
@@ -64,10 +67,12 @@ public static class regexreduxImproved
         for(int i=0; i<noSequences; i++)
             sequences[i] = sequencesString.Substring(starts[i],starts[i+1]-starts[i]);
         Array.Sort(sequences, (x,y) => -x.Length.CompareTo(y.Length));
-
+        var times = new Dictionary<int,long>();
+        var timesEnd = new Dictionary<int,long>();
         var counts = new int[1+9*noSequences];
         Parallel.For(0, 1+9*noSequences, i =>
         {
+            var start = System.Diagnostics.Stopwatch.GetTimestamp();
             if(i==0)
             {
                 var newseq = magic1.Replace(sequencesString, "<4>");
@@ -86,15 +91,24 @@ public static class regexreduxImproved
                 while(m.Success) { c++; m = m.NextMatch(); }
                 counts[i] = c;
             }
+            var end = System.Diagnostics.Stopwatch.GetTimestamp();
+            times[i] = end-start;
+            timesEnd[i] = end;
         });
 
         for (int i=0; i<9; ++i)
         {
+            var vi = printOrder[i];
             var vCount = 0;
-            for(int s=i+1; s<counts.Length; s+=9) vCount += counts[s];
-            Console.Out.WriteLineAsync(variants[i] + " " + vCount);
+            for(int s=vi+1; s<counts.Length; s+=9) vCount += counts[s];
+            Console.Out.WriteLineAsync(variants[vi] + " " + vCount);
         }
 
         Console.Out.WriteLineAsync("\n"+initialLength+"\n"+sequencesString.Length+"\n"+counts[0]);
+        Console.Out.WriteLineAsync();
+        foreach(var kv in times.OrderByDescending(i => i.Value))
+        {
+            Console.Out.WriteLineAsync(kv.Key+"\t"+kv.Value*1000.0/System.Diagnostics.Stopwatch.Frequency+"\t"+timesEnd[kv.Key]);
+        }
     }
 }
