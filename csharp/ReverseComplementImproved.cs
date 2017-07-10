@@ -88,7 +88,7 @@ public static class revcompImproved
         while (tryTake(readQue, out bytes))
         {
             data.Add(bytes);
-            while((i=Array.IndexOf(bytes, GT, i+1))!=-1)
+            while((i=Array.IndexOf<byte>(bytes, GT, i+1))!=-1)
             {
                 var sequence = new RevCompSequenceImproved { Pages = data
                     , StartHeader = startHeader, EndExclusive = i };
@@ -101,8 +101,9 @@ public static class revcompImproved
                 data = new List<byte[]> { bytes };
             }
         }
+        i = Array.IndexOf<byte>(data[data.Count-1],0,0);
         var lastSequence = new RevCompSequenceImproved { Pages = data
-            , StartHeader = startHeader, EndExclusive = Array.IndexOf(data[data.Count-1],0,0) };
+            , StartHeader = startHeader, EndExclusive = i==-1 ? data[data.Count-1].Length : i };
         Reverse(lastSequence);
         writeQue.Add(lastSequence);
         writeQue.CompleteAdding();
@@ -115,11 +116,8 @@ public static class revcompImproved
         var startIndex = sequence.StartHeader;
 
         // Skip header line
-        for(;;)
+        while((startIndex=Array.IndexOf<byte>(startBytes, LF, startIndex))==-1)
         {
-            for(; startIndex<startBytes.Length; startIndex++)
-                if(startBytes[startIndex]==LF) break;
-            if(startIndex<startBytes.Length) break;
             startBytes = sequence.Pages[++startPageId];
             startIndex = 0;
         }
