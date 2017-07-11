@@ -54,7 +54,8 @@ public class FannkuchRedux
         {
             count[i++] = 0;
             int next = p[0] = p[1];
-            for (int j=1; j<i;) { p[j] = p[++j]; }
+            int j=1;
+            while(j<i) { p[j] = p[++j]; }
             p[i] = first;
             first = next;
         }
