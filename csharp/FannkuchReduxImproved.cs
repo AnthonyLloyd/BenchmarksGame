@@ -19,55 +19,49 @@ public class FannkuchRedux
     static int[] Fact;
     int MaxFlips, Chksum;
 
-    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    // void rotate(int i,int d)
-    // {
-    //     Buffer.BlockCopy(p, 0, pp, 0, d * INT_SIZE);
-    //     Buffer.BlockCopy(p, d * INT_SIZE, p, 0, (i-d) * INT_SIZE);
-    //     Buffer.BlockCopy(pp, 0, p, (i-d) * INT_SIZE, d * INT_SIZE);
-    // }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void FirstPermutation(int[] p, int[] pp, int[] count, int idx)
+    static void rotate(int[] p, int[] pp, int i, int d)
     {
-        for (int i = 0; i<n; ++i) { p[i] = i; }
+        Buffer.BlockCopy(p, 0, pp, 0, d * INT_SIZE);
+        Buffer.BlockCopy(p, d * INT_SIZE, p, 0, (i-d) * INT_SIZE);
+        Buffer.BlockCopy(pp, 0, p, (i-d) * INT_SIZE, d * INT_SIZE);
+    }
 
-        for (int i = n-1; i > 0; --i)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void firstPermutation(int[] p, int[] pp, int[] count, int idx)
+    {
+        for (int i=0; i<n; ++i) { p[i] = i; }
+        for (int i=n-1; i>0; --i)
         {
-            int d = idx / Fact[i];
+            int d = idx/Fact[i];
             count[i] = d;
             if(d>0)
             {
-                idx = idx % Fact[i];
-                Buffer.BlockCopy(p, 0, pp, 0, (i + 1) * INT_SIZE);
-                for (int j = 0; j <= i; ++j)
-                {
-                    p[j] = pp[(j+d)%(i+1)];
-                }
+                idx = idx%Fact[i];
+                rotate(p, pp, i+1, d);
             }
         }
     }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void NextPermutation(int[] p, int[] count)
+    static void nextPermutation(int[] p, int[] count)
     {
         int first = p[1];
         p[1] = p[0];
         p[0] = first;
-
         int i = 1;
         while (++count[i] > i)
         {
             count[i++] = 0;
             int next = p[0] = p[1];
-            for (int j = 1; j<i; ++j)
-            {
-                p[j] = p[j+1];
-            }
+            for (int j=1; j<i;) { p[j] = p[++j]; }
             p[i] = first;
             first = next;
         }
     }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int CountFlips(int[] p, int[] pp)
+    static int countFlips(int[] p, int[] pp)
     {
         int flips = 1;
         int first = p[0];
@@ -77,7 +71,7 @@ public class FannkuchRedux
             for(;;)
             {
                 flips++;
-                for (int lo = 1, hi = first - 1; lo < hi; lo++, hi--)
+                for (int lo=1, hi=first-1; lo<hi; lo++,hi--)
                 {
                     int t = pp[lo];
                     pp[lo] = pp[hi];
@@ -99,10 +93,10 @@ public class FannkuchRedux
 
         do
         {
-            FirstPermutation(p, pp, count, taskId*taskSize);
+            firstPermutation(p, pp, count, taskId*taskSize);
             if(p[0]!=0)
             {
-                int firstFlips = CountFlips(p, pp);
+                int firstFlips = countFlips(p, pp);
                 chksum += firstFlips;
                 maxflips = Math.Max(maxflips, firstFlips);
             }
@@ -110,10 +104,10 @@ public class FannkuchRedux
             for (int i=1; i<taskSize; ++i)
             {
                 sign = -sign;
-                NextPermutation(p, count);
+                nextPermutation(p, count);
                 if (p[0] != 0)
                 {
-                    int flips = CountFlips(p, pp);
+                    int flips = countFlips(p, pp);
                     chksum += sign * flips;
                     maxflips = Math.Max(maxflips, flips);
                 }
