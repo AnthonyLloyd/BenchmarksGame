@@ -27,7 +27,7 @@ public class FannkuchRedux
     //     Buffer.BlockCopy(pp, 0, p, (i-d) * INT_SIZE, d * INT_SIZE);
     // }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    void FirstPermutation(int[] p, int[] pp, int[] count, int idx)
+    static void FirstPermutation(int[] p, int[] pp, int[] count, int idx)
     {
         for (int i = 0; i<n; ++i) { p[i] = i; }
 
@@ -47,7 +47,7 @@ public class FannkuchRedux
         }
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    void NextPermutation(int[] p, int[] count)
+    static void NextPermutation(int[] p, int[] count)
     {
         int first = p[1];
         p[1] = p[0];
@@ -67,7 +67,7 @@ public class FannkuchRedux
         }
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    int CountFlips(int[] p, int[] pp)
+    static int CountFlips(int[] p, int[] pp)
     {
         int flips = 1;
         int first = p[0];
@@ -143,9 +143,7 @@ public class FannkuchRedux
         {
             var taskId = --nTasks;
             var r = redux[i] = new FannkuchRedux();
-            var thread = new Thread(() => r.Run(taskId));
-            thread.Start();
-            tasks[i] = thread;
+            (tasks[i] = new Thread(() => r.Run(taskId))).Start();
         }
         var mainRedux = new FannkuchRedux();
         mainRedux.Run(--nTasks);
