@@ -9,7 +9,6 @@ namespace Improved
 
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
 public class FannkuchRedux
@@ -91,7 +90,6 @@ public class FannkuchRedux
     {
         int[] p = new int[n], pp = new int[n], count = new int[n];
         int maxflips=0, chksum=0;
-
         do
         {
             firstPermutation(p, pp, count, taskId*taskSize);
@@ -115,7 +113,6 @@ public class FannkuchRedux
             }
             taskId = Interlocked.Decrement(ref nTasks);
         } while(taskId>=0);
-
         MaxFlips = maxflips;
         Chksum = chksum;
     }
@@ -129,7 +126,7 @@ public class FannkuchRedux
         var fact = 1;
         for (int i=1; i<Fact.Length; i++) { Fact[i] = fact *= i; }
 
-        nTasks = 12*11;
+        nTasks = 12*11*10*9;
         taskSize = (fact-1) / nTasks + 1;
 
         var redux = new FannkuchRedux[Environment.ProcessorCount-1];

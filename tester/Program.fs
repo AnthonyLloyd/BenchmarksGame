@@ -58,15 +58,16 @@ let main argv =
     // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
     // Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
 
-    let start = System.Diagnostics.Stopwatch.GetTimestamp();
+    let start = System.Diagnostics.Stopwatch.GetTimestamp()
     let orig = FannkuchRedux.Test([|"12"|])
-    let end1 = System.Diagnostics.Stopwatch.GetTimestamp();
+    let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     let newr = Improved.FannkuchRedux.Test([|"12"|])
-    let end2 = System.Diagnostics.Stopwatch.GetTimestamp();
+    let end2 = System.Diagnostics.Stopwatch.GetTimestamp()
     printfn "%A" orig
-    Console.WriteLine(end1-start);
+    Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
     printfn "%A" newr
-    Console.WriteLine(end2-end1);
+    Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
+    Console.WriteLine((18.80/float(end1-start)*float(end2-end1)).ToString("F2")+" compared to 13.74")
 
     //isFasterThan (fun () -> Improved.FannkuchRedux.Test [|"12"|]) (fun () -> FannkuchRedux.Test [|"12"|]) "Improved C# FannkuchRedux faster than original"
     //printfn "%A" (Improved.FannkuchRedux.Test([|"12"|]));
