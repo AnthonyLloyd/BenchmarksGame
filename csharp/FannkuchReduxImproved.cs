@@ -99,15 +99,13 @@ public class FannkuchRedux
                 chksum += firstFlips;
                 if(firstFlips>maxflips) maxflips=firstFlips;
             }
-            var sign = 1;
             for (int i=1; i<taskSize; ++i)
             {
-                sign = -sign;
                 nextPermutation(p, count);
                 if (p[0] != 0)
                 {
                     int flips = countFlips(p, pp);
-                    chksum += sign * flips;
+                    chksum += i%2==0 ? flips : -flips;
                     if(flips>maxflips) maxflips=flips;
                 }
             }
@@ -126,7 +124,7 @@ public class FannkuchRedux
         var fact = 1;
         for (int i=1; i<Fact.Length; i++) { Fact[i] = fact *= i; }
 
-        nTasks = 12*11*10*9;
+        nTasks = 10*9*8;
         taskSize = (fact-1) / nTasks + 1;
 
         var redux = new FannkuchRedux[Environment.ProcessorCount-1];
