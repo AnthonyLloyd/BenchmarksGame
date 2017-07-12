@@ -22,7 +22,7 @@ Now:
 C#      6.79s  
 Java    7.10s  
 
-DONE
+DONE. NOW FASTER THAN JAVA.
 
 ### NBody
 
@@ -64,13 +64,25 @@ Now:
 C#      1.16s  
 Java    1.10s  
 
-Submitted again with improvements. Lets see...
+Submitted again with improvements.
 
-### Frankuch-Redux
+Now:
 
-I can't improve this. It seems small array manipulation is more costly in .Net than Java?
+C#      0.80s  
+Java    1.10s  
 
-Will have another go soon.
+DONE. NOW FASTER THAN JAVA. As soon as the C# results get updated.
+
+### Frannkuch-Redux
+
+Before:
+
+C#      18.80s  
+Java    13.74s  
+
+Thread improved, rotate and small array optimisations. More than enough to beat the Java time on my machine.
+
+Submitted
 
 ### K-Nucleotide
 
@@ -83,11 +95,15 @@ Working on it. Waiting for Reverse-Complement result as I will reuse some of the
 
 Can't get anywhere near Java here. Regex isn't compiled in .Net Core.
 
-Now
-C#      32.02
-Java    12.31
+Before:
+C#      32.02s
+Java    12.31s
 
-Submitted some ordering optimisations but can only go to 30 something. Lets see...
+Submitted some ordering optimisations but can only go to 30 something.
 
+Now:
+C#      31.64s
+Java    12.31s
 
+DONE. CANT BEAT JAVA ON REGEX. As soon as the C# results get updated.
 
