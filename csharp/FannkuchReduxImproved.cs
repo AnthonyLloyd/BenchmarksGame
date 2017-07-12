@@ -97,7 +97,7 @@ public class FannkuchRedux
             {
                 int firstFlips = countFlips(p, pp);
                 chksum += firstFlips;
-                maxflips = Math.Max(maxflips, firstFlips);
+                if(firstFlips>maxflips) maxflips=firstFlips;
             }
             var sign = 1;
             for (int i=1; i<taskSize; ++i)
@@ -108,7 +108,7 @@ public class FannkuchRedux
                 {
                     int flips = countFlips(p, pp);
                     chksum += sign * flips;
-                    maxflips = Math.Max(maxflips, flips);
+                    if(flips>maxflips) maxflips=flips;
                 }
             }
             taskId = Interlocked.Decrement(ref nTasks);
@@ -144,7 +144,7 @@ public class FannkuchRedux
         {
             tasks[i].Join();
             chksum += redux[i].Chksum;
-            maxFlips = Math.Max(maxFlips, redux[i].MaxFlips);
+            if(redux[i].MaxFlips>maxFlips) maxFlips=redux[i].MaxFlips;
         }
         return Tuple.Create(chksum, maxFlips);
     }
