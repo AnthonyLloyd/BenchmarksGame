@@ -16,11 +16,11 @@ using System.Threading;
 class WrapperImproved { public int v; }
 public static class KNucleotideImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 1024 * 4, LARGEST_SEQUENCE = 250000000;
+    const int READER_BUFFER_SIZE = 1024 * 1024  * 16, LARGEST_SEQUENCE = 250000000;
     static volatile int threeStart = -1, threeEnd = -1, threeBlockLastId;
     static byte[][] threeBlocks = new byte[LARGEST_SEQUENCE/READER_BUFFER_SIZE+3][];
     const int COUNT_LENGTH = 7;
-    static int[] countKeyLengths = new []{18,12,6,4,3,2,1};
+    static int[] countKeyLengths = new int[COUNT_LENGTH]{18,12,6,4,3,2,1};
     static Dictionary<long,WrapperImproved>[] countDictionary = new Dictionary<long,WrapperImproved>[COUNT_LENGTH];
     static int[] countBlockWorking = new int[COUNT_LENGTH];
     static long[] countRollingKey = new long[COUNT_LENGTH];
@@ -29,7 +29,7 @@ public static class KNucleotideImproved
     {
         if(matchIndex==0)
         {
-            i = Array.IndexOf(buffer, toFind[0], i);
+            i = Array.IndexOf<byte>(buffer, toFind[0], i);
             if(i==-1) return -1;
             matchIndex = 1;
             return find(buffer, toFind, i+1, ref matchIndex);
@@ -66,7 +66,7 @@ public static class KNucleotideImproved
             for(; countId<COUNT_LENGTH; countId++)
             {
                 working = countBlockWorking[countId];
-                if(working>=0 && working<=lastId
+                if(working!=-1 && working<=lastId
                 && Interlocked.CompareExchange(ref countBlockWorking[countId], -1, working)==working) break;
             }
             

@@ -223,7 +223,7 @@ public class FannkuchRedux
         chkSums = new int[NTASKS];
         taskId = -1;
 
-        int nthreads = Environment.ProcessorCount + 1;
+        int nthreads = 4/*Environment.ProcessorCount*/ + 1;
 
         Task[] tasks = new Task[nthreads];
         for (int i = 0; i < nthreads; ++i)
