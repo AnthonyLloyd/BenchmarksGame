@@ -43,6 +43,26 @@ public class FannkuchRedux
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void firstPermutation2(int[] p, int[] pp, int[] count, int idx)
+    {
+        for (int i=0; i<n; ++i) p[i] = i;
+        for (int i=n-1; i>0; --i)
+        {
+            int d = idx/Fact[i];
+            count[i] = d;
+            if(d>0)
+            {
+                idx = idx%Fact[i];
+                // rotate(p, pp, i+1, d);
+                for(int j=d-1; j>=0; --j) pp[j] = p[j];
+                int m = i-d+1;
+                for(int j=0; j<m; ++j) p[j] = p[j+d];
+                for(int j=d-1; j>=0; --j) p[j+m] = pp[j];
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void nextPermutation(int[] p, int[] count)
     {
         int first = p[1];
@@ -52,27 +72,9 @@ public class FannkuchRedux
         while (++count[i] > i)
         {
             count[i++] = 0;
-            int next = p[0] = p[1];
-            int j=1;
-            while(j<i) { p[j] = p[++j]; }
-            p[i] = first;
-            first = next;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void nextPermutation2(int[] p, int[] count)
-    {
-        int first = p[1];
-        p[1] = p[0];
-        p[0] = first;
-        int i = 1;
-        while (++count[i] > i)
-        {
-            count[i++] = 0;
-            int next = p[0] = p[1];
-            int j=1;
-            while(j<i) { p[j] = p[++j]; }
+            int next = p[1];
+            p[0] = next;
+            for(int j=1;j<i;) p[j] = p[++j];
             p[i] = first;
             first = next;
         }
@@ -80,32 +82,6 @@ public class FannkuchRedux
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int countFlips(int[] p, int[] pp)
-    {
-        int flips = 1;
-        int first = p[0];
-        if (p[first] != 0)
-        {
-            for(int i=n-1;i>=0;--i) pp[i]=p[i];
-            for(;;)
-            {
-                flips++;
-                for (int lo=1, hi=first-1; lo<hi; lo++,hi--)
-                {
-                    int t = pp[lo];
-                    pp[lo] = pp[hi];
-                    pp[hi] = t;
-                }
-                int tp = pp[first];
-                if (pp[tp]==0) break;
-                pp[first] = first;
-                first = tp;
-            }
-        }
-        return flips;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int countFlips2(int[] p, int[] pp)
     {
         int flips = 1;
         int first = p[0];
@@ -210,19 +186,19 @@ public class FannkuchRedux
         int maxflips=0, chksum=0;
         do
         {
-            firstPermutation(p, pp, count, taskId*taskSize);
+            firstPermutation2(p, pp, count, taskId*taskSize);
             if(p[0]!=0)
             {
-                int firstFlips = countFlips2(p, pp);
+                int firstFlips = countFlips(p, pp);
                 chksum += firstFlips;
                 if(firstFlips>maxflips) maxflips=firstFlips;
             }
             for (int i=1; i<taskSize; ++i)
             {
-                nextPermutation2(p, count);
+                nextPermutation(p, count);
                 if (p[0] != 0)
                 {
-                    int flips = countFlips2(p, pp);
+                    int flips = countFlips(p, pp);
                     chksum += i%2==0 ? flips : -flips;
                     if(flips>maxflips) maxflips=flips;
                 }
