@@ -58,27 +58,24 @@ public static class FannkuchRedux
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int countFlips(int n, int[] p, int[] pp)
     {
-        int flips = 1;
         int first = p[0];
-        if (p[first] != 0)
+        if (p[first] == 0) return 1;
+        Buffer.BlockCopy(p, 0, pp, 0, n * 4);
+        int flips = 2;
+        while(true)
         {
-            for(int i=n-1;i>=0;--i) pp[i] = p[i];
-            while(true)
+            for (int lo=1, hi=first-1; lo<hi; lo++,hi--)
             {
-                flips++;
-                for (int lo=1, hi=first-1; lo<hi; lo++,hi--)
-                {
-                    int t = pp[lo];
-                    pp[lo] = pp[hi];
-                    pp[hi] = t;
-                }
-                int tp = pp[first];
-                if (pp[tp]==0) break;
-                pp[first] = first;
-                first = tp;
+                int t = pp[lo];
+                pp[lo] = pp[hi];
+                pp[hi] = t;
             }
+            int tp = pp[first];
+            if (pp[tp]==0) return flips;
+            pp[first] = first;
+            first = tp;
+            flips++;
         }
-        return flips;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
