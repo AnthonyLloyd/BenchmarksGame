@@ -9,14 +9,14 @@ namespace Improved
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
-public class FannkuchRedux
+public static class FannkuchRedux
 {
     const int INT_SIZE = 4;
     static int n, taskSize, nTasks;
     static int[] Fact;
-    int MaxFlips, Chksum;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void rotate(int[] p, int[] pp, int i, int d)
@@ -37,27 +37,16 @@ public class FannkuchRedux
             if(d>0)
             {
                 idx = idx%Fact[i];
+                // option one
                 rotate(p, pp, i+1, d);
-            }
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void firstPermutation2(int[] p, int[] pp, int[] count, int idx)
-    {
-        for (int i=0; i<n; ++i) p[i] = i;
-        for (int i=n-1; i>0; --i)
-        {
-            int d = idx/Fact[i];
-            count[i] = d;
-            if(d>0)
-            {
-                idx = idx%Fact[i];
-                // rotate(p, pp, i+1, d);
-                for(int j=d-1; j>=0; --j) pp[j] = p[j];
-                int m = i-d+1;
-                for(int j=0; j<m; ++j) p[j] = p[j+d];
-                for(int j=d-1; j>=0; --j) p[j+m] = pp[j];
+                // option two
+                // for (int j=i ;j>=0; --j) pp[j] = p[j];
+                // for (int j = 0; j <= i; ++j) p[j] = pp[(j+d)%(i+1)];
+                // option three
+                // for(int j=d-1; j>=0; --j) pp[j] = p[j];
+                // int m = i-d+1;
+                // for(int j=0; j<m; ++j) p[j] = p[j+d];
+                // for(int j=d-1; j>=0; --j) p[j+m] = pp[j];
             }
         }
     }
@@ -79,7 +68,7 @@ public class FannkuchRedux
             first = next;
         }
     }
-
+    
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int countFlips(int[] p, int[] pp)
     {
@@ -106,7 +95,7 @@ public class FannkuchRedux
         return flips;
     }
 
-    void Run(int taskId)
+    static Tuple<int, int> Run(int taskId)
     {
         int[] p = new int[n], pp = new int[n], count = new int[n];
         int maxflips=0, chksum=0;
@@ -131,83 +120,8 @@ public class FannkuchRedux
             }
             taskId = Interlocked.Decrement(ref nTasks);
         } while(taskId>=0);
-        MaxFlips = maxflips;
-        Chksum = chksum;
+        return Tuple.Create(maxflips, chksum);
     }
-
-    public static void TestSetup()
-    {
-        n = 12;
-        
-        Fact = new int[n+1];
-        Fact[0] = 1;
-        var fact = 1;
-        for (int i=1; i<Fact.Length; i++) { Fact[i] = fact *= i; }
-
-        nTasks = 2*3*4*5;
-        taskSize = (fact-1) / nTasks + 1;
-    }
-
-    public static int Test1()
-    {
-        nTasks = 3;
-        var taskId = --nTasks;
-        int[] p = new int[n], pp = new int[n], count = new int[n];
-        int maxflips=0, chksum=0;
-        do
-        {
-            firstPermutation(p, pp, count, taskId*taskSize);
-            if(p[0]!=0)
-            {
-                int firstFlips = countFlips(p, pp);
-                chksum += firstFlips;
-                if(firstFlips>maxflips) maxflips=firstFlips;
-            }
-            for (int i=1; i<taskSize; ++i)
-            {
-                nextPermutation(p, count);
-                if (p[0] != 0)
-                {
-                    int flips = countFlips(p, pp);
-                    chksum += i%2==0 ? flips : -flips;
-                    if(flips>maxflips) maxflips=flips;
-                }
-            }
-            taskId = Interlocked.Decrement(ref nTasks);
-        } while(taskId>=0);
-        return chksum;
-    }
-
-    public static int Test2()
-    {
-        nTasks = 3;
-        var taskId = --nTasks;
-        int[] p = new int[n], pp = new int[n], count = new int[n];
-        int maxflips=0, chksum=0;
-        do
-        {
-            firstPermutation2(p, pp, count, taskId*taskSize);
-            if(p[0]!=0)
-            {
-                int firstFlips = countFlips(p, pp);
-                chksum += firstFlips;
-                if(firstFlips>maxflips) maxflips=firstFlips;
-            }
-            for (int i=1; i<taskSize; ++i)
-            {
-                nextPermutation(p, count);
-                if (p[0] != 0)
-                {
-                    int flips = countFlips(p, pp);
-                    chksum += i%2==0 ? flips : -flips;
-                    if(flips>maxflips) maxflips=flips;
-                }
-            }
-            taskId = Interlocked.Decrement(ref nTasks);
-        } while(taskId>=0);
-        return chksum;
-    }
-
 
     public static Tuple<int,int> Test(string[] args)
     {
@@ -221,22 +135,20 @@ public class FannkuchRedux
         nTasks = 2*3*4*5;
         taskSize = (fact-1) / nTasks + 1;
 
-        var redux = new FannkuchRedux[4/*Environment.ProcessorCount*/-1];
-        var tasks = new Thread[4/*Environment.ProcessorCount*/-1];
+        var tasks = new Task<Tuple<int,int>>[4/*Environment.ProcessorCount*/];
         for(int i=0; i<tasks.Length; i++)
         {
             var taskId = --nTasks;
-            var r = redux[i] = new FannkuchRedux();
-            (tasks[i] = new Thread(() => r.Run(taskId))).Start();
+            tasks[i] = Task.Run(() => Run(taskId));
         }
-        var mainRedux = new FannkuchRedux();
-        mainRedux.Run(--nTasks);
-        int chksum=mainRedux.Chksum, maxFlips=mainRedux.MaxFlips;
+        Task.WaitAll(tasks);
+
+        int chksum=0, maxFlips=0;
         for(int i=0; i<tasks.Length; i++)
         {
-            tasks[i].Join();
-            chksum += redux[i].Chksum;
-            if(redux[i].MaxFlips>maxFlips) maxFlips=redux[i].MaxFlips;
+            var result = tasks[i].Result;
+            if(result.Item1>maxFlips) maxFlips=result.Item1;
+            chksum += result.Item2;
         }
         return Tuple.Create(chksum, maxFlips);
     }
