@@ -19,11 +19,11 @@ public static class FannkuchRedux
     static int[] Fact;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void rotate(int[] p, int[] pp, int i, int d)
+    static void rotate(int[] p, int[] pp, int l, int d)
     {
-        Buffer.BlockCopy(p, 0, pp, 0, d * INT_SIZE);
-        Buffer.BlockCopy(p, d * INT_SIZE, p, 0, (i-d) * INT_SIZE);
-        Buffer.BlockCopy(pp, 0, p, (i-d) * INT_SIZE, d * INT_SIZE);
+        Buffer.BlockCopy(p, 0, pp, 0, d);
+        Buffer.BlockCopy(p, d, p, 0, l);
+        Buffer.BlockCopy(pp, 0, p, l, d);        
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -37,16 +37,7 @@ public static class FannkuchRedux
             if(d>0)
             {
                 idx = idx%Fact[i];
-                // option one
-                rotate(p, pp, i+1, d);
-                // option two
-                // for (int j=i ;j>=0; --j) pp[j] = p[j];
-                // for (int j = 0; j <= i; ++j) p[j] = pp[(j+d)%(i+1)];
-                // option three
-                // for(int j=d-1; j>=0; --j) pp[j] = p[j];
-                // int m = i-d+1;
-                // for(int j=0; j<m; ++j) p[j] = p[j+d];
-                // for(int j=d-1; j>=0; --j) p[j+m] = pp[j];
+                rotate(p, pp, (i+1-d) * INT_SIZE, d * INT_SIZE);
             }
         }
     }
@@ -95,7 +86,7 @@ public static class FannkuchRedux
         return flips;
     }
 
-    static Tuple<int, int> Run(int taskId)
+    static Tuple<int,int> Run(int taskId)
     {
         int[] p = new int[n], pp = new int[n], count = new int[n];
         int maxflips=0, chksum=0;
@@ -132,7 +123,7 @@ public static class FannkuchRedux
         var fact = 1;
         for (int i=1; i<Fact.Length; i++) { Fact[i] = fact *= i; }
 
-        nTasks = 2*3*4*5;
+        nTasks = 2*4*5;
         taskSize = (fact-1) / nTasks + 1;
 
         var tasks = new Task<Tuple<int,int>>[4/*Environment.ProcessorCount*/];
