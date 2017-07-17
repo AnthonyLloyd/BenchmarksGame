@@ -8,16 +8,11 @@ namespace Improved
 {
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
 public static class FannkuchRedux
 {
-    const int INT_SIZE = 4;
-    static int n, taskSize, nTasks;
-    static int[] Fact;
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void rotate(int[] p, int[] pp, int l, int d)
     {
@@ -27,17 +22,17 @@ public static class FannkuchRedux
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void firstPermutation(int[] p, int[] pp, int[] count, int idx)
+    static void firstPermutation(int n, int[] fact, int[] p, int[] pp, int[] count, int idx)
     {
-        for (int i=0; i<n; ++i) { p[i] = i; }
+        for (int i=0; i<n; ++i) p[i] = i;
         for (int i=n-1; i>0; --i)
         {
-            int d = idx/Fact[i];
+            int d = idx/fact[i];
             count[i] = d;
             if(d>0)
             {
-                idx = idx%Fact[i];
-                rotate(p, pp, (i+1-d) * INT_SIZE, d * INT_SIZE);
+                idx = idx%fact[i];
+                rotate(p, pp, (i+1-d) * 4, d * 4);
             }
         }
     }
@@ -61,13 +56,13 @@ public static class FannkuchRedux
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int countFlips(int[] p, int[] pp)
+    static int countFlips(int n, int[] p, int[] pp)
     {
         int flips = 1;
         int first = p[0];
         if (p[first] != 0)
         {
-            for(int i=n-1;i>=0;--i) pp[i]=p[i];
+            for(int i=n-1;i>=0;--i) pp[i] = p[i];
             while(true)
             {
                 flips++;
@@ -86,60 +81,54 @@ public static class FannkuchRedux
         return flips;
     }
 
-    static Tuple<int,int> Run(int taskId)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static Tuple<int,int> run(int n, int[] fact, int taskId, int taskSize)
     {
         int[] p = new int[n], pp = new int[n], count = new int[n];
         int maxflips=0, chksum=0;
-        do
+        firstPermutation(n, fact, p, pp, count, taskId*taskSize);
+        if(p[0] != 0)
         {
-            firstPermutation(p, pp, count, taskId*taskSize);
-            if(p[0]!=0)
+            int flips = countFlips(n, p, pp);
+            chksum += flips;
+            if(flips>maxflips) maxflips=flips;
+        }
+        while (--taskSize>0)
+        {
+            nextPermutation(p, count);
+            if (p[0] != 0)
             {
-                int firstFlips = countFlips(p, pp);
-                chksum += firstFlips;
-                if(firstFlips>maxflips) maxflips=firstFlips;
+                int flips = countFlips(n, p, pp);
+                chksum += taskSize%2==0 ? flips : -flips;
+                if(flips>maxflips) maxflips=flips;
             }
-            for (int i=1; i<taskSize; ++i)
-            {
-                nextPermutation(p, count);
-                if (p[0] != 0)
-                {
-                    int flips = countFlips(p, pp);
-                    chksum += i%2==0 ? flips : -flips;
-                    if(flips>maxflips) maxflips=flips;
-                }
-            }
-            taskId = Interlocked.Decrement(ref nTasks);
-        } while(taskId>=0);
-        return Tuple.Create(maxflips, chksum);
+        }
+        return Tuple.Create(chksum, maxflips);
     }
 
     public static Tuple<int,int> Test(string[] args)
     {
-        n = args.Length > 0 ? int.Parse(args[0]) : 7;
+        int n = args.Length > 0 ? int.Parse(args[0]) : 7;
         
-        Fact = new int[n+1];
-        Fact[0] = 1;
-        var fact = 1;
-        for (int i=1; i<Fact.Length; i++) { Fact[i] = fact *= i; }
+        var fact = new int[n+1];
+        fact[0] = 1;
+        var factn = 1;
+        for (int i=1; i<fact.Length; i++) { fact[i] = factn *= i; }
 
-        nTasks = 2*4*5;
-        taskSize = (fact-1) / nTasks + 1;
-
-        var tasks = new Task<Tuple<int,int>>[4/*Environment.ProcessorCount*/];
-        for(int i=0; i<tasks.Length; i++)
+        int nTasks = 4/*Environment.ProcessorCount*/;
+        int taskSize = factn / nTasks;
+        var tasks = new Task<Tuple<int,int>>[nTasks];
+        for(int i=tasks.Length-1; i>=0; --i)
         {
-            var taskId = --nTasks;
-            tasks[i] = Task.Run(() => Run(taskId));
+            int j = i;
+            tasks[j] = Task.Run(() => run(n, fact, j, taskSize));
         }
-        Task.WaitAll(tasks);
-
-        int chksum=0, maxFlips=0;
-        for(int i=0; i<tasks.Length; i++)
+        int chksum=tasks[0].Result.Item1, maxFlips=tasks[0].Result.Item2;
+        for(int i=1; i<tasks.Length; i++)
         {
             var result = tasks[i].Result;
-            if(result.Item1>maxFlips) maxFlips=result.Item1;
-            chksum += result.Item2;
+            chksum += result.Item1;
+            if(result.Item2>maxFlips) maxFlips=result.Item2;
         }
         return Tuple.Create(chksum, maxFlips);
     }
