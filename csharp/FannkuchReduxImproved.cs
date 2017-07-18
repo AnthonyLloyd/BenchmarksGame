@@ -59,7 +59,7 @@ public static class FannkuchRedux
     static int countFlips(int n, int[] p, int[] pp)
     {
         int first = p[0];
-        if (p[first] == 0) return 1;
+        if (p[first]==0) return 1;
         Buffer.BlockCopy(p, 0, pp, 0, n * 4);
         int flips = 2;
         while(true)

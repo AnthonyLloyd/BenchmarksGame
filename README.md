@@ -48,6 +48,9 @@ Need a bigger improvement to show easily but not possible in such a close low le
 
 FAIL. I GIVE UP.
 
+Not quite. Thinking I only need a 1% improvement. Will try a few very safe optimisations.
+
+
 ### Reverse-Complement
 
 Before:
@@ -71,7 +74,7 @@ Now:
 C#      0.80s  
 Java    1.10s  
 
-DONE. NOW FASTER THAN JAVA. As soon as the C# results get updated.
+DONE. NOW FASTER THAN JAVA.
 
 ### Frannkuch-Redux
 
@@ -105,5 +108,5 @@ Now:
 C#      31.64s
 Java    12.31s
 
-DONE. CANT BEAT JAVA ON REGEX. As soon as the C# results get updated.
+DONE. CANT BEAT JAVA ON REGEX.
 
