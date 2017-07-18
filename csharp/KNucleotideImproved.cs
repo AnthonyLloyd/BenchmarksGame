@@ -75,6 +75,7 @@ public static class KNucleotideImproved
             rollingKey = (rollingKey << 2) | bytes[start++];
         }
         var dict = new Dictionary<long,WrapperImproved>();
+        // is for faster?
         while(start<end)
         {
             rollingKey = ((rollingKey<<2) & mask) | bytes[start++];
@@ -95,6 +96,7 @@ public static class KNucleotideImproved
         {
             var start = i*step;
             var end = start+l-1+step;
+            // check end - start same across all 4
             tasks[i] = Task.Run(() => calcDictionary(bytes, l, mask, start, end));
         }
         tasks[n-1] = Task.Run(() => calcDictionary(bytes, l, mask, (n-1)*step, bytesLength));
@@ -117,6 +119,7 @@ public static class KNucleotideImproved
 
             while((line=stream.ReadLine()) != null && line[0]!='>')
             {
+                // line.Length in a var, is the bytes load fast?
                 if (line.Length + position > bytes.Length)
                 {
                     var newBytes = new byte[bytes.Length*2];
@@ -133,22 +136,27 @@ public static class KNucleotideImproved
         int nParallel = 4;//Environment.ProcessorCount
 
         var taskDict18 = dictionaryTasks(bytes, position, 18, 68719476735, nParallel);
+        var taskString18 = Task.Factory.ContinueWhenAll(taskDict18, t => writeCount(merge(t), "GGTATTTTAATTTATAGT"));
+        
         var taskDict12 = dictionaryTasks(bytes, position, 12, 16777215, nParallel);
+        var taskString12 = Task.Factory.ContinueWhenAll(taskDict12, t => writeCount(merge(t), "GGTATTTTAATT"));
+        
         var taskDict6 = dictionaryTasks(bytes, position, 6, 4095, nParallel);
+        var taskString6 = Task.Factory.ContinueWhenAll(taskDict6, t => writeCount(merge(t), "GGTATT"));
+
         var taskDict4 = dictionaryTasks(bytes, position, 4, 255, nParallel);
+        var taskString4 = Task.Factory.ContinueWhenAll(taskDict4, t => writeCount(merge(t), "GGTA"));
+        
         var taskDict3 = dictionaryTasks(bytes, position, 3, 63, nParallel);
+        var taskString3 = Task.Factory.ContinueWhenAll(taskDict3, t => writeCount(merge(t), "GGT"));
+        
         var taskDict2 = dictionaryTasks(bytes, position, 2, 15, nParallel);
         var taskDict1 = dictionaryTasks(bytes, position, 1, 3, nParallel);
-        
-        var taskString18 = Task.Factory.ContinueWhenAll(taskDict18, t => writeCount(merge(t), "GGTATTTTAATTTATAGT"));
-        var taskString12 = Task.Factory.ContinueWhenAll(taskDict12, t => writeCount(merge(t), "GGTATTTTAATT"));
-        var taskString6 = Task.Factory.ContinueWhenAll(taskDict6, t => writeCount(merge(t), "GGTATT"));
-        var taskString4 = Task.Factory.ContinueWhenAll(taskDict4, t => writeCount(merge(t), "GGTA"));
-        var taskString3 = Task.Factory.ContinueWhenAll(taskDict3, t => writeCount(merge(t), "GGT"));
+
         var taskString1and2 = Task.Factory.ContinueWhenAll(taskDict1, _ =>
         {
-            int buflen = 0;
             var dict1 = merge(taskDict1);
+            int buflen = 0;
             foreach(var w in dict1.Values) buflen += w.v;
             var sb = writeFrequencies(dict1, buflen, 1);
             sb.AppendLine();
@@ -157,11 +165,11 @@ public static class KNucleotideImproved
             return sb;
         });
 
-        Console.WriteLine(taskString1and2.Result);
-        Console.WriteLine(taskString3.Result);
-        Console.WriteLine(taskString4.Result);
-        Console.WriteLine(taskString6.Result);
-        Console.WriteLine(taskString12.Result);
-        Console.WriteLine(taskString18.Result);
+        Console.Out.WriteLineAsync(taskString1and2.Result.ToString());
+        Console.Out.WriteLineAsync(taskString3.Result);
+        Console.Out.WriteLineAsync(taskString4.Result);
+        Console.Out.WriteLineAsync(taskString6.Result);
+        Console.Out.WriteLineAsync(taskString12.Result);
+        Console.Out.WriteLineAsync(taskString18.Result);
     }
 }
