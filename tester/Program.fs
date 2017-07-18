@@ -58,20 +58,17 @@ let main argv =
     // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
     // Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
 
-    // let start = System.Diagnostics.Stopwatch.GetTimestamp()
-    // //KNucleotide.Main argv
-    // Improved.FannkuchRedux.Test [|"12"|] |> ignore
-    // let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
-    // //KNucleotideImproved.Main argv
-    // FannkuchRedux.Test [|"12"|] |> ignore
-    // let end2 = System.Diagnostics.Stopwatch.GetTimestamp()
-    // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
-    // Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
-    // Console.WriteLine((18.80/float(end2-end1)*float(end1-start)).ToString("F2")+" compared to 13.74")
+    let start = System.Diagnostics.Stopwatch.GetTimestamp()
+    KNucleotide.Main argv
+    let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
+    KNucleotideImproved.Main argv
+    let end2 = System.Diagnostics.Stopwatch.GetTimestamp()
+    Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
+    Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
+    Console.WriteLine((13.76/float(end1-start)*float(end2-end1)).ToString("F2")+" compared to 7.93")
 
-    // Improved.FannkuchRedux.TestSetup()
-    isFasterThan (fun () -> Improved.FannkuchRedux.Test [|"12"|]) (fun () -> FannkuchRedux.Test [|"12"|]) "Improved C# FannkuchRedux faster than original"
-    //printfn "%A" (Improved.FannkuchRedux.Test([|"12"|]));
+
+    //isFasterThan (fun () -> Improved.FannkuchRedux.Test [|"12"|]) (fun () -> FannkuchRedux.Test [|"12"|]) "Improved C# FannkuchRedux faster than original"
     
     //isFasterThan (fun () -> FSharpImprovedNBody.test 5000000) (fun () -> FSharpOriginalNBody.test 5000000) "NBody F# Improved faster then F# Original"
     //isFasterThan (fun () -> CSharpParallel.NBody.Test 5000000) (fun () -> CSharpOriginal.NBody.Test 5000000) "NBody C# Parallel faster then C# Original"

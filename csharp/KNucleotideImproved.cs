@@ -72,7 +72,7 @@ public static class KNucleotideImproved
             
             if(countId==COUNT_LENGTH)
             {
-                if(finished) break; 
+                if(finished) break;
                 Thread.Sleep(0);
                 continue;
             }
@@ -222,11 +222,10 @@ public static class KNucleotideImproved
     static void WriteCount(Dictionary<long, WrapperImproved> dictionary, string fragment)
     {
         long key = 0;
-        var keybytes = Encoding.ASCII.GetBytes(fragment.ToLower());
-        for (int i = 0; i < keybytes.Length; i++)
+        for (int i=0; i<fragment.Length; ++i)
         {
             key <<= 2;
-            key |= tonum[keybytes[i]];
+            key |= tonum[fragment[i]];
         }
         WrapperImproved w;
         var n = dictionary.TryGetValue(key, out w) ? w.v+1 : 1;
@@ -235,10 +234,10 @@ public static class KNucleotideImproved
 
     static string PrintKey(long key, int fragmentLength)
     {
-        char[] items = new char[fragmentLength];
-        for (int i = 0; i < fragmentLength; ++i)
+        var items = new char[fragmentLength];
+        for (int i=fragmentLength-1; i>=0; --i)
         {
-            items[fragmentLength - i - 1] = tochar[key & 0x3];
+            items[i] = tochar[key & 0x3];
             key >>= 2;
         }
         return new string(items);
@@ -248,10 +247,9 @@ public static class KNucleotideImproved
     private static char[] tochar = new char[4];
     private static void PrepareLookups()
     {
-        tonum['a'] = 0;
-        tonum['c'] = 1;
-        tonum['g'] = 2;
-        tonum['t'] = 3;
+        tonum['c'] = 1; tonum['C'] = 1;
+        tonum['g'] = 2; tonum['G'] = 2;
+        tonum['t'] = 3; tonum['T'] = 3;
         tochar[0] = 'A';
         tochar[1] = 'C';
         tochar[2] = 'G';
