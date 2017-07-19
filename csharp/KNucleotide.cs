@@ -22,6 +22,7 @@ public class KNucleotide
             (from fragmentLength in fragmentLengths.AsParallel()
              select CountFrequency(buffer, fragmentLength)).ToArray();
         int buflen = dicts[0].Values.Sum(x => x.V);
+        
         WriteFrequencies(dicts[0], buflen, 1);
         WriteFrequencies(dicts[1], buflen, 2);
         WriteCount(dicts[2], "GGT");

@@ -18,7 +18,7 @@ public static class KNucleotideImproved
     static byte[] tonum = new byte[256];
     static char[] tochar = new char[] {'A', 'C', 'G', 'T'};
 
-    static StringBuilder writeFrequencies(Dictionary<long, WrapperImproved> freq, int buflen, int fragmentLength)
+    static string writeFrequencies(Dictionary<int, WrapperImproved> freq, int buflen, int fragmentLength)
     {
         var sb = new StringBuilder();
         double percent = 100.0 / (buflen - fragmentLength + 1);
@@ -35,10 +35,22 @@ public static class KNucleotideImproved
             sb.Append(" ");
             sb.AppendLine((kv.Value.v * percent).ToString("F3"));
         }
-        return sb;
+        return sb.ToString();
     }
 
-    static string writeCount(Dictionary<long, WrapperImproved> dictionary, string fragment)
+    static string writeCount(Dictionary<int, WrapperImproved> dictionary, string fragment)
+    {
+        int key = 0;
+        for (int i=0; i<fragment.Length; ++i)
+        {
+            key = (key << 2) | tonum[fragment[i]];
+        }
+        WrapperImproved w;
+        var n = dictionary.TryGetValue(key, out w) ? w.v : 0;
+        return n+"\t"+fragment;
+    }
+
+    static string writeCountLong(Dictionary<long, WrapperImproved> dictionary, string fragment)
     {
         long key = 0;
         for (int i=0; i<fragment.Length; ++i)
@@ -50,7 +62,23 @@ public static class KNucleotideImproved
         return n+"\t"+fragment;
     }
 
-    static Dictionary<long,WrapperImproved> merge(Task<Dictionary<long,WrapperImproved>>[] dicts)
+    static Dictionary<int,WrapperImproved> merge(Task<Dictionary<int,WrapperImproved>>[] dicts)
+    {
+        var d0 = dicts[0].Result;
+        for(int i=1; i<dicts.Length; ++i)
+        {
+            foreach(var kv in dicts[i].Result)
+            {
+                WrapperImproved w;
+                if (d0.TryGetValue(kv.Key, out w))
+                    w.v += kv.Value.v;
+                else
+                    d0[kv.Key] = kv.Value;
+            }
+        }
+        return d0;
+    }
+    static Dictionary<long,WrapperImproved> mergeLong(Task<Dictionary<long,WrapperImproved>>[] dicts)
     {
         var d0 = dicts[0].Result;
         for(int i=1; i<dicts.Length; ++i)
@@ -67,9 +95,29 @@ public static class KNucleotideImproved
         return d0;
     }
 
-    static Dictionary<long,WrapperImproved> calcDictionary(byte[] bytes, int l, long mask, int start, int end)
+    static Dictionary<int,WrapperImproved> calcDictionary(byte[] bytes, int l, int mask, int start, int end)
     {
-        long rollingKey=0;
+        int rollingKey = 0;
+        while(--l>0)
+        {
+            rollingKey = (rollingKey << 2) | bytes[start++];
+        }
+        var dict = new Dictionary<int,WrapperImproved>();
+        while(start<end)
+        {
+            rollingKey = ((rollingKey<<2) & mask) | bytes[start++];
+            WrapperImproved w;
+            if (dict.TryGetValue(rollingKey, out w))
+                w.v++;
+            else
+                dict[rollingKey] = new WrapperImproved();
+        }
+        return dict;
+    }
+
+    static Dictionary<long,WrapperImproved> calcDictionaryLong(byte[] bytes, int l, long mask, int start, int end)
+    {
+        long rollingKey = 0;
         while(--l>0)
         {
             rollingKey = (rollingKey << 2) | bytes[start++];
@@ -87,10 +135,10 @@ public static class KNucleotideImproved
         return dict;
     }
 
-    static Task<Dictionary<long,WrapperImproved>>[] dictionaryTasks(byte[] bytes, int l, long mask, int n)
+    static Task<Dictionary<int,WrapperImproved>>[] dictionaryTasks(byte[] bytes, int l, int mask, int n)
     {
         int step = (bytes.Length-l)/n+1;
-        var tasks = new Task<Dictionary<long,WrapperImproved>>[n];
+        var tasks = new Task<Dictionary<int,WrapperImproved>>[n];
         for(int i=0; i<n; i++)
         {
             var start = i*step;
@@ -100,6 +148,18 @@ public static class KNucleotideImproved
         return tasks;
     }
 
+    static Task<Dictionary<long,WrapperImproved>>[] dictionaryTasksLong(byte[] bytes, int l, long mask, int n)
+    {
+        int step = (bytes.Length-l)/n+1;
+        var tasks = new Task<Dictionary<long,WrapperImproved>>[n];
+        for(int i=0; i<n; i++)
+        {
+            var start = i*step;
+            var end = Math.Min(start+l-1+step, bytes.Length);
+            tasks[i] = Task.Run(() => calcDictionaryLong(bytes, l, mask, start, end));
+        }
+        return tasks;
+    }
     public static void Main(string[] args)
     {
         tonum['c'] = 1; tonum['C'] = 1;
@@ -132,7 +192,7 @@ public static class KNucleotideImproved
         for(int t=0; t<tasks.Length; ++t)
         {
             int start = t*step;
-            int end = Math.Min(start-1+step, lines.Count);
+            int end = Math.Min(start+step, lines.Count);
             tasks[t] = Task.Run(() =>
             {
                 int index = linePosition[start];
@@ -144,15 +204,13 @@ public static class KNucleotideImproved
 
         Task.WaitAll(tasks);
 
-        nParallel = 1;
-
         var taskString18 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 18, 68719476735/* 2**(2*18)-1 */, nParallel),
-            t => writeCount(merge(t), "GGTATTTTAATTTATAGT")
+            dictionaryTasksLong(bytes, 18, 68719476735/* 2**(2*18)-1 */, 2),
+            t => writeCountLong(mergeLong(t), "GGTATTTTAATTTATAGT")
         );
         
         var taskString12 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 12, 16777215/* 2**(2*12)-1 */, nParallel),
+            dictionaryTasks(bytes, 12, 16777215/* 2**(2*12)-1 */, 2),
             t => writeCount(merge(t), "GGTATTTTAATT")
         );
         
@@ -171,30 +229,35 @@ public static class KNucleotideImproved
             t => writeCount(merge(t), "GGT")
         );
         
-        var taskString1 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 1, 3/* 2**(2*1)-1 */, nParallel),
-            t =>
-            {
-                var dict1 = merge(t);
-                int buflen = 0;
-                foreach(var w in dict1.Values) buflen += w.v;
-                var sb = writeFrequencies(dict1, buflen, 1);
-                sb.AppendLine();
-                return Tuple.Create(buflen,sb);
-            });
-        
-        var taskString1and2 = Task.Factory.ContinueWhenAll(
+        var taskString2 = Task.Factory.ContinueWhenAll(
             dictionaryTasks(bytes, 2, 15/* 2**(2*2)-1 */, nParallel),
-            t =>
+            t => writeFrequencies(merge(t), position, 2)
+        );
+        
+        var taskString1 = Task.Run(() =>
+        {
+            int a=0,c=0,g=0,t=0;
+            foreach(var i in bytes)
             {
-                var dict2 = merge(t);
-                var r = taskString1.Result;
-                var sb = r.Item2;
-                sb.Append(writeFrequencies(dict2, r.Item1, 2));
-                return sb.ToString();
-            });
-
-        Console.Out.WriteLineAsync(taskString1and2.Result);
+                switch(i)
+                {
+                    case 0: a++; break;
+                    case 1: c++; break;
+                    case 2: g++; break;
+                    default: t++; break;
+                }
+            }
+            var dict1 = new Dictionary<int,WrapperImproved>{
+                {0, new WrapperImproved {v=a}},
+                {1, new WrapperImproved {v=c}},
+                {2, new WrapperImproved {v=g}},
+                {3, new WrapperImproved {v=t}}
+            };
+            return writeFrequencies(dict1, position, 1);
+        });
+        
+        Console.Out.WriteLineAsync(taskString1.Result);
+        Console.Out.WriteLineAsync(taskString2.Result);
         Console.Out.WriteLineAsync(taskString3.Result);
         Console.Out.WriteLineAsync(taskString4.Result);
         Console.Out.WriteLineAsync(taskString6.Result);
