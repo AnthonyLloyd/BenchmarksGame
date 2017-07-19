@@ -135,8 +135,9 @@ public static class KNucleotideImproved
         return dict;
     }
 
-    static Task<Dictionary<int,WrapperImproved>>[] dictionaryTasks(byte[] bytes, int l, int mask, int n)
+    static Task<Dictionary<int,WrapperImproved>> count(byte[] bytes, int l, int mask, int n)
     {
+        if(n==1) return Task.Run(() => calcDictionary(bytes, l, mask, 0, bytes.Length));
         int step = (bytes.Length-l)/n+1;
         var tasks = new Task<Dictionary<int,WrapperImproved>>[n];
         for(int i=0; i<n; i++)
@@ -145,10 +146,10 @@ public static class KNucleotideImproved
             var end = Math.Min(start+l-1+step, bytes.Length);
             tasks[i] = Task.Run(() => calcDictionary(bytes, l, mask, start, end));
         }
-        return tasks;
+        return Task.Factory.ContinueWhenAll(tasks, merge);
     }
 
-    static Task<Dictionary<long,WrapperImproved>>[] dictionaryTasksLong(byte[] bytes, int l, long mask, int n)
+    static Task<Dictionary<long,WrapperImproved>> countLong(byte[] bytes, int l, long mask, int n)
     {
         int step = (bytes.Length-l)/n+1;
         var tasks = new Task<Dictionary<long,WrapperImproved>>[n];
@@ -158,7 +159,7 @@ public static class KNucleotideImproved
             var end = Math.Min(start+l-1+step, bytes.Length);
             tasks[i] = Task.Run(() => calcDictionaryLong(bytes, l, mask, start, end));
         }
-        return tasks;
+        return Task.Factory.ContinueWhenAll(tasks, mergeLong);
     }
     public static void Main(string[] args)
     {
@@ -204,39 +205,27 @@ public static class KNucleotideImproved
 
         Task.WaitAll(tasks);
 
-        var taskString18 = Task.Factory.ContinueWhenAll(
-            dictionaryTasksLong(bytes, 18, 68719476735/* 2**(2*18)-1 */, 2),
-            t => writeCountLong(mergeLong(t), "GGTATTTTAATTTATAGT")
-        );
+        var taskString18 = countLong(bytes, 18, 68719476735/* 2**(2*18)-1 */, nParallel/2)
+            .ContinueWith(t => writeCountLong(t.Result, "GGTATTTTAATTTATAGT"));
         
-        var taskString12 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 12, 16777215/* 2**(2*12)-1 */, 2),
-            t => writeCount(merge(t), "GGTATTTTAATT")
-        );
+        var taskString12 = count(bytes, 12, 16777215/* 2**(2*12)-1 */, nParallel/2)
+            .ContinueWith(t => writeCount(t.Result, "GGTATTTTAATT"));        
         
-        var taskString6 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 6, 4095/* 2**(2*6)-1 */, nParallel),
-            t => writeCount(merge(t), "GGTATT")
-        );
+        var taskString6 = count(bytes, 6, 4095/* 2**(2*6)-1 */, nParallel/2)
+            .ContinueWith(t => writeCount(t.Result, "GGTATT"));
 
-        var taskString4 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 4, 255/* 2**(2*4)-1 */, nParallel),
-            t => writeCount(merge(t), "GGTA")
-        );
+        var taskString4 = count(bytes, 4, 255/* 2**(2*4)-1 */, nParallel/2)
+            .ContinueWith(t => writeCount(t.Result, "GGTA"));
         
-        var taskString3 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 3, 63/* 2**(2*3)-1 */, nParallel),
-            t => writeCount(merge(t), "GGT")
-        );
+        var taskString3 = count(bytes, 3, 63/* 2**(2*3)-1 */, 1)
+            .ContinueWith(t => writeCount(t.Result, "GGT"));
         
-        var taskString2 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 2, 15/* 2**(2*2)-1 */, nParallel),
-            t => writeFrequencies(merge(t), position, 2)
-        );
+        var taskString2 = count(bytes, 2, 15/* 2**(2*2)-1 */, 1)
+            .ContinueWith(t => writeFrequencies(t.Result, position, 2));
         
         var taskString1 = Task.Run(() =>
         {
-            int a=0,c=0,g=0,t=0;
+            int a=0, c=0, g=0, t=0;
             foreach(var i in bytes)
             {
                 switch(i)
