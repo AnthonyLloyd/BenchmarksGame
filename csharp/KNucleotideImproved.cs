@@ -205,23 +205,11 @@ public static class KNucleotideImproved
 
         Task.WaitAll(tasks);
 
-        var taskString18 = countLong(bytes, 18, 68719476735/* 2**(2*18)-1 */, nParallel/2)
+        var taskString18 = countLong(bytes, 18, 68719476735/* 2**(2*18)-1 */, nParallel)
             .ContinueWith(t => writeCountLong(t.Result, "GGTATTTTAATTTATAGT"));
         
-        var taskString12 = count(bytes, 12, 16777215/* 2**(2*12)-1 */, nParallel/2)
+        var taskString12 = count(bytes, 12, 16777215/* 2**(2*12)-1 */, nParallel)
             .ContinueWith(t => writeCount(t.Result, "GGTATTTTAATT"));        
-        
-        var taskString6 = count(bytes, 6, 4095/* 2**(2*6)-1 */, nParallel/2)
-            .ContinueWith(t => writeCount(t.Result, "GGTATT"));
-
-        var taskString4 = count(bytes, 4, 255/* 2**(2*4)-1 */, nParallel/2)
-            .ContinueWith(t => writeCount(t.Result, "GGTA"));
-        
-        var taskString3 = count(bytes, 3, 63/* 2**(2*3)-1 */, 1)
-            .ContinueWith(t => writeCount(t.Result, "GGT"));
-        
-        var taskString2 = count(bytes, 2, 15/* 2**(2*2)-1 */, 1)
-            .ContinueWith(t => writeFrequencies(t.Result, position, 2));
         
         var taskString1 = Task.Run(() =>
         {
@@ -244,7 +232,19 @@ public static class KNucleotideImproved
             };
             return writeFrequencies(dict1, position, 1);
         });
-        
+
+        var taskString2 = count(bytes, 2, 15/* 2**(2*2)-1 */, 1)
+            .ContinueWith(t => writeFrequencies(t.Result, position, 2));
+
+        var taskString3 = count(bytes, 3, 63/* 2**(2*3)-1 */, 1)
+            .ContinueWith(t => writeCount(t.Result, "GGT"));
+
+        var taskString4 = count(bytes, 4, 255/* 2**(2*4)-1 */, nParallel/2)
+            .ContinueWith(t => writeCount(t.Result, "GGTA"));
+
+        var taskString6 = count(bytes, 6, 4095/* 2**(2*6)-1 */, nParallel/2)
+            .ContinueWith(t => writeCount(t.Result, "GGTATT"));
+
         Console.Out.WriteLineAsync(taskString1.Result);
         Console.Out.WriteLineAsync(taskString2.Result);
         Console.Out.WriteLineAsync(taskString3.Result);
