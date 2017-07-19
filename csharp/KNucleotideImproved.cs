@@ -144,45 +144,55 @@ public static class KNucleotideImproved
 
         Task.WaitAll(tasks);
 
+        nParallel = 1;
+
         var taskString18 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 18, 68719476735, nParallel),
+            dictionaryTasks(bytes, 18, 68719476735/* 2**(2*18)-1 */, nParallel),
             t => writeCount(merge(t), "GGTATTTTAATTTATAGT")
         );
         
         var taskString12 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 12, 16777215, nParallel),
+            dictionaryTasks(bytes, 12, 16777215/* 2**(2*12)-1 */, nParallel),
             t => writeCount(merge(t), "GGTATTTTAATT")
         );
         
         var taskString6 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 6, 4095, nParallel),
+            dictionaryTasks(bytes, 6, 4095/* 2**(2*6)-1 */, nParallel),
             t => writeCount(merge(t), "GGTATT")
         );
 
         var taskString4 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 4, 255, nParallel),
+            dictionaryTasks(bytes, 4, 255/* 2**(2*4)-1 */, nParallel),
             t => writeCount(merge(t), "GGTA")
         );
         
         var taskString3 = Task.Factory.ContinueWhenAll(
-            dictionaryTasks(bytes, 3, 63, nParallel),
+            dictionaryTasks(bytes, 3, 63/* 2**(2*3)-1 */, nParallel),
             t => writeCount(merge(t), "GGT")
         );
         
-        var taskDict2 = dictionaryTasks(bytes, 2, 15, nParallel);
-        var taskDict1 = dictionaryTasks(bytes, 1, 3, nParallel);
-
-        var taskString1and2 = Task.Factory.ContinueWhenAll(taskDict1, _ =>
-        {
-            var dict1 = merge(taskDict1);
-            int buflen = 0;
-            foreach(var w in dict1.Values) buflen += w.v;
-            var sb = writeFrequencies(dict1, buflen, 1);
-            sb.AppendLine();
-            var dict2 = merge(taskDict2);
-            sb.Append(writeFrequencies(dict2, buflen, 2));
-            return sb.ToString();
-        });
+        var taskString1 = Task.Factory.ContinueWhenAll(
+            dictionaryTasks(bytes, 1, 3/* 2**(2*1)-1 */, nParallel),
+            t =>
+            {
+                var dict1 = merge(t);
+                int buflen = 0;
+                foreach(var w in dict1.Values) buflen += w.v;
+                var sb = writeFrequencies(dict1, buflen, 1);
+                sb.AppendLine();
+                return Tuple.Create(buflen,sb);
+            });
+        
+        var taskString1and2 = Task.Factory.ContinueWhenAll(
+            dictionaryTasks(bytes, 2, 15/* 2**(2*2)-1 */, nParallel),
+            t =>
+            {
+                var dict2 = merge(t);
+                var r = taskString1.Result;
+                var sb = r.Item2;
+                sb.Append(writeFrequencies(dict2, r.Item1, 2));
+                return sb.ToString();
+            });
 
         Console.Out.WriteLineAsync(taskString1and2.Result);
         Console.Out.WriteLineAsync(taskString3.Result);
