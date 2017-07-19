@@ -50,56 +50,45 @@ public static class KNucleotideImproved
         return n+"\t"+fragment;
     }
 
-    static Dictionary<long,WrapperImproved> merge(Task<Dictionary<long,WrapperImproved>>[] dicts)
-    {
-        var d0 = dicts[0].Result;
-        for(int i=1; i<dicts.Length; ++i)
-        {
-            foreach(var kv in dicts[i].Result)
-            {
-                WrapperImproved w;
-                if (d0.TryGetValue(kv.Key, out w))
-                    w.v += kv.Value.v;
-                else
-                    d0[kv.Key] = kv.Value;
-            }
-        }
-        return d0;
-    }
-
-    static Dictionary<long,WrapperImproved> calcDictionary(byte[] bytes, int l, long mask, int start, int end)
+    static Dictionary<long,WrapperImproved> calcDictionary(byte[] bytes, int l, long mask, byte b)
     {
         long rollingKey = 0;
-        while(--l>0)
-        {
-            rollingKey = (rollingKey << 2) | bytes[start++];
-        }
+        for(int i=0; i<l-1; ++i) rollingKey = (rollingKey<<2) | bytes[i];
         var dict = new Dictionary<long,WrapperImproved>();
-        while(start<end)
+        for(int i=l-1; i<bytes.Length; i++)
         {
-            rollingKey = ((rollingKey<<2) & mask) | bytes[start++];
-            WrapperImproved w;
-            if (dict.TryGetValue(rollingKey, out w))
-                w.v++;
-            else
-                dict[rollingKey] = new WrapperImproved();
+            var nb = bytes[i];
+            if(nb==b)
+            {
+                WrapperImproved w;
+                if (dict.TryGetValue(rollingKey, out w))
+                    w.v++;
+                else
+                    dict[rollingKey] = new WrapperImproved();
+            }
+            rollingKey = ((rollingKey << 2) | nb) & mask;
         }
         return dict;
     }
 
-
-    static Task<Dictionary<long,WrapperImproved>> count(byte[] bytes, int l, long mask, int n)
+    static Task<Dictionary<long,WrapperImproved>> count(byte[] bytes, int l, long mask)
     {
-        int step = (bytes.Length-l)/n+1;
-        var tasks = new Task<Dictionary<long,WrapperImproved>>[n];
-        for(int i=0; i<n; i++)
-        {
-            var start = i*step;
-            var end = Math.Min(start+l-1+step, bytes.Length);
-            tasks[i] = Task.Run(() => calcDictionary(bytes, l, mask, start, end));
-        }
-        return Task.Factory.ContinueWhenAll(tasks, merge);
+        return Task.Factory.ContinueWhenAll(
+            new [] {
+                Task.Run(() => calcDictionary(bytes, l, mask, 0)),
+                Task.Run(() => calcDictionary(bytes, l, mask, 1)),
+                Task.Run(() => calcDictionary(bytes, l, mask, 2)),
+                Task.Run(() => calcDictionary(bytes, l, mask, 3))
+            }
+            , dicts => {
+                var d = new Dictionary<long,WrapperImproved>(dicts.Sum(i => i.Result.Count));
+                for(byte i=0; i<dicts.Length; i++)
+                    foreach(var kv in dicts[i].Result)
+                        d[(kv.Key << 2) | i] = kv.Value;
+                return d;
+            });
     }
+
     public static void Main(string[] args)
     {
         tonum['c'] = 1; tonum['C'] = 1;
@@ -109,7 +98,8 @@ public static class KNucleotideImproved
         var lines = new List<string>(1024);
         var linePosition = new List<int>(1024);
         int position = 0;
-        using (var stream = new StreamReader(File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/))
+        var ascii = Encoding.ASCII;
+        using (var stream = new StreamReader(File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/, ascii))
         {
             string line = stream.ReadLine();
             while(line[0]!='>' || line[1]!='T' || line[2]!='H' || line[3]!='R' || line[4]!='E' || line[5]!='E')
@@ -137,25 +127,31 @@ public static class KNucleotideImproved
             {
                 int index = linePosition[start];
                 for(int i=start; i<end; ++i)
-                    foreach(var c in lines[i])
+                    foreach(var c in ascii.GetBytes(lines[i]))
                         bytes[index++] = tonum[c];
             });
         }
 
         Task.WaitAll(tasks);
 
-        var taskString18 = count(bytes, 18, 68719476735/* 2**(2*18)-1 */, nParallel/2)
+        var taskString18 = count(bytes, 18, 68719476736/2-1)//4**17-1
             .ContinueWith(t => writeCount(t.Result, "GGTATTTTAATTTATAGT"));
         
-        var taskString12 = count(bytes, 12, 16777215/* 2**(2*12)-1 */, nParallel/2)
+        var taskString12 = count(bytes, 12, 16777216/2-1)//4**11-1
             .ContinueWith(t => writeCount(t.Result, "GGTATTTTAATT"));        
         
-        var taskString6 = count(bytes, 6, 4095/* 2**(2*6)-1 */, nParallel/2)
+        var taskString6 = count(bytes, 6, 1023)//4**5-1
             .ContinueWith(t => writeCount(t.Result, "GGTATT"));
         
-        var taskString4 = count(bytes, 4, 255/* 2**(2*4)-1 */, nParallel/2)
+        var taskString4 = count(bytes, 4, 63)//4**3-1
             .ContinueWith(t => writeCount(t.Result, "GGTA"));
         
+        var taskString3 = count(bytes, 3, 15)//4**2-1
+            .ContinueWith(t => writeCount(t.Result, "GGT"));
+
+        var taskString2 = count(bytes, 2, 3)//4**1-1
+            .ContinueWith(t => writeFrequencies(t.Result, position, 2));
+
         var taskString1 = Task.Run(() =>
         {
             int a=0, c=0, g=0, t=0;
@@ -177,12 +173,6 @@ public static class KNucleotideImproved
             };
             return writeFrequencies(dict1, position, 1);
         });
-
-        var taskString2 = count(bytes, 2, 15/* 2**(2*2)-1 */, 2)
-            .ContinueWith(t => writeFrequencies(t.Result, position, 2));
-
-        var taskString3 = count(bytes, 3, 63/* 2**(2*3)-1 */, 2)
-            .ContinueWith(t => writeCount(t.Result, "GGT"));
 
         Console.Out.WriteLineAsync(taskString1.Result);
         Console.Out.WriteLineAsync(taskString2.Result);
