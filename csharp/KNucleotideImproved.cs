@@ -128,11 +128,7 @@ public static class KNucleotideImproved
         Parallel.For(0, lines.Count, i =>
         {
             int j = linePosition[i];
-            var line = lines[i];
-            for(int k=0; k<line.Length; ++k)
-            {
-                bytes[j++] = tonum[line[k]];
-            }
+            foreach(var c in lines[i]) bytes[j++] = tonum[c];
         });
 
         int nParallel = 4;//Environment.ProcessorCount
