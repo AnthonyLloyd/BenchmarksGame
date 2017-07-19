@@ -19,7 +19,7 @@ public class KNucleotide
         var buffer = GetBytesForThirdSequence();
         var fragmentLengths = new[] { 1, 2, 3, 4, 6, 12, 18 };
         var dicts =
-            (from fragmentLength in fragmentLengths.AsParallel().WithDegreeOfParallelism(4)
+            (from fragmentLength in fragmentLengths.AsParallel()
              select CountFrequency(buffer, fragmentLength)).ToArray();
         int buflen = dicts[0].Values.Sum(x => x.V);
         WriteFrequencies(dicts[0], buflen, 1);
