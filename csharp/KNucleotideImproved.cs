@@ -124,14 +124,26 @@ public static class KNucleotideImproved
             }            
         }
 
-        var bytes = new byte[position];
-        Parallel.For(0, lines.Count, i =>
-        {
-            int j = linePosition[i];
-            foreach(var c in lines[i]) bytes[j++] = tonum[c];
-        });
-
         int nParallel = 4;//Environment.ProcessorCount
+
+        var bytes = new byte[position];
+
+        var tasks = new Task[nParallel];
+        int step = (lines.Count-1)/nParallel+1;
+        for(int t=0; t<tasks.Length; ++t)
+        {
+            int start = t*step;
+            int end = Math.Min(start-1+step, lines.Count);
+            tasks[t] = Task.Run(() =>
+            {
+                int index = linePosition[start];
+                for(int i=start; i<end; ++i)
+                    foreach(var c in lines[i])
+                        bytes[index++] = tonum[c];
+            });
+        }
+
+        Task.WaitAll(tasks);
 
         var taskDict18 = dictionaryTasks(bytes, position, 18, 68719476735, nParallel);
         var taskString18 = Task.Factory.ContinueWhenAll(taskDict18, t => writeCount(merge(t), "GGTATTTTAATTTATAGT"));
