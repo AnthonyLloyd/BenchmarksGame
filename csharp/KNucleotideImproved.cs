@@ -61,7 +61,7 @@ public static class KNucleotideImproved
                 if (d0.TryGetValue(kv.Key, out w))
                     w.v += kv.Value.v;
                 else
-                    d0.Add(kv.Key, kv.Value);
+                    d0[kv.Key] = kv.Value;
             }
         }
         return d0;
@@ -75,7 +75,6 @@ public static class KNucleotideImproved
             rollingKey = (rollingKey << 2) | bytes[start++];
         }
         var dict = new Dictionary<long,WrapperImproved>();
-        // is for faster?
         while(start<end)
         {
             rollingKey = ((rollingKey<<2) & mask) | bytes[start++];
@@ -83,7 +82,7 @@ public static class KNucleotideImproved
             if (dict.TryGetValue(rollingKey, out w))
                 w.v++;
             else
-                dict.Add(rollingKey, new WrapperImproved());        
+                dict[rollingKey] = new WrapperImproved();
         }
         return dict;
     }
@@ -91,15 +90,14 @@ public static class KNucleotideImproved
     static Task<Dictionary<long,WrapperImproved>>[] dictionaryTasks(byte[] bytes, int bytesLength, int l, long mask, int n)
     {
         int step = (bytesLength-l)/n+1;
-        var tasks = new Task<Dictionary<long,WrapperImproved>>[n];
-        for(int i=0; i<n-1; i++)
+        var tasks = new Task<Dictionary<long,WrapperImproved>>[n--];
+        for(int i=0; i<n; i++)
         {
             var start = i*step;
             var end = start+l-1+step;
-            // check end - start same across all 4
             tasks[i] = Task.Run(() => calcDictionary(bytes, l, mask, start, end));
         }
-        tasks[n-1] = Task.Run(() => calcDictionary(bytes, l, mask, (n-1)*step, bytesLength));
+        tasks[n] = Task.Run(() => calcDictionary(bytes, l, mask, n*step, bytesLength));
         return tasks;
     }
 
@@ -109,7 +107,8 @@ public static class KNucleotideImproved
         tonum['g'] = 2; tonum['G'] = 2;
         tonum['t'] = 3; tonum['T'] = 3;
 
-        var bytes = new byte[1048576];
+        var lines = new List<string>();
+        var linePosition = new List<int>();
         int position = 0;
         using (var stream = new StreamReader(File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/))
         {
@@ -119,19 +118,22 @@ public static class KNucleotideImproved
 
             while((line=stream.ReadLine()) != null && line[0]!='>')
             {
-                // line.Length in a var, is the bytes load fast?
-                if (line.Length + position > bytes.Length)
-                {
-                    var newBytes = new byte[bytes.Length*2];
-                    Buffer.BlockCopy(bytes, 0, newBytes, 0, position);
-                    bytes = newBytes;
-                }
-                for(int i=0; i<line.Length; ++i)
-                {
-                    bytes[position++] = tonum[line[i]];
-                }
-            }
+                lines.Add(line);
+                linePosition.Add(position);
+                position += line.Length;
+            }            
         }
+
+        var bytes = new byte[position];
+        Parallel.For(0, lines.Count, i =>
+        {
+            int j = linePosition[i];
+            var line = lines[i];
+            for(int k=0; k<line.Length; ++k)
+            {
+                bytes[j++] = tonum[line[k]];
+            }
+        });
 
         int nParallel = 4;//Environment.ProcessorCount
 
