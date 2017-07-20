@@ -51,13 +51,13 @@ public static class KNucleotideImproved
         return n+"\t"+fragment;
     }
 
-    static Dictionary<long,WrapperImproved> calcDictionary(List<byte[]> blocks, int l, long mask, byte b)
+    static Dictionary<long,WrapperImproved> calcDictionary(List<byte[]> blocks, int threeStart, int threeEnd, int l, long mask, byte b)
     {
         long rollingKey = 0;
         var firstBlock = blocks[0];
-        for(int i=0; i<l-1; ++i) rollingKey = (rollingKey<<2) | firstBlock[i]; // need to no go over end of block
+        while(--l>0) rollingKey = (rollingKey<<2) | firstBlock[threeStart++];
         var dict = new Dictionary<long,WrapperImproved>();
-        for(int i=l-1; i<firstBlock.Length; i++)
+        for(int i=threeStart; i<firstBlock.Length; i++)
         {
             var nb = firstBlock[i];
             if(nb==b)
@@ -71,7 +71,7 @@ public static class KNucleotideImproved
             else if(nb==255) continue;
             rollingKey = ((rollingKey << 2) | nb) & mask;
         }
-        for(int bl=1; bl<blocks.Count; bl++)
+        for(int bl=1; bl<blocks.Count-1; bl++)
         {
             var bytes = blocks[bl];
             for(int i=0; i<bytes.Length; i++)
@@ -89,17 +89,32 @@ public static class KNucleotideImproved
                 rollingKey = ((rollingKey << 2) | nb) & mask;
             }
         }
+        var lastBlock = blocks[blocks.Count-1];
+        for(int i=0; i<=threeEnd; i++)
+        {
+            var nb = lastBlock[i];
+            if(nb==b)
+            {
+                WrapperImproved w;
+                if (dict.TryGetValue(rollingKey, out w))
+                    w.v++;
+                else
+                    dict[rollingKey] = new WrapperImproved();
+            }
+            else if(nb==255) continue;
+            rollingKey = ((rollingKey << 2) | nb) & mask;
+        }
         return dict;
     }
 
-    static Task<string> count(List<byte[]> blocks, int l, long mask, Func<Dictionary<long,int>,string> summary)
+    static Task<string> count(List<byte[]> blocks, int threeStart, int threeEnd, int l, long mask, Func<Dictionary<long,int>,string> summary)
     {
         return Task.Factory.ContinueWhenAll(
             new [] {
-                Task.Run(() => calcDictionary(blocks, l, mask, 0)),
-                Task.Run(() => calcDictionary(blocks, l, mask, 1)),
-                Task.Run(() => calcDictionary(blocks, l, mask, 2)),
-                Task.Run(() => calcDictionary(blocks, l, mask, 3))
+                Task.Run(() => calcDictionary(blocks, threeStart, threeEnd, l, mask, 0)),
+                Task.Run(() => calcDictionary(blocks, threeStart, threeEnd, l, mask, 1)),
+                Task.Run(() => calcDictionary(blocks, threeStart, threeEnd, l, mask, 2)),
+                Task.Run(() => calcDictionary(blocks, threeStart, threeEnd, l, mask, 3))
             }
             , dicts => {
                 var d = new Dictionary<long,int>(dicts.Sum(i => i.Result.Count));
@@ -149,11 +164,11 @@ public static class KNucleotideImproved
         tonum['t'] = 3; tonum['T'] = 3;
 
         var threeBlocks = new List<byte[]>();
-        
+        int threeStart = 0, threeEnd = 0;
         using (var stream = File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/)
         {
             // find three sequence
-            int threeStart = 0, threeEnd = 0, matchIndex = 0;
+            int matchIndex = 0;
             var toFind = new [] {(byte)'>', (byte)'T', (byte)'H', (byte)'R', (byte)'E', (byte)'E'};
             var buffer = new byte[READER_BUFFER_SIZE];
             do
@@ -184,18 +199,13 @@ public static class KNucleotideImproved
                 threeEnd = bytesRead==READER_BUFFER_SIZE ? find(buffer, toFind, 0, ref matchIndex) : bytesRead;
                 threeBlocks.Add(buffer);
             }
-
-            var lastBlock = threeBlocks[threeBlocks.Count-1];
-            var newLastBlock = new byte[threeEnd+1];
-            Buffer.BlockCopy(lastBlock, 0, newLastBlock, 0, threeEnd+1);
-            threeBlocks[threeBlocks.Count-1] = newLastBlock;
-
-            var firstBlock = threeBlocks[0];
-            var newStartBlock = new byte[firstBlock.Length-threeStart-1];
-            Buffer.BlockCopy(firstBlock, threeStart+1, newStartBlock, 0, newStartBlock.Length);
-            threeBlocks[0] = newStartBlock;
         }
 
+        threeStart++;
+
+        // TODO: correct if no space for key in first block
+        // TODO: correct if only 1 or 2 blocks
+        // TODO: maybe only do whats needed in tonum
         // Console.WriteLine(threeBlocks.Count);
         // Console.WriteLine(threeBlocks[0].Length);
         // Console.WriteLine(threeBlocks[1].Length);
@@ -220,25 +230,25 @@ public static class KNucleotideImproved
 
         Task.WaitAll(tasks);
 
-        var taskString18 = count(threeBlocks, 18, 68719476736/2-1,//4**17-1
+        var taskString18 = count(threeBlocks, threeStart, threeEnd, 18, 68719476736/2-1,//4**17-1
             d => writeCount(d, "GGTATTTTAATTTATAGT"));
         
-        var taskString12 = count(threeBlocks, 12, 16777216/2-1,//4**11-1
+        var taskString12 = count(threeBlocks, threeStart, threeEnd, 12, 16777216/2-1,//4**11-1
             d => writeCount(d, "GGTATTTTAATT"));        
         
-        var taskString6 = count(threeBlocks, 6, 1023,//4**5-1
+        var taskString6 = count(threeBlocks, threeStart, threeEnd, 6, 1023,//4**5-1
             d => writeCount(d, "GGTATT"));
         
-        var taskString4 = count(threeBlocks, 4, 63,//4**3-1
+        var taskString4 = count(threeBlocks, threeStart, threeEnd, 4, 63,//4**3-1
             d => writeCount(d, "GGTA"));
         
-        var taskString3 = count(threeBlocks, 3, 15,//4**2-1
+        var taskString3 = count(threeBlocks, threeStart, threeEnd, 3, 15,//4**2-1
             d => writeCount(d, "GGT"));
 
-        var taskString2 = count(threeBlocks, 2, 3,//4**1-1
+        var taskString2 = count(threeBlocks, threeStart, threeEnd, 2, 3,//4**1-1
             d => writeFrequencies(d, 2));
 
-        var taskString1 = count(threeBlocks, 1, 0,//4**0-1
+        var taskString1 = count(threeBlocks, threeStart, threeEnd, 1, 0,//4**0-1
             d => writeFrequencies(d, 1));
 
         Console.Out.WriteLineAsync(taskString1.Result);
