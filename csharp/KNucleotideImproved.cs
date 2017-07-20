@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 class WrapperImproved { public int v=1; }
 public static class KNucleotideImproved
 {
+    const int READER_BUFFER_SIZE = 1024 * 1024;
     static byte[] tonum = new byte[256];
     static char[] tochar = new char[] {'A', 'C', 'G', 'T'};
 
@@ -50,14 +51,15 @@ public static class KNucleotideImproved
         return n+"\t"+fragment;
     }
 
-    static Dictionary<long,WrapperImproved> calcDictionary(byte[] bytes, int l, long mask, byte b)
+    static Dictionary<long,WrapperImproved> calcDictionary(List<byte[]> blocks, int l, long mask, byte b)
     {
         long rollingKey = 0;
-        for(int i=0; i<l-1; ++i) rollingKey = (rollingKey<<2) | bytes[i];
+        var firstBlock = blocks[0];
+        for(int i=0; i<l-1; ++i) rollingKey = (rollingKey<<2) | firstBlock[i]; // need to no go over end of block
         var dict = new Dictionary<long,WrapperImproved>();
-        for(int i=l-1; i<bytes.Length; i++)
+        for(int i=l-1; i<firstBlock.Length; i++)
         {
-            var nb = bytes[i];
+            var nb = firstBlock[i];
             if(nb==b)
             {
                 WrapperImproved w;
@@ -66,19 +68,38 @@ public static class KNucleotideImproved
                 else
                     dict[rollingKey] = new WrapperImproved();
             }
+            else if(nb==255) continue;
             rollingKey = ((rollingKey << 2) | nb) & mask;
+        }
+        for(int bl=1; bl<blocks.Count; bl++)
+        {
+            var bytes = blocks[bl];
+            for(int i=0; i<bytes.Length; i++)
+            {
+                var nb = bytes[i];
+                if(nb==b)
+                {
+                    WrapperImproved w;
+                    if (dict.TryGetValue(rollingKey, out w))
+                        w.v++;
+                    else
+                        dict[rollingKey] = new WrapperImproved();
+                }
+                else if(nb==255) continue;
+                rollingKey = ((rollingKey << 2) | nb) & mask;
+            }
         }
         return dict;
     }
 
-    static Task<Dictionary<long,WrapperImproved>> count(byte[] bytes, int l, long mask)
+    static Task<Dictionary<long,WrapperImproved>> count(List<byte[]> blocks, int l, long mask)
     {
         return Task.Factory.ContinueWhenAll(
             new [] {
-                Task.Run(() => calcDictionary(bytes, l, mask, 0)),
-                Task.Run(() => calcDictionary(bytes, l, mask, 1)),
-                Task.Run(() => calcDictionary(bytes, l, mask, 2)),
-                Task.Run(() => calcDictionary(bytes, l, mask, 3))
+                Task.Run(() => calcDictionary(blocks, l, mask, 0)),
+                Task.Run(() => calcDictionary(blocks, l, mask, 1)),
+                Task.Run(() => calcDictionary(blocks, l, mask, 2)),
+                Task.Run(() => calcDictionary(blocks, l, mask, 3))
             }
             , dicts => {
                 var d = new Dictionary<long,WrapperImproved>(dicts.Sum(i => i.Result.Count));
@@ -89,89 +110,150 @@ public static class KNucleotideImproved
             });
     }
 
+    static int read(Stream stream, byte[] buffer, int offset, int count)
+    {
+        var bytesRead = stream.Read(buffer, offset, count);
+        return bytesRead==count ? offset+count
+             : bytesRead==0 ? offset
+             : read(stream, buffer, offset+bytesRead, count-bytesRead);
+    }
+    
+    static int find(byte[] buffer, byte[] toFind, int i, ref int matchIndex)
+    {
+        if(matchIndex==0)
+        {
+            i = Array.IndexOf(buffer, toFind[0], i);
+            if(i==-1) return -1;
+            matchIndex = 1;
+            return find(buffer, toFind, i+1, ref matchIndex);
+        }
+        else
+        {
+            while(i<buffer.Length && matchIndex<toFind.Length)
+            {
+                if(buffer[i++]!=toFind[matchIndex++])
+                {
+                    matchIndex = 0;
+                    return find(buffer, toFind, i, ref matchIndex);
+                }
+            }
+            return matchIndex==toFind.Length ? i-1 : -1;
+        }
+    }
+
     public static void Main(string[] args)
     {
+        tonum['\n'] = 255; tonum['>'] = 255;
         tonum['c'] = 1; tonum['C'] = 1;
         tonum['g'] = 2; tonum['G'] = 2;
         tonum['t'] = 3; tonum['T'] = 3;
 
-        var lines = new List<string>(1024);
-        var linePosition = new List<int>(1024);
-        int position = 0;
-        var ascii = Encoding.ASCII;
-        using (var stream = new StreamReader(File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/, ascii))
+        var threeBlocks = new List<byte[]>();
+        
+        using (var stream = File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/)
         {
-            string line = stream.ReadLine();
-            while(line[0]!='>' || line[1]!='T' || line[2]!='H' || line[3]!='R' || line[4]!='E' || line[5]!='E')
-                line = stream.ReadLine();
-
-            while((line=stream.ReadLine()) != null && line[0]!='>')
+            // find three sequence
+            int threeStart = 0, threeEnd = 0, matchIndex = 0;
+            var toFind = new [] {(byte)'>', (byte)'T', (byte)'H', (byte)'R', (byte)'E', (byte)'E'};
+            var buffer = new byte[READER_BUFFER_SIZE];
+            do
             {
-                lines.Add(line);
-                linePosition.Add(position);
-                position += line.Length;
-            }            
+                read(stream, buffer, 0, READER_BUFFER_SIZE);
+                threeStart = find(buffer, toFind, 0, ref matchIndex);
+            } while (threeStart==-1);
+            
+            // Skip to end of line
+            matchIndex = 0;
+            toFind = new [] {(byte)'\n'};
+            threeStart = find(buffer, toFind, threeStart, ref matchIndex);
+            while(threeStart==-1)
+            {
+                read(stream, buffer, 0, READER_BUFFER_SIZE);
+                threeStart = find(buffer, toFind, 0, ref matchIndex);
+            }
+            threeBlocks.Add(buffer);
+            
+            // find next seq or end of input
+            matchIndex = 0;
+            toFind = new [] {(byte)'>'};
+            threeEnd = find(buffer, toFind, threeStart, ref matchIndex);
+            while(threeEnd==-1)
+            {
+                buffer = new byte[READER_BUFFER_SIZE];
+                var bytesRead = read(stream, buffer, 0, READER_BUFFER_SIZE);
+                threeEnd = bytesRead==READER_BUFFER_SIZE ? find(buffer, toFind, 0, ref matchIndex) : bytesRead;
+                threeBlocks.Add(buffer);
+            }
+
+            var lastBlock = threeBlocks[threeBlocks.Count-1];
+            var newLastBlock = new byte[threeEnd+1];
+            Buffer.BlockCopy(lastBlock, 0, newLastBlock, 0, threeEnd+1);
+            threeBlocks[threeBlocks.Count-1] = newLastBlock;
+
+            var firstBlock = threeBlocks[0];
+            var newStartBlock = new byte[firstBlock.Length-threeStart-1];
+            Buffer.BlockCopy(firstBlock, threeStart+1, newStartBlock, 0, newStartBlock.Length);
+            threeBlocks[0] = newStartBlock;
         }
 
-        int nParallel = Environment.ProcessorCount;
-
-        var bytes = new byte[position];
-
-        var tasks = new Task[nParallel];
-        int step = (lines.Count-1)/nParallel+1;
+        var tasks = new Task[Environment.ProcessorCount];
+        int step = (threeBlocks.Count-1)/tasks.Length+1;
         for(int t=0; t<tasks.Length; ++t)
         {
             int start = t*step;
-            int end = Math.Min(start+step, lines.Count);
+            int end = Math.Min(start+step, threeBlocks.Count);
             tasks[t] = Task.Run(() =>
             {
-                int index = linePosition[start];
-                for(int i=start; i<end; ++i)
-                    foreach(var c in ascii.GetBytes(lines[i]))
-                        bytes[index++] = tonum[c];
+                for(int b=start; b<end; ++b)
+                {
+                    var bytes = threeBlocks[b];
+                    for(int i=0; i<bytes.Length; i++)
+                        bytes[i] = tonum[bytes[i]];
+                }
             });
         }
 
         Task.WaitAll(tasks);
 
-        var taskString18 = count(bytes, 18, 68719476736/2-1)//4**17-1
+        var taskString18 = count(threeBlocks, 18, 68719476736/2-1)//4**17-1
             .ContinueWith(t => writeCount(t.Result, "GGTATTTTAATTTATAGT"));
         
-        var taskString12 = count(bytes, 12, 16777216/2-1)//4**11-1
+        var taskString12 = count(threeBlocks, 12, 16777216/2-1)//4**11-1
             .ContinueWith(t => writeCount(t.Result, "GGTATTTTAATT"));        
         
-        var taskString6 = count(bytes, 6, 1023)//4**5-1
+        var taskString6 = count(threeBlocks, 6, 1023)//4**5-1
             .ContinueWith(t => writeCount(t.Result, "GGTATT"));
         
-        var taskString4 = count(bytes, 4, 63)//4**3-1
+        var taskString4 = count(threeBlocks, 4, 63)//4**3-1
             .ContinueWith(t => writeCount(t.Result, "GGTA"));
         
-        var taskString3 = count(bytes, 3, 15)//4**2-1
+        var taskString3 = count(threeBlocks, 3, 15)//4**2-1
             .ContinueWith(t => writeCount(t.Result, "GGT"));
 
-        var taskString2 = count(bytes, 2, 3)//4**1-1
-            .ContinueWith(t => writeFrequencies(t.Result, position, 2));
+        var taskString2 = count(threeBlocks, 2, 3)//4**1-1
+            .ContinueWith(t => writeFrequencies(t.Result, t.Result.Values.Sum(v => v.v), 2));
 
         var taskString1 = Task.Run(() =>
         {
             int a=0, c=0, g=0, t=0;
-            foreach(var i in bytes)
-            {
-                switch(i)
+            foreach(var bytes in threeBlocks)
+                foreach(var i in bytes)
                 {
-                    case 0: a++; break;
-                    case 1: c++; break;
-                    case 2: g++; break;
-                    default: t++; break;
+                    switch(i)
+                    {
+                        case 0: a++; break;
+                        case 1: c++; break;
+                        case 2: g++; break;
+                        case 3: t++; break;
+                    }
                 }
-            }
             var dict1 = new Dictionary<long,WrapperImproved>{
                 {0, new WrapperImproved {v=a}},
                 {1, new WrapperImproved {v=c}},
                 {2, new WrapperImproved {v=g}},
                 {3, new WrapperImproved {v=t}}
             };
-            return writeFrequencies(dict1, position, 1);
+            return writeFrequencies(dict1, a+c+g+t, 1);
         });
 
         Console.Out.WriteLineAsync(taskString1.Result);
