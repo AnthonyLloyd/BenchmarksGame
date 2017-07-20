@@ -92,7 +92,7 @@ public static class KNucleotideImproved
         return dict;
     }
 
-    static Task<Dictionary<long,int>> count(List<byte[]> blocks, int l, long mask)
+    static Task<string> count(List<byte[]> blocks, int l, long mask, Func<Dictionary<long,int>,string> summary)
     {
         return Task.Factory.ContinueWhenAll(
             new [] {
@@ -106,7 +106,7 @@ public static class KNucleotideImproved
                 for(byte i=0; i<dicts.Length; i++)
                     foreach(var kv in dicts[i].Result)
                         d[(kv.Key << 2) | i] = kv.Value.v;
-                return d;
+                return summary(d);
             });
     }
 
@@ -196,10 +196,10 @@ public static class KNucleotideImproved
             threeBlocks[0] = newStartBlock;
         }
 
-        Console.WriteLine(threeBlocks.Count);
-        Console.WriteLine(threeBlocks[0].Length);
-        Console.WriteLine(threeBlocks[1].Length);
-        Console.WriteLine(threeBlocks.Last().Length);
+        // Console.WriteLine(threeBlocks.Count);
+        // Console.WriteLine(threeBlocks[0].Length);
+        // Console.WriteLine(threeBlocks[1].Length);
+        // Console.WriteLine(threeBlocks.Last().Length);
 
         var tasks = new Task[Environment.ProcessorCount];
         int step = (threeBlocks.Count-1)/tasks.Length+1;
@@ -220,26 +220,26 @@ public static class KNucleotideImproved
 
         Task.WaitAll(tasks);
 
-        var taskString18 = count(threeBlocks, 18, 68719476736/2-1)//4**17-1
-            .ContinueWith(t => writeCount(t.Result, "GGTATTTTAATTTATAGT"));
+        var taskString18 = count(threeBlocks, 18, 68719476736/2-1,//4**17-1
+            d => writeCount(d, "GGTATTTTAATTTATAGT"));
         
-        var taskString12 = count(threeBlocks, 12, 16777216/2-1)//4**11-1
-            .ContinueWith(t => writeCount(t.Result, "GGTATTTTAATT"));        
+        var taskString12 = count(threeBlocks, 12, 16777216/2-1,//4**11-1
+            d => writeCount(d, "GGTATTTTAATT"));        
         
-        var taskString6 = count(threeBlocks, 6, 1023)//4**5-1
-            .ContinueWith(t => writeCount(t.Result, "GGTATT"));
+        var taskString6 = count(threeBlocks, 6, 1023,//4**5-1
+            d => writeCount(d, "GGTATT"));
         
-        var taskString4 = count(threeBlocks, 4, 63)//4**3-1
-            .ContinueWith(t => writeCount(t.Result, "GGTA"));
+        var taskString4 = count(threeBlocks, 4, 63,//4**3-1
+            d => writeCount(d, "GGTA"));
         
-        var taskString3 = count(threeBlocks, 3, 15)//4**2-1
-            .ContinueWith(t => writeCount(t.Result, "GGT"));
+        var taskString3 = count(threeBlocks, 3, 15,//4**2-1
+            d => writeCount(d, "GGT"));
 
-        var taskString2 = count(threeBlocks, 2, 3)//4**1-1
-            .ContinueWith(t => writeFrequencies(t.Result, 2));
+        var taskString2 = count(threeBlocks, 2, 3,//4**1-1
+            d => writeFrequencies(d, 2));
 
-        var taskString1 = count(threeBlocks, 1, 0)//4**0-1
-            .ContinueWith(t => writeFrequencies(t.Result, 1));
+        var taskString1 = count(threeBlocks, 1, 0,//4**0-1
+            d => writeFrequencies(d, 1));
 
         Console.Out.WriteLineAsync(taskString1.Result);
         Console.Out.WriteLineAsync(taskString2.Result);
