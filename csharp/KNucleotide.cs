@@ -46,7 +46,7 @@ public class KNucleotide
 
     private static void WriteCount(Dictionary<ulong, Wrapper> dictionary, string fragment)
     {
-        ulong key = 0;
+        ulong key = 0;  
         var keybytes = Encoding.ASCII.GetBytes(fragment.ToLower());
         for (int i = 0; i < keybytes.Length; i++)
         {
