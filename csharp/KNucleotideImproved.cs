@@ -15,15 +15,15 @@ using System.Threading.Tasks;
 class WrapperImproved { public int v=1; }
 public static class KNucleotideImproved
 {
-    const int READER_BUFFER_SIZE = 1024 * 1024;
+    const int READER_BUFFER_SIZE = 1024 * 1024 * 8;
     static byte[] tonum = new byte[256];
     static char[] tochar = new char[] {'A', 'C', 'G', 'T'};
 
-    static string writeFrequencies(Dictionary<long, WrapperImproved> freq, int buflen, int fragmentLength)
+    static string writeFrequencies(Dictionary<long,int> freq, int fragmentLength)
     {
         var sb = new StringBuilder();
-        double percent = 100.0 / (buflen - fragmentLength + 1);
-        foreach(var kv in freq.OrderByDescending(i => i.Value.v))
+        double percent = 100.0 / freq.Values.Sum();
+        foreach(var kv in freq.OrderByDescending(i => i.Value))
         {
             var keyChars = new char[fragmentLength];
             var key = kv.Key;
@@ -34,20 +34,20 @@ public static class KNucleotideImproved
             }
             sb.Append(keyChars);   
             sb.Append(" ");
-            sb.AppendLine((kv.Value.v * percent).ToString("F3"));
+            sb.AppendLine((kv.Value * percent).ToString("F3"));
         }
         return sb.ToString();
     }
 
-    static string writeCount(Dictionary<long, WrapperImproved> dictionary, string fragment)
+    static string writeCount(Dictionary<long,int> dictionary, string fragment)
     {
         long key = 0;
         for (int i=0; i<fragment.Length; ++i)
         {
             key = (key << 2) | tonum[fragment[i]];
         }
-        WrapperImproved w;
-        var n = dictionary.TryGetValue(key, out w) ? w.v : 0;
+        int w;
+        var n = dictionary.TryGetValue(key, out w) ? w : 0;
         return n+"\t"+fragment;
     }
 
@@ -92,7 +92,7 @@ public static class KNucleotideImproved
         return dict;
     }
 
-    static Task<Dictionary<long,WrapperImproved>> count(List<byte[]> blocks, int l, long mask)
+    static Task<Dictionary<long,int>> count(List<byte[]> blocks, int l, long mask)
     {
         return Task.Factory.ContinueWhenAll(
             new [] {
@@ -102,10 +102,10 @@ public static class KNucleotideImproved
                 Task.Run(() => calcDictionary(blocks, l, mask, 3))
             }
             , dicts => {
-                var d = new Dictionary<long,WrapperImproved>(dicts.Sum(i => i.Result.Count));
+                var d = new Dictionary<long,int>(dicts.Sum(i => i.Result.Count));
                 for(byte i=0; i<dicts.Length; i++)
                     foreach(var kv in dicts[i].Result)
-                        d[(kv.Key << 2) | i] = kv.Value;
+                        d[(kv.Key << 2) | i] = kv.Value.v;
                 return d;
             });
     }
@@ -196,6 +196,11 @@ public static class KNucleotideImproved
             threeBlocks[0] = newStartBlock;
         }
 
+        Console.WriteLine(threeBlocks.Count);
+        Console.WriteLine(threeBlocks[0].Length);
+        Console.WriteLine(threeBlocks[1].Length);
+        Console.WriteLine(threeBlocks.Last().Length);
+
         var tasks = new Task[Environment.ProcessorCount];
         int step = (threeBlocks.Count-1)/tasks.Length+1;
         for(int t=0; t<tasks.Length; ++t)
@@ -231,30 +236,10 @@ public static class KNucleotideImproved
             .ContinueWith(t => writeCount(t.Result, "GGT"));
 
         var taskString2 = count(threeBlocks, 2, 3)//4**1-1
-            .ContinueWith(t => writeFrequencies(t.Result, t.Result.Values.Sum(v => v.v), 2));
+            .ContinueWith(t => writeFrequencies(t.Result, 2));
 
-        var taskString1 = Task.Run(() =>
-        {
-            int a=0, c=0, g=0, t=0;
-            foreach(var bytes in threeBlocks)
-                foreach(var i in bytes)
-                {
-                    switch(i)
-                    {
-                        case 0: a++; break;
-                        case 1: c++; break;
-                        case 2: g++; break;
-                        case 3: t++; break;
-                    }
-                }
-            var dict1 = new Dictionary<long,WrapperImproved>{
-                {0, new WrapperImproved {v=a}},
-                {1, new WrapperImproved {v=c}},
-                {2, new WrapperImproved {v=g}},
-                {3, new WrapperImproved {v=t}}
-            };
-            return writeFrequencies(dict1, a+c+g+t, 1);
-        });
+        var taskString1 = count(threeBlocks, 1, 0)//4**0-1
+            .ContinueWith(t => writeFrequencies(t.Result, 1));
 
         Console.Out.WriteLineAsync(taskString1.Result);
         Console.Out.WriteLineAsync(taskString2.Result);
