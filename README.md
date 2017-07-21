@@ -28,7 +28,7 @@ DONE. NOW FASTER THAN JAVA.
 
 Before:
 
-C#      21.70s  
+C#      21.70s   
 Java    21.54s  
 
 Improved C# NBody faster than original. f1 (6291.6044 ± 5.6276 ms) is ~4.1% faster than f2 (6557.9256 ± 7.2672 ms).
@@ -55,7 +55,7 @@ Not quite. Thinking I only need a 1% improvement. Will try a few very safe optim
 
 Before:
 
-C#      1.39s  
+C#      1.39s   
 Java    1.10s  
 
 Improved by reversing in place and reusing byte arrays. Hard to test performance as involves large file load.
@@ -85,7 +85,12 @@ Java    13.74s
 
 Thread improved, rotate and small array optimisations. More than enough to beat the Java time on my machine.
 
-Submitted
+Now:
+
+C#      16.97s  
+Java    13.74s  
+
+Need a good idea to make this better.
 
 ### K-Nucleotide
 
@@ -93,20 +98,25 @@ Java code cheats and has a very bespoke dictionary from an obscure lib.
 
 Working on it. Waiting for Reverse-Complement result as I will reuse some of the code/ideas. Not rolling like Java could be an idea if it makes it more parallel.
 
+Before:
+
+C#      13.76s  
+Java     7.93s  
+
+Submitted. Should be around the Java number.
 
 ### Regex-Redux
 
 Can't get anywhere near Java here. Regex isn't compiled in .Net Core.
 
 Before:
-C#      32.02s
-Java    12.31s
+C#      32.02s  
+Java    12.31s  
 
 Submitted some ordering optimisations but can only go to 30 something.
 
 Now:
-C#      31.64s
-Java    12.31s
+C#      31.64s  
+Java    12.31s  
 
 DONE. CANT BEAT JAVA ON REGEX.
-
