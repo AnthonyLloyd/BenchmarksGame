@@ -31,6 +31,7 @@ public static class KNucleotideImproved
         tonum['g'] = 2; tonum['G'] = 2;
         tonum['t'] = 3; tonum['T'] = 3;
         tonum['\n'] = 255; tonum['>'] = 255;
+        tonum[255] = 255;
 
         tochar = new char[] {'A', 'C', 'G', 'T'};
     }
@@ -68,7 +69,7 @@ public static class KNucleotideImproved
 
     static void loadThreeData()
     {
-        using (var stream = File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/)
+        using (var stream = File.OpenRead(@"C:\temp\input1000.txt")/*Console.OpenStandardInput()*/)
         {
             // find three sequence
             int matchIndex = 0;
@@ -76,7 +77,7 @@ public static class KNucleotideImproved
             var buffer = new byte[BLOCK_SIZE];
             do
             {
-                read(stream, buffer, 0, BLOCK_SIZE);
+                threeEnd = read(stream, buffer, 0, BLOCK_SIZE);
                 threeStart = find(buffer, toFind, 0, ref matchIndex);
             } while (threeStart==-1);
             
@@ -86,11 +87,22 @@ public static class KNucleotideImproved
             threeStart = find(buffer, toFind, threeStart, ref matchIndex);
             while(threeStart==-1)
             {
-                read(stream, buffer, 0, BLOCK_SIZE);
+                threeEnd = read(stream, buffer, 0, BLOCK_SIZE);
                 threeStart = find(buffer, toFind, 0, ref matchIndex);
             }
             threeBlocks.Add(buffer);
             
+            if(threeEnd!=BLOCK_SIZE) // Need to be at least 2 blocks
+            {
+                Console.WriteLine("just one block!!!!!");
+                var bytes = threeBlocks[0];
+                for(int i=threeEnd; i<bytes.Length; i++)
+                    bytes[i] = 255;
+                threeEnd = 0;
+                threeBlocks.Add(Array.Empty<byte>());
+                return;
+            }
+
             // find next seq or end of input
             matchIndex = 0;
             toFind = new [] {(byte)'>'};
@@ -105,16 +117,7 @@ public static class KNucleotideImproved
             }
         }
 
-        if(threeBlocks.Count==1) // Need to be at least 2 blocks
-        {
-            Console.WriteLine("Single block!!!!!");
-            var bytes = threeBlocks[0];
-            for(int i=threeEnd+1; i<bytes.Length; i++)
-                bytes[i] = 255;
-            threeEnd = 0;
-            threeBlocks.Add(new byte[]{255});
-        }
-        else if(threeStart+18>BLOCK_SIZE) // Key needs to be in first block
+        if(threeStart+18>BLOCK_SIZE) // Key needs to be in first block
         {
             Console.WriteLine("key not in first block!!!!!");
             byte[] block0 = threeBlocks[0], block1 = threeBlocks[1];
@@ -145,7 +148,7 @@ public static class KNucleotideImproved
         {
             var nb = firstBlock[i];
             if(nb==b) dict.Increment(rollingKey);
-            else if(nb==255) continue;
+            if(nb==255) continue;
             rollingKey = ((rollingKey << 2) | nb) & mask;
         }
         int lastBlockId = threeBlocks.Count-1; 
@@ -156,7 +159,7 @@ public static class KNucleotideImproved
             {
                 var nb = bytes[i];
                 if(nb==b) dict.Increment(rollingKey);
-                else if(nb==255) continue;
+                if(nb==255) continue;
                 rollingKey = ((rollingKey << 2) | nb) & mask;
             }
         }
@@ -165,7 +168,7 @@ public static class KNucleotideImproved
         {
             var nb = lastBlock[i];
             if(nb==b) dict.Increment(rollingKey);
-            else if(nb==255) continue;
+            if(nb==255) continue;
             rollingKey = ((rollingKey << 2) | nb) & mask;
         }
         return dict;
@@ -192,7 +195,7 @@ public static class KNucleotideImproved
     static string writeFrequencies(Dictionary<long,int> freq, int fragmentLength)
     {
         var sb = new StringBuilder();
-        double percent = 100.0 / freq.Values.Sum();
+        double percent = 1.0;//00.0 / freq.Values.Sum();
         foreach(var kv in freq.OrderByDescending(i => i.Value))
         {
             var keyChars = new char[fragmentLength];
@@ -223,9 +226,13 @@ public static class KNucleotideImproved
 
     public static void Main(string[] args)
     {
-        Task.Run((Action)initialize);
+        initialize();
 
         loadThreeData();
+
+        Console.WriteLine(threeBlocks.Count);
+        Console.WriteLine(threeStart);
+        Console.WriteLine(threeEnd);
 
         Parallel.ForEach(threeBlocks, bytes =>
         {

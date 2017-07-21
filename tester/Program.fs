@@ -58,6 +58,7 @@ let main argv =
     // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
     // Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
 
+
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
     KNucleotide.Main argv
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
