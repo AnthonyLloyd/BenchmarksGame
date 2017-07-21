@@ -2,7 +2,7 @@
    http://benchmarksgame.alioth.debian.org/
  
    submitted by Josh Goldfoot
-   Modified to reduce memory and be more parallel by Anthony Lloyd
+   Modified to reduce memory and do more in parallel by Anthony Lloyd
  */
 
 using System;
@@ -63,13 +63,13 @@ public static class KNucleotideImproved
                     return find(buffer, toFind, i, ref matchIndex);
                 }
             }
-            return matchIndex==toFind.Length ? i-1 : -1;
+            return matchIndex==toFind.Length ? i : -1;
         }
     }
 
     static void loadThreeData()
     {
-        using (var stream = File.OpenRead(@"C:\temp\input1000.txt")/*Console.OpenStandardInput()*/)
+        using (var stream = File.OpenRead(@"C:\temp\input250000.txt")/*Console.OpenStandardInput()*/)
         {
             // find three sequence
             int matchIndex = 0;
@@ -94,7 +94,6 @@ public static class KNucleotideImproved
             
             if(threeEnd!=BLOCK_SIZE) // Need to be at least 2 blocks
             {
-                Console.WriteLine("just one block!!!!!");
                 var bytes = threeBlocks[0];
                 for(int i=threeEnd; i<bytes.Length; i++)
                     bytes[i] = 255;
@@ -106,7 +105,7 @@ public static class KNucleotideImproved
             // find next seq or end of input
             matchIndex = 0;
             toFind = new [] {(byte)'>'};
-            threeEnd = find(buffer, toFind, ++threeStart, ref matchIndex);
+            threeEnd = find(buffer, toFind, threeStart, ref matchIndex);
             while(threeEnd==-1)
             {
                 buffer = new byte[BLOCK_SIZE];
@@ -119,7 +118,6 @@ public static class KNucleotideImproved
 
         if(threeStart+18>BLOCK_SIZE) // Key needs to be in first block
         {
-            Console.WriteLine("key not in first block!!!!!");
             byte[] block0 = threeBlocks[0], block1 = threeBlocks[1];
             Buffer.BlockCopy(block0, threeStart, block0, threeStart-18, BLOCK_SIZE-threeStart);
             Buffer.BlockCopy(block1, 0, block0, BLOCK_SIZE-18, 18);
@@ -195,7 +193,7 @@ public static class KNucleotideImproved
     static string writeFrequencies(Dictionary<long,int> freq, int fragmentLength)
     {
         var sb = new StringBuilder();
-        double percent = 1.0;//00.0 / freq.Values.Sum();
+        double percent = 100.0 / freq.Values.Sum();
         foreach(var kv in freq.OrderByDescending(i => i.Value))
         {
             var keyChars = new char[fragmentLength];
@@ -230,43 +228,26 @@ public static class KNucleotideImproved
 
         loadThreeData();
 
-        Console.WriteLine(threeBlocks.Count);
-        Console.WriteLine(threeStart);
-        Console.WriteLine(threeEnd);
-
         Parallel.ForEach(threeBlocks, bytes =>
         {
             for(int i=0; i<bytes.Length; i++)
                 bytes[i] = tonum[bytes[i]];
         });
 
-        var taskString18 = count(18, 34359738367, // 4**17-1
-            d => writeCount(d, "GGTATTTTAATTTATAGT"));
-        
-        var taskString12 = count(12, 8388607, // 4**11-1
-            d => writeCount(d, "GGTATTTTAATT"));        
-        
-        var taskString6 = count(6, 1023, // 4**5-1
-            d => writeCount(d, "GGTATT"));
-        
-        var taskString4 = count(4, 63, // 4**3-1
-            d => writeCount(d, "GGTA"));
-        
-        var taskString3 = count(3, 15, // 4**2-1
-            d => writeCount(d, "GGT"));
+        var task18 = count(18, 34359738367, d => writeCount(d, "GGTATTTTAATTTATAGT"));
+        var task12 = count(12, 8388607, d => writeCount(d, "GGTATTTTAATT"));
+        var task6 = count(6, 0b1111111111, d => writeCount(d, "GGTATT"));
+        var task4 = count(4, 0b111111, d => writeCount(d, "GGTA"));
+        var task3 = count(3, 0b1111, d => writeCount(d, "GGT"));
+        var task2 = count(2, 0b11, d => writeFrequencies(d, 2));
+        var task1 = count(1, 0, d => writeFrequencies(d, 1));
 
-        var taskString2 = count(2, 3, // 4**1-1
-            d => writeFrequencies(d, 2));
-
-        var taskString1 = count(1, 0, // 4**0-1
-            d => writeFrequencies(d, 1));
-
-        Console.Out.WriteLineAsync(taskString1.Result);
-        Console.Out.WriteLineAsync(taskString2.Result);
-        Console.Out.WriteLineAsync(taskString3.Result);
-        Console.Out.WriteLineAsync(taskString4.Result);
-        Console.Out.WriteLineAsync(taskString6.Result);
-        Console.Out.WriteLineAsync(taskString12.Result);
-        Console.Out.WriteLineAsync(taskString18.Result);
+        Console.Out.WriteLineAsync(task1.Result);
+        Console.Out.WriteLineAsync(task2.Result);
+        Console.Out.WriteLineAsync(task3.Result);
+        Console.Out.WriteLineAsync(task4.Result);
+        Console.Out.WriteLineAsync(task6.Result);
+        Console.Out.WriteLineAsync(task12.Result);
+        Console.Out.WriteLineAsync(task18.Result);
     }
 }

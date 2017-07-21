@@ -35,7 +35,7 @@ public class KNucleotide
     private static void WriteFrequencies(Dictionary<ulong, Wrapper> freq, int buflen, int fragmentLength)
     {
 
-        double percent = 1.0;//00.0 / (buflen - fragmentLength + 1);
+        double percent = 100.0 / (buflen - fragmentLength + 1);
         foreach (var line in (from k in freq.Keys
                               orderby freq[k].V descending
                               select string.Format("{0} {1:f3}", PrintKey(k, fragmentLength),
@@ -107,7 +107,7 @@ public class KNucleotide
         int amountRead, threebuflen, indexOfFirstByteInThreeSequence, indexOfGreaterThan, threepos, tocopy;
         amountRead = threebuflen = indexOfFirstByteInThreeSequence = indexOfGreaterThan = threepos = tocopy = 0;
         bool threeFound = false;
-        var source = new BufferedStream(File.OpenRead(@"c:\temp\input1000.txt") /*Console.OpenStandardInput()*/);
+        var source = new BufferedStream(File.OpenRead(@"c:\temp\input250000.txt") /*Console.OpenStandardInput()*/);
         while (!threeFound && (amountRead = source.Read(buffer, 0, buffersize)) > 0)
         {
             indexOfGreaterThan = Array.LastIndexOf(buffer, (byte)'>');
