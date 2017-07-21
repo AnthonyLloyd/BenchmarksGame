@@ -55,7 +55,8 @@ public static class KNucleotideImproved
         }
         else
         {
-            while(i<buffer.Length && matchIndex<toFind.Length)
+            int bl = buffer.Length, fl = toFind.Length;
+            while(i<bl && matchIndex<fl)
             {
                 if(buffer[i++]!=toFind[matchIndex++])
                 {
@@ -63,7 +64,7 @@ public static class KNucleotideImproved
                     return find(buffer, toFind, i, ref matchIndex);
                 }
             }
-            return matchIndex==toFind.Length ? i : -1;
+            return matchIndex==fl ? i : -1;
         }
     }
 
@@ -92,7 +93,7 @@ public static class KNucleotideImproved
             }
             threeBlocks.Add(buffer);
             
-            if(threeEnd!=BLOCK_SIZE) // Need to be at least 2 blocks
+            if(threeEnd!=BLOCK_SIZE) // Needs to be at least 2 blocks
             {
                 var bytes = threeBlocks[0];
                 for(int i=threeEnd; i<bytes.Length; i++)
@@ -116,7 +117,7 @@ public static class KNucleotideImproved
             }
         }
 
-        if(threeStart+18>BLOCK_SIZE) // Key needs to be in first block
+        if(threeStart+18>BLOCK_SIZE) // Key needs to be in the first block
         {
             byte[] block0 = threeBlocks[0], block1 = threeBlocks[1];
             Buffer.BlockCopy(block0, threeStart, block0, threeStart-18, BLOCK_SIZE-threeStart);
@@ -183,9 +184,9 @@ public static class KNucleotideImproved
             }
             , dicts => {
                 var d = new Dictionary<long,int>(dicts.Sum(i => i.Result.Count));
-                for(byte i=0; i<dicts.Length; i++)
+                for(int i=0; i<dicts.Length; i++)
                     foreach(var kv in dicts[i].Result)
-                        d[(kv.Key << 2) | i] = kv.Value.v;
+                        d[(kv.Key << 2) | (long)i] = kv.Value.v;
                 return summary(d);
             });
     }
@@ -219,7 +220,7 @@ public static class KNucleotideImproved
         }
         int w;
         var n = dictionary.TryGetValue(key, out w) ? w : 0;
-        return n+"\t"+fragment;
+        return string.Concat(n.ToString(), "\t", fragment);
     }
 
     public static void Main(string[] args)
