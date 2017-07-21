@@ -17,24 +17,10 @@ class WrapperImproved { public int v=1; }
 public static class KNucleotideImproved
 {
     const int BLOCK_SIZE = 1024 * 1024 * 8;
-    static List<byte[]> threeBlocks;
+    static List<byte[]> threeBlocks = new List<byte[]>();
     static int threeStart, threeEnd;
-    static byte[] tonum;
-    static char[] tochar;
-
-    static void initialize()
-    {
-        threeBlocks = new List<byte[]>();
-        
-        tonum = new byte[256];
-        tonum['c'] = 1; tonum['C'] = 1;
-        tonum['g'] = 2; tonum['G'] = 2;
-        tonum['t'] = 3; tonum['T'] = 3;
-        tonum['\n'] = 255; tonum['>'] = 255;
-        tonum[255] = 255;
-
-        tochar = new char[] {'A', 'C', 'G', 'T'};
-    }
+    static byte[] tonum = new byte[256];
+    static char[] tochar = new char[] {'A', 'C', 'G', 'T'};
 
     static int read(Stream stream, byte[] buffer, int offset, int count)
     {
@@ -70,7 +56,7 @@ public static class KNucleotideImproved
 
     static void loadThreeData()
     {
-        using (var stream = File.OpenRead(@"C:\temp\input250000.txt")/*Console.OpenStandardInput()*/)
+        using (var stream = File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/)
         {
             // find three sequence
             int matchIndex = 0;
@@ -127,13 +113,21 @@ public static class KNucleotideImproved
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void Increment(this Dictionary<long, WrapperImproved> dict, long rollingKey)
+    static void check(Dictionary<long, WrapperImproved> dict, ref long rollingKey, byte b, byte nb, long mask)
     {
-        WrapperImproved w;
-        if (dict.TryGetValue(rollingKey, out w))
-            w.v++;
-        else
-            dict[rollingKey] = new WrapperImproved();
+        if(nb==b)
+        {
+            WrapperImproved w;
+            if (dict.TryGetValue(rollingKey, out w))
+                w.v++;
+            else
+                dict[rollingKey] = new WrapperImproved();
+            rollingKey = ((rollingKey << 2) | nb) & mask;
+        }
+        else if(nb!=255)
+        {
+            rollingKey = ((rollingKey << 2) | nb) & mask;
+        }
     }
 
     static Dictionary<long,WrapperImproved> countEnding(int l, long mask, byte b)
@@ -144,32 +138,19 @@ public static class KNucleotideImproved
         while(--l>0) rollingKey = (rollingKey<<2) | firstBlock[start++];
         var dict = new Dictionary<long,WrapperImproved>();
         for(int i=start; i<firstBlock.Length; i++)
-        {
-            var nb = firstBlock[i];
-            if(nb==b) dict.Increment(rollingKey);
-            if(nb==255) continue;
-            rollingKey = ((rollingKey << 2) | nb) & mask;
-        }
+            check(dict, ref rollingKey, b, firstBlock[i], mask);
+
         int lastBlockId = threeBlocks.Count-1; 
         for(int bl=1; bl<lastBlockId; bl++)
         {
             var bytes = threeBlocks[bl];
             for(int i=0; i<bytes.Length; i++)
-            {
-                var nb = bytes[i];
-                if(nb==b) dict.Increment(rollingKey);
-                if(nb==255) continue;
-                rollingKey = ((rollingKey << 2) | nb) & mask;
-            }
+                check(dict, ref rollingKey, b, bytes[i], mask);
         }
+
         var lastBlock = threeBlocks[lastBlockId];
         for(int i=0; i<threeEnd; i++)
-        {
-            var nb = lastBlock[i];
-            if(nb==b) dict.Increment(rollingKey);
-            if(nb==255) continue;
-            rollingKey = ((rollingKey << 2) | nb) & mask;
-        }
+            check(dict, ref rollingKey, b, lastBlock[i], mask);
         return dict;
     }
 
@@ -215,9 +196,7 @@ public static class KNucleotideImproved
     {
         long key = 0;
         for (int i=0; i<fragment.Length; ++i)
-        {
             key = (key << 2) | tonum[fragment[i]];
-        }
         int w;
         var n = dictionary.TryGetValue(key, out w) ? w : 0;
         return string.Concat(n.ToString(), "\t", fragment);
@@ -225,7 +204,10 @@ public static class KNucleotideImproved
 
     public static void Main(string[] args)
     {
-        initialize();
+        tonum['c'] = 1; tonum['C'] = 1;
+        tonum['g'] = 2; tonum['G'] = 2;
+        tonum['t'] = 3; tonum['T'] = 3;
+        tonum['\n'] = 255; tonum['>'] = 255; tonum[255] = 255;
 
         loadThreeData();
 
