@@ -9,14 +9,14 @@ using System;
 public class NBody {
     public static void Main(String[] args) {
         int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
-        NBodySystem bodies = new NBodySystem();
+        NBodySystemX bodies = new NBodySystemX();
         Console.WriteLine("{0:f9}", bodies.Energy());
         for (int i = 0; i < n; i++) bodies.Advance(0.01);
         Console.WriteLine("{0:f9}", bodies.Energy());
     }
     public static Tuple<double,double> Test(String[] args) {
         int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
-        NBodySystem bodies = new NBodySystem();
+        NBodySystemX bodies = new NBodySystemX();
         var startEnergy = bodies.Energy();
         for (int i = 0; i < n; i++) bodies.Advance(0.01);
         return Tuple.Create(Math.Round(startEnergy,10),Math.Round(bodies.Energy(),10));
@@ -26,7 +26,7 @@ public class NBody {
 class BodyX { public double x, y, z, vx, vy, vz, mass; }
 class PairX { public BodyX bi, bj; }
 
-class NBodySystem {
+class NBodySystemX {
     private BodyX[] bodies;
     private PairX[] pairs;
 
@@ -34,7 +34,7 @@ class NBodySystem {
     const double Solarmass = 4 * Pi * Pi;
     const double DaysPeryear = 365.24;
 
-    public NBodySystem() {
+    public NBodySystemX() {
         bodies = new BodyX[] {
             new BodyX() { // Sun
                 mass = Solarmass,
