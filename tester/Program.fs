@@ -37,7 +37,7 @@ let main argv =
     // NBody.Test [|"50000000"|] |> ignore
     
 
-    isFasterThan (fun () -> NBodyImproved.Test [|"500000"|]) (fun () -> NBody.Test [|"500000"|]) "Improved C# n-body faster than original"
+    isFasterThan (fun () -> NBodyImproved.Test [|"50000000"|]) (fun () -> NBody.Test [|"50000000"|]) "Improved C# n-body faster than original"
 
     // Create big faster file
     // Fasta.Main(argv)
