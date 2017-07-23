@@ -22,7 +22,7 @@ public static class FannkuchReduxImproved
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void firstAndCountFlips(int n, int[] fact, int[] p, int[] pp, int[] count, int idx, ref int chksum, ref int maxFlips)
+    static void firstPermutation(int n, int[] fact, int[] p, int[] pp, int[] count, int idx)
     {
         for (int i=0; i<n; ++i) p[i] = i;
         for (int i=n-1; i>0; --i)
@@ -35,7 +35,30 @@ public static class FannkuchReduxImproved
                 rotate(p, pp, (i+1-d) * 4, d * 4);
             }
         }
-        var first = p[0];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static int nextPermutation(int[] p, int[] count)
+    {
+        int first = p[1];
+        p[1] = p[0];
+        p[0] = first;
+        int i = 1;
+        while (++count[i] > i)
+        {
+            count[i++] = 0;
+            int next = p[1];
+            p[0] = next;
+            for(int j=1;j<i;) p[j] = p[++j];
+            p[i] = first;
+            first = next;
+        }
+        return first;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void countFlipsPlus(int n, int[] p, int[] pp, int first, ref int chksum, ref int maxflips)
+    {
         if (first==0) return;
         if (p[first]==0)
         {
@@ -56,7 +79,7 @@ public static class FannkuchReduxImproved
             if (pp[tp]==0)
             {
                 chksum += flips;
-                if(flips>maxFlips) maxFlips = flips;
+                if(flips>maxflips) maxflips = flips;
                 return;
             }
             pp[first] = first;
@@ -66,66 +89,8 @@ public static class FannkuchReduxImproved
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void nextAndCountFlipsPlus(int n, int[] p, int[] pp, int[] count, ref int chksum, ref int maxFlips)
+    static void countFlipsMinus(int n, int[] p, int[] pp, int first, ref int chksum, ref int maxflips)
     {
-        int first = p[1];
-        p[1] = p[0];
-        p[0] = first;
-        int i = 1;
-        while (++count[i] > i)
-        {
-            count[i++] = 0;
-            int next = p[1];
-            p[0] = next;
-            for(int j=1;j<i;) p[j] = p[++j];
-            p[i] = first;
-            first = next;
-        }
-        if (first==0) return;
-        if (p[first]==0)
-        {
-            chksum++;
-            return;
-        }
-        Buffer.BlockCopy(p, 0, pp, 0, n * 4);
-        int flips = 2;
-        while(true)
-        {
-            for (int lo=1, hi=first-1; lo<hi; lo++,hi--)
-            {
-                int t = pp[lo];
-                pp[lo] = pp[hi];
-                pp[hi] = t;
-            }
-            int tp = pp[first];
-            if (pp[tp]==0)
-            {
-                chksum += flips;
-                if(flips>maxFlips) maxFlips = flips;
-                return;
-            }
-            pp[first] = first;
-            first = tp;
-            flips++;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void nextAndCountFlipsMinus(int n, int[] p, int[] pp, int[] count, ref int chksum, ref int maxflips)
-    {
-        int first = p[1];
-        p[1] = p[0];
-        p[0] = first;
-        int i = 1;
-        while (++count[i] > i)
-        {
-            count[i++] = 0;
-            int next = p[1];
-            p[0] = next;
-            for(int j=1;j<i;) p[j] = p[++j];
-            p[i] = first;
-            first = next;
-        }
         if (first==0) return;
         if (p[first]==0)
         {
@@ -159,13 +124,14 @@ public static class FannkuchReduxImproved
     {
         int[] p = new int[n], pp = new int[n], count = new int[n];
         int maxflips=1, chksum=0;
-        firstAndCountFlips(n, fact, p, pp, count, taskId*taskSize, ref chksum, ref maxflips);
-        nextAndCountFlipsMinus(n, p, pp, count, ref chksum, ref maxflips);
+        firstPermutation(n, fact, p, pp, count, taskId*taskSize);
+        countFlipsPlus(n, p, pp, p[0], ref chksum, ref maxflips);
+        countFlipsMinus(n, p, pp, nextPermutation(p, count), ref chksum, ref maxflips);
         taskSize>>=1;
         while (--taskSize>0)
         {
-            nextAndCountFlipsPlus(n, p, pp, count, ref chksum, ref maxflips);
-            nextAndCountFlipsMinus(n, p, pp, count, ref chksum, ref maxflips);
+            countFlipsPlus(n, p, pp, nextPermutation(p, count), ref chksum, ref maxflips);
+            countFlipsMinus(n, p, pp, nextPermutation(p, count), ref chksum, ref maxflips);
         }
         chkSums[taskId] = chksum;
         maxFlips[taskId] = maxflips;
