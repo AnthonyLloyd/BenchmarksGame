@@ -102,7 +102,7 @@ public static class FannkuchRedux
         return Tuple.Create(chksum, maxflips);
     }
 
-    public static Tuple<int,int> Test(string[] args)
+    public static void Main(string[] args)
     {
         int n = args.Length > 0 ? int.Parse(args[0]) : 7;
         var fact = new int[n+1];
@@ -125,6 +125,6 @@ public static class FannkuchRedux
             chksum += result.Item1;
             if(result.Item2>maxFlips) maxFlips=result.Item2;
         }
-        return Tuple.Create(chksum, maxFlips);
+        Console.WriteLine(chksum+"\nPfannkuchen("+n+") = "+maxFlips);
     }
 }
