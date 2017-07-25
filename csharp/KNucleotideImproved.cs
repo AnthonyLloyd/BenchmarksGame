@@ -114,12 +114,13 @@ public static class KNucleotideImproved
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void check(Dictionary<long, WrapperImproved> dict, ref long rollingKey, byte nb, long mask)
     {
+        if(nb==255) return;
+        rollingKey = ((rollingKey & mask) << 2) | nb;
         WrapperImproved w;
         if (dict.TryGetValue(rollingKey, out w))
             w.v++;
         else
             dict[rollingKey] = new WrapperImproved();
-        rollingKey = ((rollingKey << 2) | nb) & mask;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
