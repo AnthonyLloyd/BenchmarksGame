@@ -56,51 +56,50 @@ public static class KNucleotideImproved
 
     static void loadThreeData()
     {
-        using (var stream = File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/)
+        var stream = File.OpenRead(@"C:\temp\input25000000.txt")/*Console.OpenStandardInput()*/;
+        
+        // find three sequence
+        int matchIndex = 0;
+        var toFind = new [] {(byte)'>', (byte)'T', (byte)'H', (byte)'R', (byte)'E', (byte)'E'};
+        var buffer = new byte[BLOCK_SIZE];
+        do
         {
-            // find three sequence
-            int matchIndex = 0;
-            var toFind = new [] {(byte)'>', (byte)'T', (byte)'H', (byte)'R', (byte)'E', (byte)'E'};
-            var buffer = new byte[BLOCK_SIZE];
-            do
-            {
-                threeEnd = read(stream, buffer, 0, BLOCK_SIZE);
-                threeStart = find(buffer, toFind, 0, ref matchIndex);
-            } while (threeStart==-1);
-            
-            // Skip to end of line
-            matchIndex = 0;
-            toFind = new [] {(byte)'\n'};
-            threeStart = find(buffer, toFind, threeStart, ref matchIndex);
-            while(threeStart==-1)
-            {
-                threeEnd = read(stream, buffer, 0, BLOCK_SIZE);
-                threeStart = find(buffer, toFind, 0, ref matchIndex);
-            }
-            threeBlocks.Add(buffer);
-            
-            if(threeEnd!=BLOCK_SIZE) // Needs to be at least 2 blocks
-            {
-                var bytes = threeBlocks[0];
-                for(int i=threeEnd; i<bytes.Length; i++)
-                    bytes[i] = 255;
-                threeEnd = 0;
-                threeBlocks.Add(Array.Empty<byte>());
-                return;
-            }
+            threeEnd = read(stream, buffer, 0, BLOCK_SIZE);
+            threeStart = find(buffer, toFind, 0, ref matchIndex);
+        } while (threeStart==-1);
+        
+        // Skip to end of line
+        matchIndex = 0;
+        toFind = new [] {(byte)'\n'};
+        threeStart = find(buffer, toFind, threeStart, ref matchIndex);
+        while(threeStart==-1)
+        {
+            threeEnd = read(stream, buffer, 0, BLOCK_SIZE);
+            threeStart = find(buffer, toFind, 0, ref matchIndex);
+        }
+        threeBlocks.Add(buffer);
+        
+        if(threeEnd!=BLOCK_SIZE) // Needs to be at least 2 blocks
+        {
+            var bytes = threeBlocks[0];
+            for(int i=threeEnd; i<bytes.Length; i++)
+                bytes[i] = 255;
+            threeEnd = 0;
+            threeBlocks.Add(Array.Empty<byte>());
+            return;
+        }
 
-            // find next seq or end of input
-            matchIndex = 0;
-            toFind = new [] {(byte)'>'};
-            threeEnd = find(buffer, toFind, threeStart, ref matchIndex);
-            while(threeEnd==-1)
-            {
-                buffer = new byte[BLOCK_SIZE];
-                var bytesRead = read(stream, buffer, 0, BLOCK_SIZE);
-                threeEnd = bytesRead==BLOCK_SIZE ? find(buffer, toFind, 0, ref matchIndex)
-                         : bytesRead;
-                threeBlocks.Add(buffer);
-            }
+        // find next seq or end of input
+        matchIndex = 0;
+        toFind = new [] {(byte)'>'};
+        threeEnd = find(buffer, toFind, threeStart, ref matchIndex);
+        while(threeEnd==-1)
+        {
+            buffer = new byte[BLOCK_SIZE];
+            var bytesRead = read(stream, buffer, 0, BLOCK_SIZE);
+            threeEnd = bytesRead==BLOCK_SIZE ? find(buffer, toFind, 0, ref matchIndex)
+                        : bytesRead;
+            threeBlocks.Add(buffer);
         }
 
         if(threeStart+18>BLOCK_SIZE) // Key needs to be in the first block
@@ -113,7 +112,18 @@ public static class KNucleotideImproved
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void check(Dictionary<long, WrapperImproved> dict, ref long rollingKey, byte b, byte nb, long mask)
+    static void check(Dictionary<long, WrapperImproved> dict, ref long rollingKey, byte nb, long mask)
+    {
+        WrapperImproved w;
+        if (dict.TryGetValue(rollingKey, out w))
+            w.v++;
+        else
+            dict[rollingKey] = new WrapperImproved();
+        rollingKey = ((rollingKey << 2) | nb) & mask;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void checkEnding(Dictionary<long, WrapperImproved> dict, ref long rollingKey, byte b, byte nb, long mask)
     {
         if(nb==b)
         {
@@ -130,6 +140,33 @@ public static class KNucleotideImproved
         }
     }
 
+    static Task<string> count(int l, long mask, Func<Dictionary<long,WrapperImproved>,string> summary)
+    {
+        return Task.Run(() =>
+        {
+            long rollingKey = 0;
+            var firstBlock = threeBlocks[0];
+            var start = threeStart;
+            while(--l>0) rollingKey = (rollingKey<<2) | firstBlock[start++];
+            var dict = new Dictionary<long,WrapperImproved>();
+            for(int i=start; i<firstBlock.Length; i++)
+                check(dict, ref rollingKey, firstBlock[i], mask);
+
+            int lastBlockId = threeBlocks.Count-1; 
+            for(int bl=1; bl<lastBlockId; bl++)
+            {
+                var bytes = threeBlocks[bl];
+                for(int i=0; i<bytes.Length; i++)
+                    check(dict, ref rollingKey, bytes[i], mask);
+            }
+
+            var lastBlock = threeBlocks[lastBlockId];
+            for(int i=0; i<threeEnd; i++)
+                check(dict, ref rollingKey, lastBlock[i], mask);
+            return summary(dict);
+        });
+    }
+
     static Dictionary<long,WrapperImproved> countEnding(int l, long mask, byte b)
     {
         long rollingKey = 0;
@@ -138,23 +175,23 @@ public static class KNucleotideImproved
         while(--l>0) rollingKey = (rollingKey<<2) | firstBlock[start++];
         var dict = new Dictionary<long,WrapperImproved>();
         for(int i=start; i<firstBlock.Length; i++)
-            check(dict, ref rollingKey, b, firstBlock[i], mask);
+            checkEnding(dict, ref rollingKey, b, firstBlock[i], mask);
 
         int lastBlockId = threeBlocks.Count-1; 
         for(int bl=1; bl<lastBlockId; bl++)
         {
             var bytes = threeBlocks[bl];
             for(int i=0; i<bytes.Length; i++)
-                check(dict, ref rollingKey, b, bytes[i], mask);
+                checkEnding(dict, ref rollingKey, b, bytes[i], mask);
         }
 
         var lastBlock = threeBlocks[lastBlockId];
         for(int i=0; i<threeEnd; i++)
-            check(dict, ref rollingKey, b, lastBlock[i], mask);
+            checkEnding(dict, ref rollingKey, b, lastBlock[i], mask);
         return dict;
     }
 
-    static Task<string> count(int l, long mask, Func<Dictionary<long,int>,string> summary)
+    static Task<string> count4(int l, long mask, Func<Dictionary<long,WrapperImproved>,string> summary)
     {
         return Task.Factory.ContinueWhenAll(
             new [] {
@@ -164,19 +201,19 @@ public static class KNucleotideImproved
                 Task.Run(() => countEnding(l, mask, 3))
             }
             , dicts => {
-                var d = new Dictionary<long,int>(dicts.Sum(i => i.Result.Count));
+                var d = new Dictionary<long,WrapperImproved>(dicts.Sum(i => i.Result.Count));
                 for(int i=0; i<dicts.Length; i++)
                     foreach(var kv in dicts[i].Result)
-                        d[(kv.Key << 2) | (long)i] = kv.Value.v;
+                        d[(kv.Key << 2) | (long)i] = kv.Value;
                 return summary(d);
             });
     }
 
-    static string writeFrequencies(Dictionary<long,int> freq, int fragmentLength)
+    static string writeFrequencies(Dictionary<long,WrapperImproved> freq, int fragmentLength)
     {
         var sb = new StringBuilder();
-        double percent = 100.0 / freq.Values.Sum();
-        foreach(var kv in freq.OrderByDescending(i => i.Value))
+        double percent = 100.0 / freq.Values.Sum(i => i.v);
+        foreach(var kv in freq.OrderByDescending(i => i.Value.v))
         {
             var keyChars = new char[fragmentLength];
             var key = kv.Key;
@@ -187,18 +224,18 @@ public static class KNucleotideImproved
             }
             sb.Append(keyChars);   
             sb.Append(" ");
-            sb.AppendLine((kv.Value * percent).ToString("F3"));
+            sb.AppendLine((kv.Value.v * percent).ToString("F3"));
         }
         return sb.ToString();
     }
 
-    static string writeCount(Dictionary<long,int> dictionary, string fragment)
+    static string writeCount(Dictionary<long,WrapperImproved> dictionary, string fragment)
     {
         long key = 0;
         for (int i=0; i<fragment.Length; ++i)
             key = (key << 2) | tonum[fragment[i]];
-        int w;
-        var n = dictionary.TryGetValue(key, out w) ? w : 0;
+        WrapperImproved w;
+        var n = dictionary.TryGetValue(key, out w) ? w.v : 0;
         return string.Concat(n.ToString(), "\t", fragment);
     }
 
@@ -217,8 +254,8 @@ public static class KNucleotideImproved
                 bytes[i] = tonum[bytes[i]];
         });
 
-        var task18 = count(18, 34359738367, d => writeCount(d, "GGTATTTTAATTTATAGT"));
-        var task12 = count(12, 8388607, d => writeCount(d, "GGTATTTTAATT"));
+        var task18 = count4(18, 34359738367, d => writeCount(d, "GGTATTTTAATTTATAGT"));
+        var task12 = count4(12, 8388607, d => writeCount(d, "GGTATTTTAATT"));
         var task6 = count(6, 0b1111111111, d => writeCount(d, "GGTATT"));
         var task4 = count(4, 0b111111, d => writeCount(d, "GGTA"));
         var task3 = count(3, 0b1111, d => writeCount(d, "GGT"));
