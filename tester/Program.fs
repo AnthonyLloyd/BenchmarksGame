@@ -60,7 +60,7 @@ let main argv =
 
 
     //let start = System.Diagnostics.Stopwatch.GetTimestamp()
-    KNucleotide.Main argv// |> printfn "%A"
+    // KNucleotide.Main argv// |> printfn "%A"
     // let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     // KNucleotideImproved.Main argv// |> printfn "%A"
     // let end2 = System.Diagnostics.Stopwatch.GetTimestamp()

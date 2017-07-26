@@ -5,10 +5,10 @@ public class NBody {
         int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
         NBodySystem bodies = new NBodySystem();
         //Console.WriteLine("{0:f9}", bodies.Energy());
-        var before = bodies.Energy();
+        var before = Math.Round(bodies.Energy(),10);
         for (int i = 0; i < n; i++) bodies.Advance(0.01);
         //Console.WriteLine("{0:f9}", bodies.Energy());
-        return Tuple.Create(before,bodies.Energy());
+        return Tuple.Create(before,Math.Round(bodies.Energy(),10));
     }
 }
 
