@@ -1,31 +1,34 @@
-/* The Computer Language Benchmarks Game
-   http://benchmarksgame.alioth.debian.org/
-
-   contributed by Isaac Gouy, optimization and use of more C# idioms by Robert F. Tobler
-   small loop and other optimisations by Anthony Lloyd
-*/
-
 using System;
-using System.Runtime.CompilerServices;
-
-class Body { public double x, y, z, vx, vy, vz, mass; }
-class Pair { public Body bi, bj; }
 
 public class NBody {
-    const double dt = 0.01;
-    private Body[] bodies;
-    private Pair[] pairs;
+    public static Tuple<double,double> Test(String[] args) {
+        int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
+        NBodySystem bodies = new NBodySystem();
+        //Console.WriteLine("{0:f9}", bodies.Energy());
+        var before = bodies.Energy();
+        for (int i = 0; i < n; i++) bodies.Advance(0.01);
+        //Console.WriteLine("{0:f9}", bodies.Energy());
+        return Tuple.Create(before,bodies.Energy());
+    }
+}
+
+class BodyX { public double x, y, z, vx, vy, vz, mass; }
+class PairX { public BodyX bi, bj; }
+
+class NBodySystem {
+    private BodyX[] bodies;
+    private PairX[] pairs;
 
     const double Pi = 3.141592653589793;
     const double Solarmass = 4 * Pi * Pi;
     const double DaysPeryear = 365.24;
 
-    public NBody() {
-        bodies = new Body[] {
-            new Body() { // Sun
+    public NBodySystem() {
+        bodies = new BodyX[] {
+            new BodyX() { // Sun
                 mass = Solarmass,
             },
-            new Body() { // Jupiter
+            new BodyX() { // Jupiter
                 x = 4.84143144246472090e+00,
                 y = -1.16032004402742839e+00,
                 z = -1.03622044471123109e-01,
@@ -34,7 +37,7 @@ public class NBody {
                 vz = -6.90460016972063023e-05 * DaysPeryear,
                 mass = 9.54791938424326609e-04 * Solarmass,
             },
-            new Body() { // Saturn
+            new BodyX() { // Saturn
                 x = 8.34336671824457987e+00,
                 y = 4.12479856412430479e+00,
                 z = -4.03523417114321381e-01,
@@ -43,7 +46,7 @@ public class NBody {
                 vz = 2.30417297573763929e-05 * DaysPeryear,
                 mass = 2.85885980666130812e-04 * Solarmass,
             },
-            new Body() { // Uranus
+            new BodyX() { // Uranus
                 x = 1.28943695621391310e+01,
                 y = -1.51111514016986312e+01,
                 z = -2.23307578892655734e-01,
@@ -52,7 +55,7 @@ public class NBody {
                 vz = -2.96589568540237556e-05 * DaysPeryear,
                 mass = 4.36624404335156298e-05 * Solarmass,
             },
-            new Body() { // Neptune
+            new BodyX() { // Neptune
                 x = 1.53796971148509165e+01,
                 y = -2.59193146099879641e+01,
                 z = 1.79258772950371181e-01,
@@ -63,11 +66,11 @@ public class NBody {
             },
         };
         
-        pairs = new Pair[bodies.Length * (bodies.Length-1)/2];        
+        pairs = new PairX[bodies.Length * (bodies.Length-1)/2];        
         int pi = 0;
         for (int i = 0; i < bodies.Length-1; i++)
             for (int j = i+1; j < bodies.Length; j++)
-                pairs[pi++] = new Pair() { bi = bodies[i], bj = bodies[j] };        
+                pairs[pi++] = new PairX() { bi = bodies[i], bj = bodies[j] };        
 
         double px = 0.0, py = 0.0, pz = 0.0;
         foreach (var b in bodies) {
@@ -77,23 +80,22 @@ public class NBody {
         sol.vx = -px/Solarmass; sol.vy = -py/Solarmass; sol.vz = -pz/Solarmass;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    void Advance() {
+    public void Advance(double dt) {
         foreach (var p in pairs) {
-            Body bi = p.bi, bj = p.bj;
-            double dx = bj.x - bi.x, dy = bj.y - bi.y, dz = bj.z - bi.z;
+            BodyX bi = p.bi, bj = p.bj;
+            double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
             double d2 = dx * dx + dy * dy + dz * dz;
             double mag = dt / (d2 * Math.Sqrt(d2));
-            bi.vx += dx * bj.mass * mag; bj.vx -= dx * bi.mass * mag;
-            bi.vy += dy * bj.mass * mag; bj.vy -= dy * bi.mass * mag;
-            bi.vz += dz * bj.mass * mag; bj.vz -= dz * bi.mass * mag;
+            bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
+            bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
+            bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
         }
         foreach (var b in bodies) {
             b.x += dt * b.vx; b.y += dt * b.vy; b.z += dt * b.vz;
         }
     }
 
-    double Energy() {
+    public double Energy() {
         double e = 0.0;
         for (int i = 0; i < bodies.Length; i++) {
             var bi = bodies[i];
@@ -105,25 +107,5 @@ public class NBody {
             }
         }
         return e;
-    }
-
-    public static void Main(String[] args) {
-        var bodies = new NBody();
-        Console.Out.WriteLineAsync(bodies.Energy().ToString("F9"));
-        int n = args.Length > 0 ? Int32.Parse(args[0]) : 10000;
-        if(n%8!=0) while(n-->0) bodies.Advance();
-        n /= 8;
-        while(n-->0)
-        {
-            bodies.Advance();
-            bodies.Advance();
-            bodies.Advance();
-            bodies.Advance();
-            bodies.Advance();
-            bodies.Advance();
-            bodies.Advance();
-            bodies.Advance();
-        }
-        Console.Out.WriteLineAsync(bodies.Energy().ToString("F9"));
     }
 }
