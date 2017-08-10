@@ -57,10 +57,10 @@ public static class FannkuchReduxImproved
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static long countFlips(int n, int[] p, int[] pp, int first, int sign, long maxflipsAndChksum)
+    static long countFlips(int n, int[] p, int[] pp, int first, long sign, long maxflipsAndChksum)
     {
         if (first==0) return maxflipsAndChksum;
-        if (p[first]==0) return maxflipsAndChksum + (long)sign;
+        if (p[first]==0) return maxflipsAndChksum+sign;
         for(int i=0; i<n; i++) pp[i] = p[i];
         uint flips = 2;
         while(true)
@@ -72,7 +72,7 @@ public static class FannkuchReduxImproved
                 pp[hi] = t;
             }
             int tp = pp[first];
-            if (pp[tp]==0) return reduce(maxflipsAndChksum, (oneFlip + (long)sign) * flips);
+            if (pp[tp]==0) return reduce(maxflipsAndChksum, (oneFlip+sign) * flips);
             pp[first] = first;
             first = tp;
             flips++;
