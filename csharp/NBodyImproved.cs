@@ -91,23 +91,21 @@ public static class NBody
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void advance(double[] bodies)
     {
-        for(int i=0; i<bodies.Length-7; i+=3)
+        for(int i=0; i<bodies.Length;)
         {
             double imass = bodies[i++], ix = bodies[i++], iy = bodies[i++], iz = bodies[i++];
-            for(int j=i+3; j<bodies.Length;)
+            double ivx = bodies[i++], ivy = bodies[i++], ivz = bodies[i++];
+            for(int j=i; j<bodies.Length;)
             {
                 double jmass = bodies[j++], dx = bodies[j++]-ix, dy = bodies[j++]-iy, dz = bodies[j++]-iz;
                 double d2 = sqr(dx) + sqr(dy) + sqr(dz);
                 double mag = dt / (d2 * Math.Sqrt(d2));
-                bodies[i] += dx * jmass * mag; bodies[i+1] += dy * jmass * mag; bodies[i+2] += dz * jmass * mag;
+                ivx += dx * jmass * mag; ivy += dy * jmass * mag; ivz += dz * jmass * mag;
                 bodies[j++] -= dx * imass * mag; bodies[j++] -= dy * imass * mag; bodies[j++] -= dz * imass * mag;
             }
-        }
-        for(int i=1; i<bodies.Length; i+=5)
-        {
-            bodies[i++] += dt * bodies[i+2];
-            bodies[i++] += dt * bodies[i+2];
-            bodies[i] += dt * bodies[i+3];
+            i-=6;
+            bodies[i++] = ix + ivx * dt; bodies[i++] = iy + ivy * dt; bodies[i++] = iz + ivz * dt;
+            bodies[i++] = ivx; bodies[i++] = ivy; bodies[i++] = ivz;
         }
     }
 
