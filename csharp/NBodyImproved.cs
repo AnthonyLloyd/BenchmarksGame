@@ -72,15 +72,9 @@ public static class NBody
         double e = 0.0;
         for(int i=0; i<bodies.Length;)
         {
-            var mass = bodies[i];
-            i+=4;
-            e += mass * (sqr(bodies[i++]) + sqr(bodies[i++]) + sqr(bodies[i++]));
-        }
-        e *= 0.5;
-        for(int i=0; i<bodies.Length/*-7*/; i+=4)
-        {
-            double imass = bodies[i], ix = bodies[++i], iy = bodies[++i], iz = bodies[++i];
-            for(int j=i+4; j<bodies.Length; j+=4)
+            double imass = bodies[i++], ix = bodies[i++], iy = bodies[i++], iz = bodies[i++];
+            e += 0.5 * imass * (sqr(bodies[i++]) + sqr(bodies[i++]) + sqr(bodies[i++]));
+            for(int j=i; j<bodies.Length; j+=4)
             {
                 e -= imass * bodies[j] / Math.Sqrt(sqr(ix-bodies[++j]) + sqr(iy-bodies[++j]) + sqr(iz-bodies[++j]));
             }
