@@ -37,7 +37,7 @@ let main argv =
     // NBody.Test [|"50000000"|] |> ignore
 
 
-    //isFasterThan (fun () -> NBodyImproved.Test [|"50000000"|]) (fun () -> NBody.Test [|"50000000"|]) "Improved C# n-body faster than original"
+    
 
     // Create big faster file
     // Fasta.Main(argv)
@@ -68,6 +68,7 @@ let main argv =
     Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
     Console.WriteLine((21.71/float(end1-start)*float(end2-end1)).ToString("F2")+" compared to 21.54")
 
+    // isFasterThan (fun () -> NBody.Main [|"50000000"|]) (fun () -> NBodyOld.Main [|"50000000"|]) "Improved C# n-body faster than original"
 
     //isFasterThan (fun () -> KNucleotideImproved.Main argv) (fun () -> KNucleotide.Main argv) "Improved C# KNucleotide faster than original"
 
