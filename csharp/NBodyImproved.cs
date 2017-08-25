@@ -94,7 +94,8 @@ public static class NBody
                 var DX = new Vector<double>(bodies,j+4) - Xi;
                 var d2 = Vector.Dot(DX, DX);
                 var MAG = new Vector<double>(dt / (d2 * Math.Sqrt(d2)));
-                Vi += DX * new Vector<double>(bodies[j+8]) * MAG;
+                var MASSj = new Vector<double>(bodies[j+8]);
+                Vi += DX * MASSj * MAG;
                 (new Vector<double>(bodies,j) - DX * MASSi * MAG).CopyTo(bodies,j);
             }
             (Vi * dt + Xi).CopyTo(bodies,i+4);
