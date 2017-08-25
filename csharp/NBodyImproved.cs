@@ -63,12 +63,6 @@ public static class NBody
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static double sqr(double x)
-    {
-        return x * x;
-    }
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static double energy(double[] bodies)
     {
         double e = 0.0;
@@ -94,15 +88,15 @@ public static class NBody
         {
             var Vi = new Vector<double>(bodies,i);
             var Xi = new Vector<double>(bodies,i+4);
-            var imass = new Vector<double>(bodies[i+8]);
+            var MASSi = new Vector<double>(bodies[i+8]);
             for(int j=i+9; j<bodies.Length; j+=9)
             {
-                var jmass = new Vector<double>(bodies[j+8]);
+                var MASSj = new Vector<double>(bodies[j+8]);
                 var DX = new Vector<double>(bodies,j+4) - Xi;
                 var d2 = Vector.Dot(DX, DX);
-                var mag = new Vector<double>(dt / (d2 * Math.Sqrt(d2)));
-                Vi += DX * jmass * mag;
-                (new Vector<double>(bodies,j) - DX * imass * mag).CopyTo(bodies,j);
+                var MAG = new Vector<double>(dt / (d2 * Math.Sqrt(d2)));
+                Vi += DX * MASSj * MAG;
+                (new Vector<double>(bodies,j) - DX * MASSi * MAG).CopyTo(bodies,j);
             }
             (Xi + Vi * dt).CopyTo(bodies,i+4);
             Vi.CopyTo(bodies,i);
