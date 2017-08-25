@@ -6,6 +6,7 @@
 */
 
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 public static class NBody
@@ -36,27 +37,28 @@ public static class NBody
         const double nvz = -9.51592254519715870e-05 * DaysPeryear;
         return new double[] {
             // sun
-            Solarmass,
-            0.0, 0.0, 0.0,
             (jvx * jmass + svx * smass + uvx * umass + nvx * nmass)/-Solarmass,
             (jvy * jmass + svy * smass + uvy * umass + nvy * nmass)/-Solarmass,
             (jvz * jmass + svz * smass + uvz * umass + nvz * nmass)/-Solarmass,
+            0.0,
+            0.0, 0.0, 0.0, 0.0,
+            Solarmass,
             // jupiter
+            jvx, jvy, jvz, 0.0,
+            4.84143144246472090e+00, -1.16032004402742839e+00, -1.03622044471123109e-01, 0.0,
             jmass,
-            4.84143144246472090e+00, -1.16032004402742839e+00, -1.03622044471123109e-01,
-            jvx, jvy, jvz,
             // saturn
+            svx, svy, svz, 0.0,
+            8.34336671824457987e+00, 4.12479856412430479e+00, -4.03523417114321381e-01, 0.0,
             smass,
-            8.34336671824457987e+00, 4.12479856412430479e+00, -4.03523417114321381e-01,
-            svx, svy, svz,
             // uranus
+            uvx, uvy, uvz, 0.0,
+            1.28943695621391310e+01, -1.51111514016986312e+01, -2.23307578892655734e-01, 0.0,
             umass,
-            1.28943695621391310e+01, -1.51111514016986312e+01, -2.23307578892655734e-01,
-            uvx, uvy, uvz,
             // neptune
+            nvx, nvy, nvz, 0.0,
+            1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01, 0.0,
             nmass,
-            1.53796971148509165e+01, -2.59193146099879641e+01, 1.79258772950371181e-01,
-            nvx, nvy, nvz,
         };
     }
 
@@ -70,13 +72,16 @@ public static class NBody
     static double energy(double[] bodies)
     {
         double e = 0.0;
-        for(int i=0; i<bodies.Length;)
+        for(int i=0; i<bodies.Length; i+=9)
         {
-            double imass = bodies[i++], ix = bodies[i++], iy = bodies[i++], iz = bodies[i++];
-            e += 0.5 * imass * (sqr(bodies[i++]) + sqr(bodies[i++]) + sqr(bodies[i++]));
-            for(int j=i; j<bodies.Length; j+=4)
+            var Vi = new Vector<double>(bodies,i);
+            var Xi = new Vector<double>(bodies,i+4);
+            var imass = bodies[i+8];
+            e += 0.5 * imass * Vector.Dot(Vi, Vi);
+            for(int j=i+9; j<bodies.Length; j+=9)
             {
-                e -= imass * bodies[j] / Math.Sqrt(sqr(ix-bodies[++j]) + sqr(iy-bodies[++j]) + sqr(iz-bodies[++j]));
+                var DX = Xi - new Vector<double>(bodies,j+4);
+                e -= imass * bodies[j+8] / Math.Sqrt(Vector.Dot(DX, DX));
             }
         }
         return e;
@@ -85,21 +90,22 @@ public static class NBody
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void advance(double[] bodies)
     {
-        for(int i=0; i<bodies.Length;)
+        for(int i=0; i<bodies.Length; i+=9)
         {
-            double imass = bodies[i++], ix = bodies[i++], iy = bodies[i++], iz = bodies[i++];
-            double ivx = bodies[i++], ivy = bodies[i++], ivz = bodies[i++];
-            for(int j=i; j<bodies.Length;)
+            var Vi = new Vector<double>(bodies,i);
+            var Xi = new Vector<double>(bodies,i+4);
+            var imass = new Vector<double>(bodies[i+8]);
+            for(int j=i+9; j<bodies.Length; j+=9)
             {
-                double jmass = bodies[j++], dx = bodies[j++]-ix, dy = bodies[j++]-iy, dz = bodies[j++]-iz;
-                double d2 = sqr(dx) + sqr(dy) + sqr(dz);
-                double mag = dt / (d2 * Math.Sqrt(d2));
-                ivx += dx * jmass * mag; ivy += dy * jmass * mag; ivz += dz * jmass * mag;
-                bodies[j++] -= dx * imass * mag; bodies[j++] -= dy * imass * mag; bodies[j++] -= dz * imass * mag;
+                var jmass = new Vector<double>(bodies[j+8]);
+                var DX = new Vector<double>(bodies,j+4) - Xi;
+                var d2 = Vector.Dot(DX, DX);
+                var mag = new Vector<double>(dt / (d2 * Math.Sqrt(d2)));
+                Vi += DX * jmass * mag;
+                (new Vector<double>(bodies,j) - DX * imass * mag).CopyTo(bodies,j);
             }
-            i-=6;
-            bodies[i++] = ix + ivx * dt; bodies[i++] = iy + ivy * dt; bodies[i++] = iz + ivz * dt;
-            bodies[i++] = ivx; bodies[i++] = ivy; bodies[i++] = ivz;
+            (Xi + Vi * dt).CopyTo(bodies,i+4);
+            Vi.CopyTo(bodies,i);
         }
     }
 
