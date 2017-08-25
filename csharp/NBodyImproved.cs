@@ -71,11 +71,11 @@ public static class NBody
             var Vi = new Vector<double>(bodies,i);
             var Xi = new Vector<double>(bodies,i+4);
             var imass = bodies[i+8];
-            e += 0.5 * imass * Vector.Dot(Vi, Vi);
+            e += 0.5 * imass * Vector.Dot(Vi,Vi);
             for(int j=i+9; j<bodies.Length; j+=9)
             {
                 var DX = Xi - new Vector<double>(bodies,j+4);
-                e -= imass * bodies[j+8] / Math.Sqrt(Vector.Dot(DX, DX));
+                e -= imass * bodies[j+8] / Math.Sqrt(Vector.Dot(DX,DX));
             }
         }
         return e;
@@ -98,7 +98,7 @@ public static class NBody
                 Vi += DX * MASSj * MAG;
                 (new Vector<double>(bodies,j) - DX * MASSi * MAG).CopyTo(bodies,j);
             }
-            (Xi + Vi * dt).CopyTo(bodies,i+4);
+            (Vi * dt + Xi).CopyTo(bodies,i+4);
             Vi.CopyTo(bodies,i);
         }
     }
