@@ -2,7 +2,7 @@
    http://benchmarksgame.alioth.debian.org/
 
    contributed by Isaac Gouy, optimization and use of more C# idioms by Robert F. Tobler
-   small loop and other optimisations by Anthony Lloyd
+   Modified to use SIMD vectors by Anthony Lloyd
 */
 
 using System;
@@ -91,11 +91,10 @@ public static class NBody
             var MASSi = new Vector<double>(bodies[i+8]);
             for(int j=i+9; j<bodies.Length; j+=9)
             {
-                var MASSj = new Vector<double>(bodies[j+8]);
                 var DX = new Vector<double>(bodies,j+4) - Xi;
                 var d2 = Vector.Dot(DX, DX);
                 var MAG = new Vector<double>(dt / (d2 * Math.Sqrt(d2)));
-                Vi += DX * MASSj * MAG;
+                Vi += DX * new Vector<double>(bodies[j+8]) * MAG;
                 (new Vector<double>(bodies,j) - DX * MASSi * MAG).CopyTo(bodies,j);
             }
             (Vi * dt + Xi).CopyTo(bodies,i+4);
