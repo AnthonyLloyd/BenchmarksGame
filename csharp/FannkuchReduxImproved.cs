@@ -80,7 +80,7 @@ public static class FannkuchRedux
     {
         int[] p = new int[n], pp = new int[n], count = new int[n];
         firstPermutation(p, pp, count, taskId*taskSize);
-        int maxflips=1;
+        int maxflips = 1;
         int chksum = countFlips(p[0], p, pp, ref maxflips);
         while (--taskSize>0)
         {
