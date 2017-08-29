@@ -50,7 +50,7 @@ public static class FannkuchRedux
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int countFlips(int first, int[] p, int[] pp, ref int maxflips)
+    static int countFlips(int first, int[] p, int[] pp)
     {
         if (first==0) return 0;
         if (p[first]==0) return 1;
@@ -65,11 +65,7 @@ public static class FannkuchRedux
                 pp[hi] = t;
             }
             int tp = pp[first];
-            if (pp[tp]==0)
-            {
-                if(flips>maxflips) maxflips = flips;
-                return flips;
-            }
+            if (pp[tp]==0) return flips;
             pp[first] = first;
             first = tp;
             flips++;
@@ -80,11 +76,13 @@ public static class FannkuchRedux
     {
         int[] p = new int[n], pp = new int[n], count = new int[n];
         firstPermutation(p, pp, count, taskId*taskSize);
-        int maxflips = 1;
-        int chksum = countFlips(p[0], p, pp, ref maxflips);
+        int chksum = countFlips(p[0], p, pp);
+        int maxflips = chksum;
         while (--taskSize>0)
         {
-            chksum += (1-(taskSize%2)*2) * countFlips(nextPermutation(p, count), p, pp, ref maxflips);
+            var flips = countFlips(nextPermutation(p, count), p, pp);
+            chksum += (1-(taskSize%2)*2) * flips;
+            if(flips>maxflips) maxflips = flips;
         }
         chkSums[taskId] = chksum;
         maxFlips[taskId] = maxflips;
