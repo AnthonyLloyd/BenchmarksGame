@@ -60,13 +60,13 @@ let main argv =
 
 
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
-    NBodyOld.Main [|"50000000"|]// |> printfn "%A"
+    FannkuchReduxOld.Main [|"12"|]// |> printfn "%A"
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
-    NBody.Main [|"50000000"|]// |> printfn "%A"
+    FannkuchRedux.Main [|"12"|]// |> printfn "%A"
     let end2 = System.Diagnostics.Stopwatch.GetTimestamp()
     Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
     Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
-    Console.WriteLine((21.71/float(end1-start)*float(end2-end1)).ToString("F2")+" compared to 21.54")
+    Console.WriteLine((14.98/float(end1-start)*float(end2-end1)).ToString("F2")+" compared to 13.74")
 
     // isFasterThan (fun () -> NBody.Main [|"50000000"|]) (fun () -> NBodyOld.Main [|"50000000"|]) "Improved C# n-body faster than original"
 

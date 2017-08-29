@@ -8,17 +8,16 @@
 
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
-public static class FannkuchReduxImproved
+public static class FannkuchRedux
 {
-    const long flipMask = uint.MaxValue, oneChk = flipMask+1, chkMask = oneChk * int.MaxValue;
+    static int[] fact, chkSums, maxFlips;
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void firstPermutation(int n, int[] fact, int[] p, int[] pp, int[] count, int idx)
+    static void firstPermutation(int[] p, int[] pp, int[] count, int idx)
     {
-        for (int i=0; i<n; ++i) p[i] = i;
-        for (int i=n-1; i>0; --i)
+        for (int i=0; i<p.Length; ++i) p[i] = i;
+        for (int i=count.Length-1; i>0; --i)
         {
             int d = idx/fact[i];
             count[i] = d;
@@ -51,17 +50,15 @@ public static class FannkuchReduxImproved
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static long reduce(long l1, long l2)
+    static void countFlips(int[] p, int[] pp, int first, int sign, ref int chksum, ref int maxflips)
     {
-        return Math.Max(l1 & flipMask, l2 & flipMask) | ((l1+l2) & chkMask);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static long countFlips(int n, int[] p, int[] pp, int first, long sign, long chksumMaxflips)
-    {
-        if (first==0) return chksumMaxflips;
-        if (p[first]==0) return chksumMaxflips+sign;
-        for(int i=0; i<n; i++) pp[i] = p[i];
+        if (first==0) return;
+        if (p[first]==0)
+        {
+            chksum += sign;
+            return;
+        }
+        for(int i=0; i<pp.Length; i++) pp[i] = p[i];
         int flips = 2;
         while(true)
         {
@@ -72,45 +69,58 @@ public static class FannkuchReduxImproved
                 pp[hi] = t;
             }
             int tp = pp[first];
-            if (pp[tp]==0) return Math.Max(chksumMaxflips & flipMask, flips) | (sign * flips + chksumMaxflips & chkMask);
+            if (pp[tp]==0)
+            {
+                chksum += sign * flips;
+                if(flips>maxflips) maxflips = flips;
+                return;
+            }
             pp[first] = first;
             first = tp;
             flips++;
         }
     }
 
-    static long run(int n, int[] fact, int taskId, int taskSize, long chksumMaxflips)
+    static void run(int n, int taskId, int taskSize)
     {
         int[] p = new int[n], pp = new int[n], count = new int[n];
-        firstPermutation(n, fact, p, pp, count, taskId*taskSize);
-        chksumMaxflips = countFlips(n, p, pp, p[0], oneChk, chksumMaxflips);
+        int maxflips=1, chksum=0;
+        firstPermutation(p, pp, count, taskId*taskSize);
+        countFlips(p, pp, p[0], 1, ref chksum, ref maxflips);
         while (--taskSize>0)
         {
-            chksumMaxflips = countFlips(n, p, pp, nextPermutation(p, count), oneChk-oneChk*2*(taskSize%2), chksumMaxflips);
+            countFlips(p, pp, nextPermutation(p, count), 1-(taskSize%2)*2, ref chksum, ref maxflips);
         }
-        return chksumMaxflips;
+        chkSums[taskId] = chksum;
+        maxFlips[taskId] = maxflips;
     }
 
     public static void Main(string[] args)
     {
         int n = args.Length > 0 ? int.Parse(args[0]) : 7;
-        var fact = new int[n+1];
+        fact = new int[n+1];
         fact[0] = 1;
         var factn = 1;
         for (int i=1; i<fact.Length; i++) { fact[i] = factn *= i; }
 
-        int nTasks = 2*3*4;
+        int nTasks = Environment.ProcessorCount;
+        chkSums = new int[nTasks];
+        maxFlips = new int[nTasks];
         int taskSize = factn/nTasks;
-        long chksumMaxflips = 1;
-        Parallel.For<long>(0, nTasks
-            , () => 1
-            , (i,_,l) => run(n, fact, i, taskSize, l)
-            , l => {
-                long chk;
-                do { chk = chksumMaxflips; }
-                while (Interlocked.CompareExchange(ref chksumMaxflips, reduce(chk, l), chk) != chk);
-            }
-        );
-        Console.Out.WriteLineAsync(((chksumMaxflips & chkMask) / oneChk) + "\nPfannkuchen("+n+") = " + (chksumMaxflips & flipMask));
+        var threads = new Thread[nTasks];
+        for(int i=1; i<nTasks; i++)
+        {
+            int j = i;
+            (threads[j] = new Thread(() => run(n, j, taskSize))).Start();
+        }
+        run(n, 0, taskSize);
+        int chksum=chkSums[0], maxflips=maxFlips[0];
+        for(int i=1; i<threads.Length; i++)
+        {
+            threads[i].Join();
+            chksum += chkSums[i];
+            if(maxFlips[i]>maxflips) maxflips = maxFlips[i];
+        }
+        Console.Out.WriteLineAsync(chksum+"\nPfannkuchen("+n+") = "+maxflips);
     }
 }
