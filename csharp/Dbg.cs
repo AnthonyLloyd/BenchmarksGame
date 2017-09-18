@@ -4,21 +4,16 @@ using System.Diagnostics;
 
 public class Dbg
 {
-    long totalTime = 0;
-    int totalCount = 0;
-    public long Start()
+    long time = 0;
+    public void Start()
     {
-        return Stopwatch.GetTimestamp();
+        time = Stopwatch.GetTimestamp();
     }
-    public void Stop(long startTime)
+    public void Checkpoint(string name)
     {
-        Interlocked.Add(ref totalTime, Stopwatch.GetTimestamp()-startTime);
-        Interlocked.Increment(ref totalCount);
+        var diff = Stopwatch.GetTimestamp() - time;
+        Console.Out.WriteLineAsync(name + " " + diff);
+        Start();
     }
-    public void Summary()
-    {
-        Console.Out.WriteLineAsync((((double)totalTime)/totalCount).ToString("F9") + " = " + totalTime + "/" + totalCount);
-    }
-    public static Dbg Counter1 = new Dbg();
-    public static Dbg Counter2 = new Dbg();
+    public static Dbg Instance = new Dbg();
 }
