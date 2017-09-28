@@ -13,20 +13,20 @@ public class MandelBrot
 {
     public static byte[] Main (String[] args)
     {
-        var n = args.Length > 0 ? Int32.Parse(args[0]) : 200;
+        var n = args.Length==0 ? 200 : Int32.Parse(args[0]);
         //Console.Out.WriteLineAsync("P4\n" + n + " " + n);
-        double invN=2.0/n;
+        double invN = 2.0/n;
         int lineLen = (n-1)/8 + 1;
         var data = new byte[n*lineLen];
         Parallel.For(0, n, y =>
         {
             var Ciby = y*invN-1.0;
-            //var offset = y*lineLen;
+            var offset = y*lineLen;
             for(int x=0; x<lineLen; x++)
             {
-                var Crbx = x*8*invN-1.5;
-                int res=0;
-                for(int i=0;i<4;i++)
+                var Crbx = x*8*invN - 1.5;
+                int res = 0;
+                for(int i=0; i<4; i++)
                 {
                     double Crbx1=Crbx+invN;
                     double Zr1=Crbx, Zr2=Crbx1;
@@ -37,11 +37,11 @@ public class MandelBrot
                     do
                     {
                         double nZr1=Zr1*Zr1-Zi1*Zi1+Crbx;
-                        Zi1=Zr1*Zi1+Zr1*Zi1+Ciby;
+                        Zi1=Zr1*Zi1*2+Ciby;
                         Zr1=nZr1;
 
                         double nZr2=Zr2*Zr2-Zi2*Zi2+Crbx1;
-                        Zi2=Zr2*Zi2+Zr2*Zi2+Ciby;
+                        Zi2=Zr2*Zi2*2+Ciby;
                         Zr2=nZr2;
 
                         if(Zr1*Zr1+Zi1*Zi1>4){b|=2;if(b==3)break;}
@@ -50,10 +50,9 @@ public class MandelBrot
                     res=(res<<2)+b;
                     Crbx = Crbx1+invN;
                 }
-                data[y*lineLen+x] = (byte)(res^-1);
+                data[offset++] = (byte)(res^-1);
             }
         });
-        
         //Console.OpenStandardOutput().Write(data, 0, data.Length);
         return data;
     }
