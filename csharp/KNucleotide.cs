@@ -13,8 +13,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
-class WrapperOld { public int v=1; }
-public static class KNucleotideOld
+class Wrapper { public int v=1; }
+public static class KNucleotide
 {
     const int BLOCK_SIZE = 1024 * 1024 * 8;
     static List<byte[]> threeBlocks = new List<byte[]>();
@@ -112,36 +112,18 @@ public static class KNucleotideOld
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void check(Dictionary<long, WrapperOld> dict, ref long rollingKey, byte nb, long mask)
+    static void check(Dictionary<long, Wrapper> dict, ref long rollingKey, byte nb, long mask)
     {
         if(nb==255) return;
         rollingKey = ((rollingKey & mask) << 2) | nb;
-        WrapperOld w;
+        Wrapper w;
         if (dict.TryGetValue(rollingKey, out w))
             w.v++;
         else
-            dict[rollingKey] = new WrapperOld();
+            dict[rollingKey] = new Wrapper();
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void checkEnding(Dictionary<long, WrapperOld> dict, ref long rollingKey, byte b, byte nb, long mask)
-    {
-        if(nb==b)
-        {
-            WrapperOld w;
-            if (dict.TryGetValue(rollingKey, out w))
-                w.v++;
-            else
-                dict[rollingKey] = new WrapperOld();
-            rollingKey = ((rollingKey << 2) | nb) & mask;
-        }
-        else if(nb!=255)
-        {
-            rollingKey = ((rollingKey << 2) | nb) & mask;
-        }
-    }
-
-    static Task<string> count(int l, long mask, Func<Dictionary<long,WrapperOld>,string> summary)
+    static Task<string> count(int l, long mask, Func<Dictionary<long,Wrapper>,string> summary)
     {
         return Task.Run(() =>
         {
@@ -149,7 +131,7 @@ public static class KNucleotideOld
             var firstBlock = threeBlocks[0];
             var start = threeStart;
             while(--l>0) rollingKey = (rollingKey<<2) | firstBlock[start++];
-            var dict = new Dictionary<long,WrapperOld>();
+            var dict = new Dictionary<long,Wrapper>();
             for(int i=start; i<firstBlock.Length; i++)
                 check(dict, ref rollingKey, firstBlock[i], mask);
 
@@ -168,49 +150,7 @@ public static class KNucleotideOld
         });
     }
 
-    static Dictionary<long,WrapperOld> countEnding(int l, long mask, byte b)
-    {
-        long rollingKey = 0;
-        var firstBlock = threeBlocks[0];
-        var start = threeStart;
-        while(--l>0) rollingKey = (rollingKey<<2) | firstBlock[start++];
-        var dict = new Dictionary<long,WrapperOld>();
-        for(int i=start; i<firstBlock.Length; i++)
-            checkEnding(dict, ref rollingKey, b, firstBlock[i], mask);
-
-        int lastBlockId = threeBlocks.Count-1; 
-        for(int bl=1; bl<lastBlockId; bl++)
-        {
-            var bytes = threeBlocks[bl];
-            for(int i=0; i<bytes.Length; i++)
-                checkEnding(dict, ref rollingKey, b, bytes[i], mask);
-        }
-
-        var lastBlock = threeBlocks[lastBlockId];
-        for(int i=0; i<threeEnd; i++)
-            checkEnding(dict, ref rollingKey, b, lastBlock[i], mask);
-        return dict;
-    }
-
-    static Task<string> count4(int l, long mask, Func<Dictionary<long,WrapperOld>,string> summary)
-    {
-        return Task.Factory.ContinueWhenAll(
-            new [] {
-                Task.Run(() => countEnding(l, mask, 0)),
-                Task.Run(() => countEnding(l, mask, 1)),
-                Task.Run(() => countEnding(l, mask, 2)),
-                Task.Run(() => countEnding(l, mask, 3))
-            }
-            , dicts => {
-                var d = new Dictionary<long,WrapperOld>(dicts.Sum(i => i.Result.Count));
-                for(int i=0; i<dicts.Length; i++)
-                    foreach(var kv in dicts[i].Result)
-                        d[(kv.Key << 2) | (long)i] = kv.Value;
-                return summary(d);
-            });
-    }
-
-    static string writeFrequencies(Dictionary<long,WrapperOld> freq, int fragmentLength)
+    static string writeFrequencies(Dictionary<long,Wrapper> freq, int fragmentLength)
     {
         var sb = new StringBuilder();
         double percent = 100.0 / freq.Values.Sum(i => i.v);
@@ -230,12 +170,12 @@ public static class KNucleotideOld
         return sb.ToString();
     }
 
-    static string writeCount(Dictionary<long,WrapperOld> dictionary, string fragment)
+    static string writeCount(Dictionary<long,Wrapper> dictionary, string fragment)
     {
         long key = 0;
         for (int i=0; i<fragment.Length; ++i)
             key = (key << 2) | tonum[fragment[i]];
-        WrapperOld w;
+        Wrapper w;
         var n = dictionary.TryGetValue(key, out w) ? w.v : 0;
         return string.Concat(n.ToString(), "\t", fragment);
     }
@@ -255,20 +195,20 @@ public static class KNucleotideOld
                 bytes[i] = tonum[bytes[i]];
         });
 
-        var task18 = count4(18, 34359738367, d => writeCount(d, "GGTATTTTAATTTATAGT"));
-        var task12 = count4(12, 8388607, d => writeCount(d, "GGTATTTTAATT"));
+        var task12 = count(12, 8388607, d => writeCount(d, "GGTATTTTAATT"));
+        var task18 = count(18, 34359738367, d => writeCount(d, "GGTATTTTAATTTATAGT"));
         var task6 = count(6, 0b1111111111, d => writeCount(d, "GGTATT"));
-        var task4 = count(4, 0b111111, d => writeCount(d, "GGTA"));
-        var task3 = count(3, 0b1111, d => writeCount(d, "GGT"));
-        var task2 = count(2, 0b11, d => writeFrequencies(d, 2));
         var task1 = count(1, 0, d => writeFrequencies(d, 1));
-
+        var task2 = count(2, 0b11, d => writeFrequencies(d, 2));
+        var task3 = count(3, 0b1111, d => writeCount(d, "GGT"));
+        var task4 = count(4, 0b111111, d => writeCount(d, "GGTA"));
+        
         Console.Out.WriteLineAsync(task1.Result);
         Console.Out.WriteLineAsync(task2.Result);
         Console.Out.WriteLineAsync(task3.Result);
         Console.Out.WriteLineAsync(task4.Result);
         Console.Out.WriteLineAsync(task6.Result);
         Console.Out.WriteLineAsync(task12.Result);
-        Console.Out.WriteLineAsync(task18.Result);
+        Console.WriteLine(task18.Result);
     }
 }

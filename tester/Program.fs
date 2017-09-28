@@ -30,7 +30,7 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 [<EntryPoint>]
 let main argv =
     //Improved.MandelBrot.Main([|"16000"|])
-    //isFasterThan (fun () -> Improved.MandelBrot.Test [|"16000"|]) (fun () -> MandelBrot.Test [|"16000"|]) "Improved C# Mandelbrot faster than original"
+    isFasterThan (fun () -> MandelBrot.Main [|"16000"|]) (fun () -> MandelBrotOld.Main [|"16000"|]) "Improved C# Mandelbrot faster than original"
 
     // NBody.Main([|"50000000"|])
     // Improved.NBody.Main([|"5"|])
@@ -62,17 +62,14 @@ let main argv =
     // FannkuchRedux.Main [|"12"|]// |> printfn "%A"
     // let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)    
-
-    KNucleotide.Main(argv);
-
     // let start = System.Diagnostics.Stopwatch.GetTimestamp()
-    // FannkuchRedux.Main [|"12"|]// |> printfn "%A"
+    // KNucleotideOld.Main [||]// |> printfn "%A"
     // let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
-    // FannkuchReduxOld.Main [|"12"|]// |> printfn "%A"
+    // KNucleotide.Main [||]// |> printfn "%A"
     // let end2 = System.Diagnostics.Stopwatch.GetTimestamp()
     // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
     // Console.WriteLine(float(end2-end1)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
-    // Console.WriteLine((14.45/float(end1-start)*float(end2-end1)).ToString("F2")+" compared to 13.74")
+    // Console.WriteLine((12.37/float(end1-start)*float(end2-end1)).ToString("F2")+" compared to 7.93")
 
     // isFasterThan (fun () -> NBody.Main [|"50000000"|]) (fun () -> NBodyOld.Main [|"50000000"|]) "Improved C# n-body faster than original"
 
