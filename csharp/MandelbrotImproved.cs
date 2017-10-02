@@ -7,6 +7,7 @@
 */
 
 using System;
+using System.Numerics;
 using System.Threading.Tasks;
 
 public static class MandelBrot
@@ -15,38 +16,33 @@ public static class MandelBrot
     {
         var n = args.Length==0 ? 200 : Int32.Parse(args[0]);
         //Console.Out.WriteLineAsync("P4\n" + n + " " + n);
-        double invN = 2.0/n;
+        var invN = new Vector<double>(2.0/n);
+        var constY = new Vector<double>(-1.0);
+        var constX = new Vector<double>(new double[]{-1.5, 2.0/n-1.5, 0.0, 0.0}); 
         int lineLen = (n-1)/8 + 1;
         var data = new byte[n*lineLen];
         Parallel.For(0, n, y =>
         {
-            var Ciby = y*invN - 1.0;
+            var Ciby = invN*y + constY;
             for(int x=0; x<lineLen; x++)
             {
-                var Crbx = x*8*invN - 1.5;
+                var Crbx = invN*(x*8) + constX;
                 int res = 0;
                 for(int i=0; i<4; i++)
                 {
-                    double Zi1=Ciby, Zi2=Ciby, Zr1=Crbx;
-                    double Crbx1=Crbx+invN, Zr2=Crbx1;
-
-                    int b=0;
-                    int j=49;
+                    Vector<double> Zi=Ciby, Zr=Crbx;
+                    int b=0, j=49;
                     do
                     {
-                        double nZr1=Zr1*Zr1-Zi1*Zi1+Crbx;
-                        Zi1=Zr1*Zi1*2+Ciby;
-                        Zr1=nZr1;
-
-                        double nZr2=Zr2*Zr2-Zi2*Zi2+Crbx1;
-                        Zi2=Zr2*Zi2*2+Ciby;
-                        Zr2=nZr2;
-
-                        if(Zr1*Zr1+Zi1*Zi1>4.0){b|=2;if(b==3)break;}
-                        if(Zr2*Zr2+Zi2*Zi2>4.0){b|=1;if(b==3)break;}
+                        var nZr=Zr*Zr-Zi*Zi+Crbx;
+                        Zi=Zr*Zi*2.0+Ciby;
+                        Zr=nZr;
+                        var t=Zr*Zr+Zi*Zi;
+                        if(t[0]>4.0){b|=2;if(b==3)break;}
+                        if(t[1]>4.0){b|=1;if(b==3)break;}
                     } while(--j>0);
                     res=(res<<2)+b;
-                    Crbx = Crbx1+invN;
+                    Crbx += invN*2.0;
                 }
                 data[y*lineLen+x] = (byte)~res;
             }
