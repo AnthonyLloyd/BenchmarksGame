@@ -16,14 +16,14 @@ using System.Threading.Tasks;
 public class MandelBrot
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static unsafe byte GetByte(double* pCrb, double Ciby, int x)
+    private static unsafe byte GetByte(double* pCrb, double Ciby)
     {
         var res = 0;
-        for (var i = 0; i < 8; i += 2)
+        for (var i=0; i<8; i+=2)
         {
-            var Crbx = Unsafe.Read<Vector<double>>(pCrb + x + i);
-            var Zr = Crbx;
+            var Crbx = Unsafe.Read<Vector<double>>(pCrb+i);
             var vCiby = new Vector<double>(Ciby);
+            var Zr = Crbx;
             var Zi = vCiby;
             var b = 0;
             var j = 49;
@@ -44,7 +44,7 @@ public class MandelBrot
 
     public static unsafe byte[] Main(string[] args)
     {
-        var size = (args.Length==0) ? 200 : int.Parse(args[0]);
+        var size = args.Length==0 ? 200 : int.Parse(args[0]);
         // Console.Out.WriteAsync(String.Concat("P4\n",size," ",size,"\n"));
         var adjustedSize = size + (Vector<double>.Count * 8);
         adjustedSize &= ~(Vector<double>.Count * 8);
@@ -58,10 +58,11 @@ public class MandelBrot
         fixed (double* pCib = &Cib[0])
         fixed (byte* pdata = &data[0])
         {
-            var ints = Vector<double>.Count==2 ? new double[] {0,1}
-                     : Vector<double>.Count==4 ? new double[] {0,1,2,3}
-                     : new double[] {0,1,2,3,4,5,6,7};
-            var value = new Vector<double>(ints);
+            var value = new Vector<double>(
+                  Vector<double>.Count==2 ? new double[] {0,1}
+                : Vector<double>.Count==4 ? new double[] {0,1,2,3}
+                : new double[] {0,1,2,3,4,5,6,7}
+            );
             var invN = new Vector<double>(2.0 / size);
             var onePtFive = new Vector<double>(1.5);
             var one = Vector<double>.One;
@@ -78,9 +79,10 @@ public class MandelBrot
             var _pdata = pdata;
             Parallel.For(0, size, y =>
             {
+                //var Ciby = new Vector<double>(_Cib[y]);
                 for (var x=0; x<lineLength; x++)
                 {
-                    _pdata[y*lineLength+x] = GetByte(_Crb, _Cib[y], x*8);
+                    _pdata[y*lineLength+x] = GetByte(_Crb+x*8, _Cib[y]);
                 }
             });
             // Console.OpenStandardOutput().Write(data, 0, data.Length);
