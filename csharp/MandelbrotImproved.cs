@@ -44,40 +44,28 @@ public class MandelBrot
     {
         var size = args.Length==0 ? 200 : int.Parse(args[0]);
         // Console.Out.WriteAsync(String.Concat("P4\n",size," ",size,"\n"));
-        var adjustedSize = (size + (Vector<double>.Count * 8))
-                         & ~(Vector<double>.Count * 8);
-
-        var Crb = new double[adjustedSize];
-        var Cib = new double[adjustedSize];
-
+        var Crb = new double[size+2];
         var lineLength = size >> 3;
-        var data = new byte[adjustedSize * lineLength];
+        var data = new byte[size * lineLength];
         fixed (double* pCrb = &Crb[0])
-        fixed (double* pCib = &Cib[0])
         fixed (byte* pdata = &data[0])
         {
             var value = new Vector<double>(
-                  Vector<double>.Count==2 ? new double[] {0,1}
-                : Vector<double>.Count==4 ? new double[] {0,1,2,3}
-                : new double[] {0,1,2,3,4,5,6,7}
+                  new double[] {0,1,0,0,0,0,0,0}
             );
             var invN = new Vector<double>(2.0/size);
             var onePtFive = new Vector<double>(1.5);
-            var one = Vector<double>.One;
-            var step = new Vector<double>(Vector<double>.Count);
-            for (var i=0; i<size; i+=Vector<double>.Count)
+            var step = new Vector<double>(2);
+            for (var i=0; i<size; i+=2)
             {
-                var t = value * invN;
-                Unsafe.Write(pCrb+i, t-onePtFive);
-                Unsafe.Write(pCib+i, t-one);
+                Unsafe.Write(pCrb+i, value*invN-onePtFive);
                 value += step;
             }
             var _Crb = pCrb;
-            var _Cib = pCib;
             var _pdata = pdata;
             Parallel.For(0, size, y =>
             {
-                var Ciby = _Cib[y];
+                var Ciby = _Crb[y]+0.5;
                 for (var x=0; x<lineLength; x++)
                 {
                     _pdata[y*lineLength+x] = GetByte(_Crb+x*8, Ciby);

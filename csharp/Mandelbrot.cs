@@ -73,8 +73,7 @@ public class MandelBrotOld
     {
         var size = (args.Length > 0) ? int.Parse(args[0]) : 200;
 
-        var adjustedSize = size + (Vector<double>.Count * 8);
-        adjustedSize &= ~(Vector<double>.Count * 8);
+        var adjustedSize = size + 2;
 
         var Crb = new double[adjustedSize];
         var Cib = new double[adjustedSize];
@@ -85,7 +84,7 @@ public class MandelBrotOld
             var invN = new Vector<double>(2.0 / size);
 
             var onePtFive = new Vector<double>(1.5);
-            var step = new Vector<double>(Vector<double>.Count);
+            var step = new Vector<double>(2);
 
             Vector<double> value;
 
@@ -98,7 +97,7 @@ public class MandelBrotOld
             else if (Vector<double>.Count == 4)
             {
                 value = new Vector<double>(new double[] {
-                    0, 1, 2, 3
+                    0, 1, 0, 0
                 });
             }
             else
@@ -108,7 +107,7 @@ public class MandelBrotOld
                 });
             }
 
-            for (var i = 0; i < size; i += Vector<double>.Count)
+            for (var i = 0; i < size; i += 2)
             {
                 var t = value * invN;
 
@@ -120,7 +119,7 @@ public class MandelBrotOld
         }
 
         var lineLength = size >> 3;
-        var data = new byte[adjustedSize * lineLength];
+        var data = new byte[size * lineLength];
 
         fixed (double* pCrb = &Crb[0])
         {
