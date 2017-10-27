@@ -63,21 +63,27 @@ let mb = MailboxProcessor.Start (fun mb ->
             let i = Array.IndexOf(pages.[page],'\n'B,startPos,endPos-startPos)
             if -1<>i then page,i else skipHeader (page+1)
         let rec swap i (iPage:byte[]) iIndex j (jPage:byte[]) jIndex =
-            let i,iPage,iIndex =
-                if pageSize=iIndex then i+1,pages.[i+1],0 else i,iPage,iIndex
-            let j,jPage,jIndex =
-                if -1=jIndex then j-1,pages.[j-1],pageSize-1 else j,jPage,jIndex
+            let mutable i,iPage,iIndex = i,iPage,iIndex
+            if pageSize=iIndex then
+                i <- i+1
+                iPage <- pages.[i]
+                iIndex <- 0
+            let mutable j,jPage,jIndex = j,jPage,jIndex
+            if -1=jIndex then
+                j <- j-1
+                jPage <- pages.[j]
+                jIndex <- pageSize-1
             if i<j || (i=j && iIndex<=jIndex) then
                 let iValue = iPage.[iIndex]
                 let jValue = jPage.[jIndex]
-                let iIndex,jIndex =
-                    if iValue='\n'B || jValue='\n'B then
-                        (if iValue='\n'B then iIndex+1 else iIndex),
-                        (if jValue='\n'B then jIndex-1 else jIndex)
-                    else
-                        iPage.[iIndex] <- map.[int jValue]
-                        jPage.[jIndex] <- map.[int iValue]
-                        iIndex+1,jIndex-1
+                if iValue='\n'B || jValue='\n'B then
+                    if iValue='\n'B then iIndex<-iIndex+1
+                    if jValue='\n'B then jIndex<-jIndex-1
+                else
+                    iPage.[iIndex] <- map.[int jValue]
+                    jPage.[jIndex] <- map.[int iValue]
+                    iIndex <- iIndex+1
+                    jIndex <- jIndex-1
                 swap i iPage iIndex j jPage jIndex
         let i,iIndex = skipHeader startPage            
         swap i pages.[i] (iIndex+1) endPage pages.[endPage] (endExclusive-1)
