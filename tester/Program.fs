@@ -29,8 +29,12 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
+    //revcomp.Main [||]; 0
+    FSharpReverseComplement.main [||]
+    
+    
     //Improved.MandelBrot.Main([|"16000"|])
-    isFasterThan (fun () -> MandelBrot.Main [|"16000"|]) (fun () -> MandelBrotOld.Main [|"16000"|]) "Improved C# Mandelbrot faster than original"
+    //isFasterThan (fun () -> MandelBrot.Main [|"16000"|]) (fun () -> MandelBrotOld.Main [|"16000"|]) "Improved C# Mandelbrot faster than original"
 
     // NBody.Main([|"50000000"|])
     // Improved.NBody.Main([|"5"|])
@@ -86,5 +90,5 @@ let main argv =
     // let end1 = System.Diagnostics.Stopwatch.GetTimestamp();
     // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency);
 
-    0 // return an integer exit code
+    // 0 // return an integer exit code
 

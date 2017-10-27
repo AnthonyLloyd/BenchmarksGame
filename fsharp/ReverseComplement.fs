@@ -3,10 +3,10 @@
 //
 // contributed by Jimmy Tang
 // multithreaded by Anthony Lloyd
+module FSharpReverseComplement
 
 open System
-//open System.IO
-let bufferSize = 1024 * 1024
+let pageSize = 1024 * 1024
 
 type Message =
     | Read of byte[] * (int * AsyncReplyChannel<unit>) option
@@ -21,16 +21,16 @@ let mb = MailboxProcessor.Start (fun mb ->
 
     let scan (startPage,startIndex) (endPage,endExclusive) = async {
         let rec find page =
-            let startPosition = if page=startPage then startIndex+1 else 0
-            let endPosition = if page=endPage then endExclusive else bufferSize
-            let i = Array.IndexOf(pages.[page], '>'B, startPosition, endPosition-startPosition)
+            let startPos = if page=startPage then startIndex+1 else 0
+            let endPos = if page=endPage then endExclusive else pageSize
+            let i = Array.IndexOf(pages.[page],'>'B, startPos, endPos-startPos)
             if i>=0 then Found (page,i) |> mb.Post
             elif page=endPage then NotFound (page+1) |> mb.Post
             else find (page+1)
         find startPage
     }
 
-    let map = Array.init 256 byte // where?
+    let map = Array.init 256 byte
     map.[int 'A'B] <- 'T'B
     map.[int 'B'B] <- 'V'B
     map.[int 'C'B] <- 'G'B
@@ -58,80 +58,94 @@ let mb = MailboxProcessor.Start (fun mb ->
 
     let reverse (startPage,startIndex) (endPage,endExclusive) = async {
         let rec skipHeader page =
-            let startPosition = if page=startPage then startIndex+1 else 0
-            let endPosition = if page=endPage then endExclusive else bufferSize
-            let i = Array.IndexOf(pages.[page], '\n'B, startPosition, endPosition-startPosition)
+            let startPos = if page=startPage then startIndex+1 else 0
+            let endPos = if page=endPage then endExclusive else pageSize
+            let i = Array.IndexOf(pages.[page],'\n'B,startPos,endPos-startPos)
             if i>=0 then page,i
             else skipHeader (page+1)
         let rec swap (i,iPage:byte[],iIndex) (j,jPage:byte[],jIndex) =
-            let i,iPage,iIndex = if iIndex= bufferSize then i+1,pages.[i+1],0 else i,iPage,iIndex
-            let j,jPage,jIndex = if jIndex= -1 then j-1,pages.[j-1],bufferSize-1 else j,jPage,jIndex
-            if iIndex=jIndex && i=j then
-                iPage.[iIndex] <- map.[int iPage.[iIndex]]
-            elif (i,iIndex)<(j,jIndex) then
-                let iValue = map.[int iPage.[iIndex]]
-                iPage.[iIndex] <- map.[int jPage.[jIndex]]
-                jPage.[jIndex] <- iValue
-                swap (i,iPage,iIndex+1) (j,jPage,jIndex-1)
+            let i,iPage,iIndex =
+                if pageSize=iIndex then i+1,pages.[i+1],0 else i,iPage,iIndex
+            let j,jPage,jIndex =
+                if -1=jIndex then j-1,pages.[j-1],pageSize-1 else j,jPage,jIndex
+            if (i,iIndex)<=(j,jIndex) then
+                let iValue = iPage.[iIndex]
+                let jValue = jPage.[jIndex]
+                let iIndex,jIndex =
+                    if iValue='\n'B || jValue='\n'B then
+                        (if iValue='\n'B then iIndex+1 else iIndex),
+                        (if jValue='\n'B then jIndex-1 else jIndex)
+                    else
+                        iPage.[iIndex] <- map.[int jValue]
+                        jPage.[jIndex] <- map.[int iValue]
+                        iIndex+1,jIndex-1
+                swap (i,iPage,iIndex) (j,jPage,jIndex)
         let i,iIndex = skipHeader startPage            
         swap (i,pages.[i],iIndex+1) (endPage,pages.[endPage],endExclusive-1)
         Reversed ((startPage,startIndex),(endPage,endExclusive)) |> mb.Post
     }
 
-    let stream = Console.OpenStandardOutput() // where?
+    let stream = Console.OpenStandardOutput()
     let write ((startPage,startIndex),(endPage,endExclusive)) = async {
         let rec write page =
-            let startPosition = if page=startPage then startIndex else 0
-            let endPosition = if page=endPage then endExclusive else bufferSize
-            stream.Write(pages.[page], startPosition, endPosition-startPosition)
-            write (page+1)
+            let startPos = if page=startPage then startIndex else 0
+            let endPos = if page=endPage then endExclusive else pageSize
+            stream.Write(pages.[page], startPos, endPos-startPos)
+            if page<>endPage then write (page+1)
         write startPage
         Written (endPage,endExclusive) |> mb.Post
     }
 
-    let rec loop (endExclusive,scanNext,lastScanFound,writeNext,writeList) = async {
-        let inline currentEnd() = pages.Count-1, defaultArg (Option.map fst endExclusive) bufferSize
+    let rec loop (endExclusive,scanNext,lastFound,writeNext,writeList) = async {
+        let inline currentEnd() =
+            pages.Count-1,
+            defaultArg (Option.map fst endExclusive) pageSize
         let! msg = mb.Receive()
+        eprintfn "%A" msg
         let ret =
             match msg with
             | Read (bytes,endExclusive) ->
                 pages.Add bytes
-                if scanNext>=0 then scan (scanNext,0) (currentEnd()) |> Async.Start
-                endExclusive, -1, lastScanFound, writeNext, writeList
+                if scanNext>=0 then
+                    scan (scanNext,0) (currentEnd()) |> Async.Start
+                endExclusive, -1, lastFound, writeNext, writeList
             | Found scanFound ->
                 scan scanFound (currentEnd()) |> Async.Start
-                reverse lastScanFound scanFound |> Async.Start
+                reverse lastFound scanFound |> Async.Start
                 endExclusive, -1, scanFound, writeNext, writeList
             | NotFound scanNext ->
                 if pages.Count>scanNext then
                     scan (scanNext,0) (currentEnd()) |> Async.Start
-                    endExclusive, -1, lastScanFound, writeNext, writeList
-                else endExclusive, scanNext, lastScanFound, writeNext, writeList
+                    endExclusive, -1, lastFound, writeNext, writeList
+                elif endExclusive.IsSome && scanNext=pages.Count then
+                    reverse lastFound (currentEnd()) |> Async.Start
+                    endExclusive, scanNext, lastFound, writeNext, writeList
+                else endExclusive, scanNext, lastFound, writeNext, writeList
             | Reversed ((start,_) as section) ->
                 if start=writeNext then
                     write section |> Async.Start
-                    endExclusive, scanNext, lastScanFound, (-1,-1), writeList
+                    endExclusive, scanNext, lastFound, (-1,-1), writeList
                 else
                     let writeList = section::writeList
-                    endExclusive, scanNext, lastScanFound, writeNext, writeList
+                    endExclusive, scanNext, lastFound, writeNext, writeList
             | Written writtenTo ->
                 match List.tryFind (fst>>(=)writtenTo) writeList with
                 | Some section ->
                     write section |> Async.Start
                     let writeList = List.where (fst>>(<>)writtenTo) writeList
-                    endExclusive, scanNext, lastScanFound, (-1,-1), writeList
+                    endExclusive, scanNext, lastFound, (-1,-1), writeList
                 | None ->
-                    if Option.isSome endExclusive && writtenTo=(currentEnd()) then
+                    if endExclusive.IsSome && writtenTo=currentEnd() then
                         stream.Dispose()
-                        (endExclusive.Value |> snd).Reply()
-                    endExclusive, scanNext, lastScanFound, writtenTo, writeList
+                        (snd endExclusive.Value).Reply()
+                    endExclusive, scanNext, lastFound, writtenTo, writeList
         return! loop ret }
     loop (None,0,(0,0),(0,0),[])
 )
 
-[<EntryPoint>]
+//[<EntryPoint>]
 let main _ =
-    let stream = Console.OpenStandardInput()
+    let stream = IO.File.OpenRead(@"C:\temp\input25000000.txt")//Console.OpenStandardInput()
     
     let rec read buffer offset count =
         let bytesRead = stream.Read(buffer, offset, count)
@@ -140,10 +154,11 @@ let main _ =
         else read buffer (offset+bytesRead) (count-bytesRead)
     
     let rec loop() =
-        let buffer = Array.zeroCreate bufferSize
-        let bytesRead = read buffer 0 bufferSize
-        if bytesRead<>bufferSize then
-            mb.PostAndAsyncReply(fun reply -> Read (buffer,Some (bytesRead,reply)))
+        let buffer = Array.zeroCreate pageSize
+        let bytesRead = read buffer 0 pageSize
+        if bytesRead<>pageSize then
+            mb.PostAndAsyncReply(fun reply ->
+                Read (buffer,Some (bytesRead,reply)))
         else
             Read (buffer,None) |> mb.Post
             loop()

@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Compile Remove="**/*.fs" />
+    <Compile Include="ReverseComplement.fs" />
   </ItemGroup>
 
 </Project>

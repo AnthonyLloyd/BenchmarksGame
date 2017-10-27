@@ -30,7 +30,7 @@ public static class revcomp
     }
     static void Reader()
     {
-        using (var stream = Console.OpenStandardInput())
+        using (var stream = File.OpenRead(@"C:\temp\input25000000.txt"))//Console.OpenStandardInput())
         {
             int bytesRead;
             do
