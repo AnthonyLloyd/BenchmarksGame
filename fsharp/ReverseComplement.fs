@@ -61,14 +61,13 @@ let mb = MailboxProcessor.Start (fun mb ->
             let startPos = if page=startPage then startIndex+1 else 0
             let endPos = if page=endPage then endExclusive else pageSize
             let i = Array.IndexOf(pages.[page],'\n'B,startPos,endPos-startPos)
-            if i>=0 then page,i
-            else skipHeader (page+1)
-        let rec swap (i,iPage:byte[],iIndex) (j,jPage:byte[],jIndex) =
+            if -1<>i then page,i else skipHeader (page+1)
+        let rec swap i (iPage:byte[]) iIndex j (jPage:byte[]) jIndex =
             let i,iPage,iIndex =
                 if pageSize=iIndex then i+1,pages.[i+1],0 else i,iPage,iIndex
             let j,jPage,jIndex =
                 if -1=jIndex then j-1,pages.[j-1],pageSize-1 else j,jPage,jIndex
-            if (i,iIndex)<=(j,jIndex) then
+            if i<j || (i=j && iIndex<=jIndex) then
                 let iValue = iPage.[iIndex]
                 let jValue = jPage.[jIndex]
                 let iIndex,jIndex =
@@ -79,13 +78,13 @@ let mb = MailboxProcessor.Start (fun mb ->
                         iPage.[iIndex] <- map.[int jValue]
                         jPage.[jIndex] <- map.[int iValue]
                         iIndex+1,jIndex-1
-                swap (i,iPage,iIndex) (j,jPage,jIndex)
+                swap i iPage iIndex j jPage jIndex
         let i,iIndex = skipHeader startPage            
-        swap (i,pages.[i],iIndex+1) (endPage,pages.[endPage],endExclusive-1)
+        swap i pages.[i] (iIndex+1) endPage pages.[endPage] (endExclusive-1)
         Reversed ((startPage,startIndex),(endPage,endExclusive)) |> mb.Post
     }
 
-    let stream = Console.OpenStandardOutput()
+    let stream = IO.Stream.Null//Console.OpenStandardOutput()
     let write ((startPage,startIndex),(endPage,endExclusive)) = async {
         let rec write page =
             let startPos = if page=startPage then startIndex else 0
@@ -101,7 +100,7 @@ let mb = MailboxProcessor.Start (fun mb ->
             pages.Count-1,
             defaultArg (Option.map fst endExclusive) pageSize
         let! msg = mb.Receive()
-        eprintfn "%A" msg
+        //eprintfn "%A" (match msg with | Read(_,b) -> Read([||],b) | o -> o)
         let ret =
             match msg with
             | Read (bytes,endExclusive) ->

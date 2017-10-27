@@ -172,7 +172,7 @@ public static class revcomp
 
     static void Writer()
     {
-        using (var stream = Console.OpenStandardOutput())
+        using (var stream = Stream.Null)//Console.OpenStandardOutput())
         {
             bool first = true;
             RevCompSequence sequence;
