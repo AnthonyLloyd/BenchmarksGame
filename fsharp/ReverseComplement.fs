@@ -64,15 +64,7 @@ let mb = MailboxProcessor.Start (fun mb ->
             if -1<>i then page,i else skipHeader (page+1)
         let rec swap i (iPage:byte[]) iIndex j (jPage:byte[]) jIndex =
             let mutable i,iPage,iIndex = i,iPage,iIndex
-            if pageSize=iIndex then
-                i <- i+1
-                iPage <- pages.[i]
-                iIndex <- 0
             let mutable j,jPage,jIndex = j,jPage,jIndex
-            if -1=jIndex then
-                j <- j-1
-                jPage <- pages.[j]
-                jIndex <- pageSize-1
             if i<j || (i=j && iIndex<=jIndex) then
                 let iValue = iPage.[iIndex]
                 let jValue = jPage.[jIndex]
@@ -84,9 +76,19 @@ let mb = MailboxProcessor.Start (fun mb ->
                     jPage.[jIndex] <- map.[int iValue]
                     iIndex <- iIndex+1
                     jIndex <- jIndex-1
+                if pageSize=iIndex then
+                    i <- i+1
+                    iPage <- pages.[i]
+                    iIndex <- 0
+                if -1=jIndex then
+                    j <- j-1
+                    jPage <- pages.[j]
+                    jIndex <- pageSize-1                
                 swap i iPage iIndex j jPage jIndex
-        let i,iIndex = skipHeader startPage            
-        swap i pages.[i] (iIndex+1) endPage pages.[endPage] (endExclusive-1)
+        let endPage2,endExclusive2 = if endExclusive=0 then endPage-1,pageSize-1 else endPage,endExclusive
+        let i,iIndex = skipHeader startPage
+        let i,iIndex = if iIndex+1=pageSize then i+1,iIndex+1 else i,iIndex
+        swap i pages.[i] iIndex endPage2 pages.[endPage2] endExclusive2
         Reversed ((startPage,startIndex),(endPage,endExclusive)) |> mb.Post
     }
 
