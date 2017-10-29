@@ -6,10 +6,12 @@
 module FSharpReverseComplement
 
 open System
+open System.Threading.Tasks
 let pageSize = 1024 * 1024
-
+let pages = Array.zeroCreate 256
+let scans = Array.zeroCreate<Task<int>> 256
 type Message =
-    | Read of byte[] * (int * AsyncReplyChannel<unit>) option
+    | Read of ((int * int) * AsyncReplyChannel<unit>) option
     | Found of (int * int)
     | NotFound of scanNext:int
     | Reversed of ((int*int) * (int*int))
@@ -17,24 +19,23 @@ type Message =
 
 let mb = MailboxProcessor.Start (fun mb ->
 
-    let pages = Array.zeroCreate<byte[]> 256
-
+    let map = Array.init 256 byte
+    Array.iter2 (fun i v -> map.[int i] <- v)
+        "ABCDGHKMRTVYabcdghkmrtvy"B
+        "TVGHCDMKYABRTVGHCDMKYABR"B
+    
     let scan (startPage,startIndex) = async {
         let rec find page =
             let pageBytes = pages.[page]
             if isNull pageBytes then NotFound page |> mb.Post
             else
                 let startPos = if page=startPage then startIndex+1 else 0
-                let i = Array.IndexOf(pageBytes,'>'B, startPos, pageSize-startPos)
+                let i = if startPos=0 then scans.[page].Result
+                        else Array.IndexOf(pageBytes,'>'B, startPos)
                 if i>=0 then Found (page,i) |> mb.Post
                 else find (page+1)
         find startPage
     }
-
-    let map = Array.init 256 byte
-    Array.iter2 (fun i v -> map.[int i] <- v)
-        "ABCDGHKMRTVYabcdghkmrtvy"B
-        "TVGHCDMKYABRTVGHCDMKYABR"B
 
     let reverse (startPage,startIndex) (endPage,endExclusive) = async {
         let rec skipHeader page =
@@ -80,48 +81,46 @@ let mb = MailboxProcessor.Start (fun mb ->
         Written (endPage,endExclusive) |> mb.Post
     }
 
-    let rec loop (pageCount,endExclusive,scanNext,lastFound,writeNext,writeList) = async {
+    let rec loop (endExclusive,scanNext,lastFound,writeNext,writeList) = async {
         let! msg = mb.Receive()
-        //eprintfn "%A" (match msg with | Read(_,b) -> Read([||],b) | o -> o)
+        //match msg with | Read(_) -> () | o -> eprintfn "%A" o
         let ret =
             match msg with
-            | Read (bytes,endExclusive) ->
-                pages.[pageCount] <- bytes
-                if scanNext>=0 then
-                    scan (scanNext,0) |> Async.Start
-                pageCount+1, endExclusive, -1, lastFound, writeNext, writeList
+            | Read endExclusive ->
+                if scanNext<> -1 then scan (scanNext,0) |> Async.Start
+                endExclusive, -1, lastFound, writeNext, writeList
             | Found scanFound ->
                 scan scanFound |> Async.Start
                 reverse lastFound scanFound |> Async.Start
-                pageCount, endExclusive, -1, scanFound, writeNext, writeList
+                endExclusive, -1, scanFound, writeNext, writeList
             | NotFound scanNext ->
-                if pageCount>scanNext then
+                match endExclusive with
+                | Some ((page,_),_) when page+1 = scanNext ->
+                    reverse lastFound (fst endExclusive.Value) |> Async.Start
+                    endExclusive, scanNext, lastFound, writeNext, writeList
+                | _ -> 
                     scan (scanNext,0) |> Async.Start
-                    pageCount, endExclusive, -1, lastFound, writeNext, writeList
-                elif endExclusive.IsSome && scanNext=pageCount then
-                    reverse lastFound (pageCount-1,fst endExclusive.Value) |> Async.Start
-                    pageCount, endExclusive, scanNext, lastFound, writeNext, writeList
-                else pageCount, endExclusive, scanNext, lastFound, writeNext, writeList
+                    endExclusive, -1, lastFound, writeNext, writeList
             | Reversed ((start,_) as section) ->
                 if start=writeNext then
                     write section |> Async.Start
-                    pageCount, endExclusive, scanNext, lastFound, (-1,-1), writeList
+                    endExclusive, scanNext, lastFound, (-1,-1), writeList
                 else
                     let writeList = section::writeList
-                    pageCount, endExclusive, scanNext, lastFound, writeNext, writeList
+                    endExclusive, scanNext, lastFound, writeNext, writeList
             | Written writtenTo ->
                 match List.tryFind (fst>>(=)writtenTo) writeList with
                 | Some section ->
                     write section |> Async.Start
                     let writeList = List.where (fst>>(<>)writtenTo) writeList
-                    pageCount, endExclusive, scanNext, lastFound, (-1,-1), writeList
+                    endExclusive, scanNext, lastFound, (-1,-1), writeList
                 | None ->
-                    if endExclusive.IsSome && writtenTo=(pageCount-1,fst endExclusive.Value) then
+                    if endExclusive.IsSome && writtenTo=(fst endExclusive.Value) then
                         stream.Dispose()
                         (snd endExclusive.Value).Reply()
-                    pageCount, endExclusive, scanNext, lastFound, writtenTo, writeList
+                    endExclusive, scanNext, lastFound, writtenTo, writeList
         return! loop ret }
-    loop (0,None,0,(0,0),(0,0),[])
+    loop (None,0,(0,0),(0,0),[])
 )
 
 //[<EntryPoint>]
@@ -134,17 +133,19 @@ let main _ =
         elif bytesRead=0 then offset
         else read buffer (offset+bytesRead) (count-bytesRead)
     
-    let rec loop() =
+    let rec loop i =
         let buffer = Array.zeroCreate pageSize
         let bytesRead = read buffer 0 pageSize
+        if i<>0 then
+            scans.[i] <- Task.Run(fun () -> Array.IndexOf(buffer,'>'B))
+        pages.[i] <- buffer
         if bytesRead<>pageSize then
-            mb.PostAndAsyncReply(fun reply ->
-                Read (buffer,Some (bytesRead,reply)))
+            mb.PostAndAsyncReply(fun reply -> (Some ((i,bytesRead), reply)) |> Read)
         else
-            Read (buffer,None) |> mb.Post
-            loop()
+            if i=0 then Read None |> mb.Post
+            loop (i+1)
 
-    let wait = loop()
+    let wait = loop 0
     stream.Dispose()
     Async.RunSynchronously wait
     0
