@@ -61,11 +61,23 @@ let mb = MailboxProcessor.Start (fun mb ->
             let startPos = if page=startPage then startIndex+1 else 0
             let endPos = if page=endPage then endExclusive else pageSize
             let i = Array.IndexOf(pages.[page],'\n'B,startPos,endPos-startPos)
-            if -1<>i then page,i else skipHeader (page+1)
-        let rec swap i (iPage:byte[]) iIndex j (jPage:byte[]) jIndex =
-            let mutable i,iPage,iIndex = i,iPage,iIndex
-            let mutable j,jPage,jIndex = j,jPage,jIndex
-            if i<j || (i=j && iIndex<=jIndex) then
+            if -1<>i then page,i+1 else skipHeader (page+1)
+        do        
+            let mutable i,iIndex = skipHeader startPage
+            let mutable j = endPage
+            let mutable jIndex = endExclusive-1
+            let mutable iPage = pages.[i]        
+            let mutable jPage = pages.[j]
+            let inline adjustij() =
+                if pageSize=iIndex then
+                    i <- i+1
+                    iPage <- pages.[i]
+                    iIndex <- 0        
+                if -1=jIndex then
+                    j <- j-1
+                    jPage <- pages.[j]
+                    jIndex <- pageSize-1
+            while (adjustij(); i<j || (i=j && iIndex<=jIndex)) do
                 let iValue = iPage.[iIndex]
                 let jValue = jPage.[jIndex]
                 if iValue='\n'B || jValue='\n'B then
@@ -76,19 +88,6 @@ let mb = MailboxProcessor.Start (fun mb ->
                     jPage.[jIndex] <- map.[int iValue]
                     iIndex <- iIndex+1
                     jIndex <- jIndex-1
-                if pageSize=iIndex then
-                    i <- i+1
-                    iPage <- pages.[i]
-                    iIndex <- 0
-                if -1=jIndex then
-                    j <- j-1
-                    jPage <- pages.[j]
-                    jIndex <- pageSize-1                
-                swap i iPage iIndex j jPage jIndex
-        let endPage2,endExclusive2 = if endExclusive=0 then endPage-1,pageSize-1 else endPage,endExclusive
-        let i,iIndex = skipHeader startPage
-        let i,iIndex = if iIndex+1=pageSize then i+1,iIndex+1 else i,iIndex
-        swap i pages.[i] iIndex endPage2 pages.[endPage2] endExclusive2
         Reversed ((startPage,startIndex),(endPage,endExclusive)) |> mb.Post
     }
 
