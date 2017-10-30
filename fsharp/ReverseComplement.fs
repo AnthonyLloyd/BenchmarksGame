@@ -3,28 +3,24 @@
 //
 // contributed by Jimmy Tang
 // multithreaded by Anthony Lloyd
-module FSharpReverseComplement
 
 open System
 open System.Threading.Tasks
+
 let pageSize = 1024 * 1024
 let pages = Array.zeroCreate 256
 let scans = Array.zeroCreate<Task<int>> 256
+
 type Message =
-    | Read of ((int * int) * AsyncReplyChannel<unit>) option
-    | Found of (int * int)
     | NotFound of scanNext:int
+    | Found of (int * int)
+    | ReadEnd of ((int * int) * AsyncReplyChannel<unit>)
     | Reversed of ((int*int) * (int*int))
     | Written of (int*int)
 
-let mb = MailboxProcessor.Start (fun mb ->
-
-    let map = Array.init 256 byte
-    Array.iter2 (fun i v -> map.[int i] <- v)
-        "ABCDGHKMRTVYabcdghkmrtvy"B
-        "TVGHCDMKYABRTVGHCDMKYABR"B
+let mb() = MailboxProcessor.Start (fun mb ->
     
-    let scan (startPage,startIndex) = async {
+    let scan (startPage,startIndex) =
         let rec find page =
             let pageBytes = pages.[page]
             if isNull pageBytes then NotFound page |> mb.Post
@@ -35,117 +31,117 @@ let mb = MailboxProcessor.Start (fun mb ->
                 if i>=0 then Found (page,i) |> mb.Post
                 else find (page+1)
         find startPage
-    }
 
-    let reverse (startPage,startIndex) (endPage,endExclusive) = async {
+    let map = Array.init 256 byte
+    Array.iter2 (fun i v -> map.[int i] <- v)
+        "ABCDGHKMRTVYabcdghkmrtvy"B
+        "TVGHCDMKYABRTVGHCDMKYABR"B    
+
+    let reverse (startPage,startIndex) (endPage,endExclusive) =
         let rec skipHeader page =
             let startPos = if page=startPage then startIndex+1 else 0
             let endPos = if page=endPage then endExclusive else pageSize
             let i = Array.IndexOf(pages.[page],'\n'B,startPos,endPos-startPos)
-            if -1<>i then page,i+1 else skipHeader (page+1)
-        do        
-            let mutable i,iIndex = skipHeader startPage
-            let mutable j,jIndex = endPage,endExclusive-1
-            let mutable iPage,jPage = pages.[i],pages.[j]
-            let inline adjustij() =
-                if pageSize=iIndex then
-                    i <- i+1
-                    iPage <- pages.[i]
-                    iIndex <- 0        
-                if -1=jIndex then
-                    j <- j-1
-                    jPage <- pages.[j]
-                    jIndex <- pageSize-1
-            while (adjustij(); i<j || (i=j && iIndex<=jIndex)) do
-                let iValue = iPage.[iIndex]
-                let jValue = jPage.[jIndex]
-                if iValue='\n'B || jValue='\n'B then
-                    if iValue='\n'B then iIndex<-iIndex+1
-                    if jValue='\n'B then jIndex<-jIndex-1
-                else
-                    iPage.[iIndex] <- map.[int jValue]
-                    jPage.[jIndex] <- map.[int iValue]
-                    iIndex <- iIndex+1
-                    jIndex <- jIndex-1
+            if -1<>i then page,i+1 else skipHeader (page+1)        
+        let mutable loPageId,lo = skipHeader startPage
+        let mutable hiPageId,hi = endPage,endExclusive-1
+        let mutable loPage,hiPage = pages.[loPageId],pages.[hiPageId]
+        let inline checkhilo() =
+            if pageSize=lo then
+                loPageId <- loPageId+1
+                loPage <- pages.[loPageId]
+                lo <- 0        
+            if -1=hi then
+                hiPageId <- hiPageId-1
+                hiPage <- pages.[hiPageId]
+                hi <- pageSize-1
+            loPageId<hiPageId || (loPageId=hiPageId && lo<=hi)                
+        while checkhilo() do
+            let iValue = loPage.[lo]
+            let jValue = hiPage.[hi]
+            if iValue='\n'B || jValue='\n'B then
+                if iValue='\n'B then lo <- lo+1
+                if jValue='\n'B then hi <- hi-1
+            else
+                loPage.[lo] <- map.[int jValue]
+                hiPage.[hi] <- map.[int iValue]
+                lo <- lo+1
+                hi <- hi-1
         Reversed ((startPage,startIndex),(endPage,endExclusive)) |> mb.Post
-    }
 
-    let stream = IO.Stream.Null//Console.OpenStandardOutput()
-    let write ((startPage,startIndex),(endPage,endExclusive)) = async {
+    let out = IO.Stream.Null//Console.OpenStandardOutput()
+    let write ((startPage,startIndex),(endPage,endExclusive)) =
         let rec write page =
             let startPos = if page=startPage then startIndex else 0
             let endPos = if page=endPage then endExclusive else pageSize
-            stream.Write(pages.[page], startPos, endPos-startPos)
+            out.Write(pages.[page], startPos, endPos-startPos)
             if page<>endPage then write (page+1)
         write startPage
         Written (endPage,endExclusive) |> mb.Post
-    }
 
-    let rec loop (endExclusive,scanNext,lastFound,writeNext,writeList) = async {
+    let rec loop readEnd scanNext lastFound writeNext writeList = async {
         let! msg = mb.Receive()
-        //match msg with | Read(_) -> () | o -> eprintfn "%A" o
-        let ret =
-            match msg with
-            | Read endExclusive ->
-                if scanNext<> -1 then scan (scanNext,0) |> Async.Start
-                endExclusive, -1, lastFound, writeNext, writeList
-            | Found scanFound ->
-                scan scanFound |> Async.Start
-                reverse lastFound scanFound |> Async.Start
-                endExclusive, -1, scanFound, writeNext, writeList
-            | NotFound scanNext ->
-                match endExclusive with
-                | Some ((page,_),_) when page+1 = scanNext ->
-                    reverse lastFound (fst endExclusive.Value) |> Async.Start
-                    endExclusive, scanNext, lastFound, writeNext, writeList
-                | _ -> 
-                    scan (scanNext,0) |> Async.Start
-                    endExclusive, -1, lastFound, writeNext, writeList
-            | Reversed ((start,_) as section) ->
-                if start=writeNext then
-                    write section |> Async.Start
-                    endExclusive, scanNext, lastFound, (-1,-1), writeList
-                else
-                    let writeList = section::writeList
-                    endExclusive, scanNext, lastFound, writeNext, writeList
-            | Written writtenTo ->
-                match List.tryFind (fst>>(=)writtenTo) writeList with
-                | Some section ->
-                    write section |> Async.Start
-                    let writeList = List.where (fst>>(<>)writtenTo) writeList
-                    endExclusive, scanNext, lastFound, (-1,-1), writeList
-                | None ->
-                    if endExclusive.IsSome && writtenTo=(fst endExclusive.Value) then
-                        stream.Dispose()
-                        (snd endExclusive.Value).Reply()
-                    endExclusive, scanNext, lastFound, writtenTo, writeList
-        return! loop ret }
-    loop (None,0,(0,0),(0,0),[])
+        let inline run (a:unit->unit) = Task.Run a |> ignore
+        match msg with
+        | NotFound scanNext ->
+            match readEnd with
+            | Some ((page,_) as theEnd,_) when page+1 = scanNext ->
+                run (fun () -> reverse lastFound theEnd)
+                return! loop readEnd scanNext lastFound writeNext writeList
+            | _ ->
+                run (fun () -> scan (scanNext,0))
+                return! loop readEnd -1 lastFound writeNext writeList
+        | Found scanFound ->
+            run (fun () -> reverse lastFound scanFound)
+            run (fun () -> scan scanFound)
+            return! loop readEnd -1 scanFound writeNext writeList
+        | ReadEnd readEnd ->
+            return! loop (Some readEnd) scanNext lastFound writeNext writeList
+        | Reversed ((start,_) as section) ->
+            if start=writeNext then
+                run (fun () -> write section)
+                return! loop readEnd scanNext lastFound (-1,-1) writeList
+            else
+                let writeList = section::writeList
+                return! loop readEnd scanNext lastFound writeNext writeList
+        | Written writtenTo ->
+            match List.partition (fst>>(=)writtenTo) writeList with
+            | [section],restList ->
+                run (fun () -> write section)
+                return! loop readEnd scanNext lastFound (-1,-1) restList
+            | _ ->
+                match readEnd with
+                | Some(theEnd,r) when writtenTo=theEnd -> r.Reply()
+                | _ -> ()
+                return! loop readEnd scanNext lastFound writtenTo writeList
+    }
+    loop None 0 (0,0) (0,0) []
 )
 
-//[<EntryPoint>]
+[<EntryPoint>]
 let main _ =
     let stream = IO.File.OpenRead(@"C:\temp\input25000000.txt")//Console.OpenStandardInput()
-    
-    let rec read buffer offset count =
-        let bytesRead = stream.Read(buffer, offset, count)
-        if bytesRead=count then offset+count
-        elif bytesRead=0 then offset
-        else read buffer (offset+bytesRead) (count-bytesRead)
+
+    let mb = Task.Run mb
     
     let rec loop i =
+        
         let buffer = Array.zeroCreate pageSize
-        let bytesRead = read buffer 0 pageSize
+
+        let rec read offset count =
+            let bytesRead = stream.Read(buffer, offset, count)
+            if bytesRead=count then offset+count
+            elif bytesRead=0 then offset
+            else read (offset+bytesRead) (count-bytesRead)
+
+        let bytesRead = read 0 pageSize
         if i<>0 then
             scans.[i] <- Task.Run(fun () -> Array.IndexOf(buffer,'>'B))
         pages.[i] <- buffer
-        if bytesRead<>pageSize then
-            mb.PostAndAsyncReply(fun reply -> (Some ((i,bytesRead), reply)) |> Read)
+        if i=0 then NotFound 0 |> mb.Result.Post
+        if bytesRead=pageSize then loop (i+1)
         else
-            if i=0 then Read None |> mb.Post
-            loop (i+1)
+            mb.Result.PostAndAsyncReply(fun r -> ReadEnd ((i,bytesRead), r))
 
-    let wait = loop 0
-    stream.Dispose()
-    Async.RunSynchronously wait
+    loop 0 |> Async.RunSynchronously
     0
