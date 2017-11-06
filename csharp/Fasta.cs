@@ -32,7 +32,7 @@ public class Fasta
         MakeCumulative(IUB);
         MakeCumulative(HomoSapiens);
 
-        using (var s = Console.OpenStandardOutput())//Stream.Null)//
+        using (var s = Stream.Null)//Console.OpenStandardOutput())//
         {
             MakeRepeatFasta("ONE", "Homo sapiens alu", Encoding.ASCII.GetBytes(ALU), n * 2, s);
             MakeRandomFasta("TWO", "IUB ambiguity codes", IUB, n * 3, s);
