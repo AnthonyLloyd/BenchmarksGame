@@ -32,19 +32,17 @@ let main args =
                 ps.[i] <- total
             
             let intPool = System.Buffers.ArrayPool.Shared
-            let im,ia,ic = 139968,3877,29573
-            let oneOverIM = 1.0/139968.0
             let mutable seed = seed
             let inline rnds l =
                 let a = intPool.Rent l
                 for i = 0 to l-1 do
-                    seed <- (seed * ia + ic) % im
+                    seed <- (seed * 3877 + 29573) % 139968
                     a.[i] <- seed
                 a
             let inline bytes l d (rnds:int[]) =
                 let a = bytePool.Rent (l+(l+d)/Width)
                 let inline lookup (r:int) =
-                    let p = float r * oneOverIM
+                    let p = 1.0/139968.0 * float r
                     let rec search i =
                         if ps.[i]>=p then i
                         else search (i+1)
