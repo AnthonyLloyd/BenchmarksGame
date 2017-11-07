@@ -8,7 +8,8 @@
   <ItemGroup>
     <Compile Remove="**/*.fs" />
     <!-- <Compile Include="ReverseComplement.fs" /> -->
-    <Compile Include="Fasta.fs" />
+    <!-- <Compile Include="Fasta.fs" /> -->
+    <Compile Include="BinaryTrees.fs" />
   </ItemGroup>
 
 </Project>
