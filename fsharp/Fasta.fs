@@ -25,7 +25,7 @@ let main args =
     
     Task.Run(fun () ->
         let writeRandom n offset d seed (vs:byte[]) (ps:float[]) =
-            // cumulative probability    
+            // cumulative probability
             let mutable total = ps.[0]
             for i = 1 to ps.Length-1 do
                 total <- total + ps.[i]
@@ -41,14 +41,13 @@ let main args =
                 a
             let inline bytes l d (rnds:int[]) =
                 let a = bytePool.Rent (l+(l+d)/Width)
-                let inline lookup (r:int) =
-                    let p = 1.0/139968.0 * float r
+                let inline lookup p =
                     let rec search i =
                         if ps.[i]>=p then i
                         else search (i+1)
                     vs.[search 0]
                 for i = 0 to l-1 do
-                    a.[i+i/Width] <- lookup rnds.[i]
+                    a.[i+i/Width] <- 1.0/139968.0 * float rnds.[i] |> lookup
                 intPool.Return rnds
                 for i = 1 to (l+d)/Width do
                     a.[i*Width1-1] <- '\n'B
