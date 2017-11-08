@@ -7,17 +7,12 @@
 // Based on ocaml version by Troestler Christophe & Isaac Gouy
 // *reset*
 
-open System
-open System.Threading
-open System.Threading.Tasks
-
 type Next = { Left: Tree; Right: Tree }
-and [<Struct>] Tree(next:Next) =
+and [<Struct>] Tree(n:Next) =
     member __.Check() =
-        match box next with 
+        match box n with 
         | null -> 1
-        | _ -> 1 + next.Left.Check() + next.Right.Check()
-let inline out (s:string) = Console.Out.WriteLine s
+        | _ -> 1 + n.Left.Check() + n.Right.Check()
 
 [<EntryPoint>]
 let main args =
@@ -29,28 +24,31 @@ let main args =
         if depth=0 then Tree Unchecked.defaultof<_>
         else Tree {Left = make (depth-1); Right = make (depth-1)}
 
-    let stretchCheck = Task.Run(fun () -> (make stretchDepth).Check().ToString())
+    let stretchCheck = System.Threading.Tasks.Task.Run(fun () ->
+        let check = (make stretchDepth).Check().ToString()
+        "stretch tree of depth "+string stretchDepth+"\t check: "+check )
 
-    let longLivedTree = Task.Run(fun () ->
+    let longLivedTree = System.Threading.Tasks.Task.Run(fun () ->
         let tree = make maxDepth
-        tree, tree.Check().ToString() )
-        
-    let rec loopDepths d =
-        if d<=maxDepth then
-            let n = 1 <<< (maxDepth - d + minDepth)
-            let c = ref 0
-            Parallel.For(0, n, (fun () -> 0),
-                (fun _ _ subtotal -> subtotal + (make d).Check()),
-                (fun x -> Interlocked.Add(c, x) |> ignore)
-            ) |> ignore
-            string n+"\t trees of depth "+string d+"\t check: "+string !c|> out
-            loopDepths (d+2)
+        let check = tree.Check().ToString()
+        let s = "long lived tree of depth "+string maxDepth+"\t check: "+check
+        tree, s )
+    
+    let loopDepths = Array.init ((maxDepth-minDepth)/2+1) (fun d ->
+        let d = minDepth+d*2
+        let n = 1 <<< (maxDepth - d + minDepth)
+        let c = ref 0
+        System.Threading.Tasks.Parallel.For(0, n, (fun () -> 0),
+            (fun _ _ subtotal -> subtotal + (make d).Check()),
+            (fun x -> System.Threading.Interlocked.Add(c, x) |> ignore)
+        ) |> ignore
+        string n+"\t trees of depth "+string d+"\t check: "+string !c
+    )
 
-    "stretch tree of depth "+string stretchDepth+
-        "\t check: "+stretchCheck.Result |> out
+    stretchCheck.Result |> stdout.WriteLine
 
-    loopDepths minDepth
+    loopDepths |> Array.iter stdout.WriteLine
 
-    "long lived tree of depth "+string maxDepth+
-        "\t check: "+ (snd longLivedTree.Result) |> out
+    snd longLivedTree.Result |> stdout.WriteLine
+    
     0
