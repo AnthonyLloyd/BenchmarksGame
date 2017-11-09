@@ -30,8 +30,8 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 [<EntryPoint>]
 let main argv =
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
-    BinaryTrees.main [|"21"|] |> ignore //fs
-    //BinaryTrees.Main [|"21"|] |> ignore
+    Mandelbrot.main [|"200"|] |> ignore //fs
+    //MandelBrot.Main [|"200"|] |> ignore
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
     0
