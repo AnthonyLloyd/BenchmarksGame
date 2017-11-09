@@ -14,8 +14,11 @@ open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 
-let inline ptrGet p i = Unsafe.Read(IntPtr.Add(NativePtr.toNativeInt p, 8*i).ToPointer())
-let inline ptrSet p i v = Unsafe.Write(IntPtr.Add(NativePtr.toNativeInt p, 8*i).ToPointer(), v)
+let inline ptrGet p i =
+    Unsafe.Read(IntPtr.Add(NativePtr.toNativeInt p, 8*i).ToPointer())
+let inline ptrSet p i v =
+    Unsafe.Write(IntPtr.Add(NativePtr.toNativeInt p, 8*i).ToPointer(), v)
+
 let inline getByte (pcrb:nativeptr<float>) (ciby:float) =
     let rec calc i res =
         if i=8 then res
@@ -28,7 +31,8 @@ let inline getByte (pcrb:nativeptr<float>) (ciby:float) =
                 let t = nZr * nZr + nZi * nZi
                 let b0 = b0 || t.[0]>4.0
                 let b1 = b1 || t.[1]>4.0
-                if j=0 || (b0 && b1) then (if b0 then 2 else 0)+if b1 then 1 else 0
+                if b0 && b1 then 3
+                elif j=0 then if b0 then 2 elif b1 then 1 else 0
                 else calc2 (j-1) nZr nZi b0 b1
             calc (i+2) ((res<<<2) + calc2 48 vCrbx vCiby false false)
     calc 0 0 ^^^ -1 |> byte
@@ -58,4 +62,4 @@ let main args =
             |> NativePtr.set pdata (y*lineLength+x)
     ) |> ignore
     Console.OpenStandardOutput().Write(data, 0, data.Length)
-    0
+    exit 0
