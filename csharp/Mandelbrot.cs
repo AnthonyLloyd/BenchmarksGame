@@ -40,15 +40,16 @@ public class MandelBrot
         }
         return (byte)(res^-1);
     }
-    public static unsafe void Main(string[] args)
+    public static unsafe byte[] Main(string[] args)
     {
         var size = args.Length==0 ? 200 : int.Parse(args[0]);
-        Console.Out.WriteAsync(String.Concat("P4\n",size," ",size,"\n"));
         var Crb = new double[size+2];
         var lineLength = size >> 3;
-        var data = new byte[size * lineLength];
+        var s = "P4\n"+size+" "+size+"\n";
+        var data = new byte[size * lineLength + s.Length];
+        System.Text.ASCIIEncoding.ASCII.GetBytes(s, 0, s.Length, data, 0);
         fixed (double* pCrb = &Crb[0])
-        fixed (byte* pdata = &data[0])
+        fixed (byte* pdata = &data[s.Length])
         {
             var value = new Vector<double>(
                   new double[] {0,1,0,0,0,0,0,0}
@@ -71,7 +72,8 @@ public class MandelBrot
                     _pdata[y*lineLength+x] = GetByte(_Crb+x*8, Ciby);
                 }
             });
-            Console.OpenStandardOutput().Write(data, 0, data.Length);
+            //Console.OpenStandardOutput().Write(data, 0, data.Length);
+            return data;
         }
     }
 }

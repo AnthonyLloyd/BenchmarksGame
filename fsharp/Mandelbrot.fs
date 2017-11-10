@@ -57,7 +57,7 @@ let main args =
     Vector [|0.0;1.0;0.0;0.0;0.0;0.0;0.0;0.0|] |> loop 0
     Parallel.For(0, size, fun y ->
         let ciby = NativePtr.get pcrb y+0.5
-        for x = 0 to lineLength do
+        for x = 0 to lineLength-1 do
             getByte (NativePtr.add pcrb (x*8)) ciby
             |> NativePtr.set pdata (y*lineLength+x)
     ) |> ignore
