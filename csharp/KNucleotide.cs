@@ -56,7 +56,7 @@ public static class KNucleotide
 
     static void loadThreeData()
     {
-        var stream = new System.IO.FileStream(@"C:\temp\fasta25000000.txt", FileMode.Open);//Console.OpenStandardInput();
+        var stream = Console.OpenStandardInput();
         
         // find three sequence
         int matchIndex = 0;
@@ -127,7 +127,6 @@ public static class KNucleotide
     {
         return Task.Run(() =>
         {
-            var preSize = (int)Math.Min(Math.Pow(4,l),1024*8);
             long rollingKey = 0;
             var firstBlock = threeBlocks[0];
             var start = threeStart;
