@@ -1,139 +1,89 @@
-(* The Computer Language Benchmarks Game
-   http://benchmarksgame.alioth.debian.org/
- *
- * contributed by Don Syme
- * based on C# contribution by Isaac Gouy, Antti Lankila, A.Nahr, The Anh Tran
- * Uses native pointer access to one big pinned blob, plus simple task runner
- *)
-
-#nowarn "9"
+// The Computer Language Benchmarks Game
+// http://benchmarksgame.alioth.debian.org/
 
 open System
-open System.IO
-open System.Collections.Generic
-open System.Text
-open System.Threading
-open System.Runtime.InteropServices
-open Microsoft.FSharp.NativeInterop
 
-let toBytes (s: string) = s.ToCharArray() |> Array.map byte
-let toString (s: byte []) = String(s |> Array.map char)
-let prefixes = [| "ggt"; "ggta"; "ggtatt"; "ggtattttaatt"; "ggtattttaatttatagt" |]
+[<Literal>]
+let BLOCK_SIZE = 8388608
+let threeBlocks = ResizeArray<byte[]>()
+let mutable threeStart = 0
+let mutable threeEnd = 0
 
-let prefixBytes = 
-    [| for p in prefixes -> toBytes p |]
+do
+    let input = IO.File.OpenRead(@"C:\Users\Ant\Google Drive\BenchmarkGame\fasta25000000.txt")
+    //let input = Console.OpenStandardInput()
+    let mutable buffer = Array.zeroCreate BLOCK_SIZE
+    let rec read offset count =
+        let bytesRead = input.Read(buffer, offset, count)
+        if bytesRead=count then offset+count
+        elif bytesRead=0 then offset
+        else read (offset+bytesRead) (count-bytesRead)
 
-let prefixLengths = 
-    [| for p in prefixBytes -> p.Length |]
+    let rec find (toFind:byte[]) (i:int) (matchIndex:int ref) =
+        if !matchIndex=0 then
+            let i = Array.IndexOf(buffer, toFind.[0], i)
+            if -1=i then -1
+            else
+                matchIndex := 1
+                find toFind (i+1) matchIndex
+        else
+            let bl = buffer.Length
+            let fl = toFind.Length
+            let rec tryMatch i =
+                if i>=bl || !matchIndex>=fl then i
+                else
+                    if buffer.[i]=toFind.[!matchIndex] then
+                        incr matchIndex
+                        tryMatch (i+1)
+                    else
+                        matchIndex := 0
+                        find toFind i matchIndex
+            let i = tryMatch i
+            if !matchIndex=fl then i else -1
 
-let prefixOffsets = Array.scan (+) 0 prefixLengths
-let dnaStart = prefixOffsets.[prefixLengths.Length]
+    let matchIndex = ref 0
+    let toFind = ">THREE"B
+    let rec findStart() =
+        threeEnd <- read 0 BLOCK_SIZE
+        let i = find toFind 0 matchIndex
+        if -1<>i then i
+        else findStart()
+    threeStart <- findStart()
 
-let createDNA() =
-    //let input = File.OpenText("knucleotide-input-2500000.txt")
-    let input = new StreamReader(Console.OpenStandardInput())
-    
-    let text = 
-        seq { 
-            while true do
-                yield input.ReadLine()
-        }
-        |> Seq.takeWhile (isNull >> not)
-        |> Seq.skipWhile (fun x -> not (x.StartsWith(">THREE")))
-        |> Seq.skip 1
-        |> String.concat ""
-    
-    // convert the text to a pinned array of bytes
-    let bytes =
-        text
-        |> toBytes
-        |> Array.append (Array.concat prefixBytes)
-    
-    let h = GCHandle.Alloc(bytes, GCHandleType.Pinned)
-    let addr = h.AddrOfPinnedObject() |> NativePtr.ofNativeInt
-    addr, bytes.Length
+    matchIndex := 0
+    let toFind = "\n"B
+    let rec findEndOfLine i =
+        if i <> -1 then i
+        else
+            threeEnd <- read 0 BLOCK_SIZE
+            find toFind 0 matchIndex |> findEndOfLine
+    threeStart <- find toFind threeStart matchIndex |> findEndOfLine
 
-let dna, dnaLength = createDNA()
-let inline readDNA i = NativePtr.get dna i
+    threeBlocks.Add buffer
 
-let inline readDNABytes s n = 
-    let res = Array.zeroCreate n
-    for i in 0..n - 1 do
-        res.[i] <- NativePtr.get dna (s + i)
-    res
+    if threeEnd<>BLOCK_SIZE then // Needs to be at least 2 blocks
+        let bytes = threeBlocks.[0]
+        for i = threeEnd to bytes.Length-1 do
+            bytes.[i] <- 255uy
+        threeEnd <- 0
+        threeBlocks.Add(Array.Empty<_>())
+    else
+        // find next seq or end of input
+        matchIndex := 0
+        let toFind = ">"B
+        let rec findEnd i =
+            if i <> -1 then i
+            else
+                buffer <- Array.zeroCreate BLOCK_SIZE
+                let bytesRead = read 0 BLOCK_SIZE
+                threeBlocks.Add buffer
+                if bytesRead<>BLOCK_SIZE then bytesRead
+                else find toFind 0 matchIndex |> findEnd
+        threeEnd <- find toFind threeStart matchIndex |> findEnd
 
-let keyHash (k, n) = 
-    let mutable hash = 0
-    for i in 0..n - 1 do
-        hash <- hash * 31 + int (readDNA (k + i))
-    hash
-
-let keyText (k, n) = toString(readDNABytes k n).ToUpper()
-
-type Value = 
-    { mutable value: int
-      key: int * int }
-
-let generateFrequencies (frameSize) = 
-    let freq = Dictionary<int, Value>()
-    let mutable v = Unchecked.defaultof<Value>
-    for i in dnaStart..dnaLength - frameSize do
-        let h = keyHash (i, frameSize)
-        if freq.TryGetValue(h, &v) then v.value <- v.value + 1
-        else freq.Add(h, { value = 1; key = (i, frameSize) })
-    freq
-
-let writeCount (n: int) = 
-    let freq = generateFrequencies (prefixLengths.[n])
-    let hash = keyHash (prefixOffsets.[n], prefixLengths.[n])
-    
-    let count = 
-        if freq.ContainsKey(hash) then freq.[hash].value
-        else 0
-    String.Format("{0}\t{1}", count, prefixes.[n].ToUpper())
-
-type Pair = KeyValuePair<int, Value>
-
-let writeFrequencies (nucleotideLength) = 
-    let freq = generateFrequencies (nucleotideLength)
-    let items = new ResizeArray<Pair>(freq)
-    items.Sort(fun (p1: Pair) (p2: Pair) -> 
-        let c = p2.Value.value - p1.Value.value
-        if c = 0 then keyText(p1.Value.key).CompareTo(keyText(p2.Value.key))
-        else c)
-    let buf = StringBuilder()
-    let sum = dnaLength - dnaStart - nucleotideLength + 1
-    for element in items do
-        let percent = double element.Value.value * 100.0 / double sum
-        buf.AppendFormat("{0} {1:f3}\n", keyText element.Value.key, percent) |> ignore
-    buf.ToString()
-
-let runTasks (tasks: (unit -> 'T) []) = 
-    let taskCount = ref tasks.Length
-    let results = Array.zeroCreate tasks.Length
-    
-    let rec worker() = 
-        let j = Interlocked.Decrement(&taskCount.contents)
-        if j >= 0 then 
-            results.[j] <- tasks.[j]()
-            worker()
-    
-    let threads = 
-        Array.init Environment.ProcessorCount (fun _ -> 
-            let t = Thread(worker)
-            t.Start()
-            t)
-    
-    for t in threads do
-        t.Join()
-    results
-
-let results = 
-    runTasks [| yield (fun () -> writeFrequencies 1)
-                yield (fun () -> writeFrequencies 2)
-                for i in 0..prefixes.Length - 1 do
-                    yield (fun () -> writeCount i) |]
-
-//let endTime = System.DateTime.Now.Ticks
-for s in results do
-    Console.Out.WriteLine(s)
+        if threeStart+18>BLOCK_SIZE then // Key needs to be in the first block
+            let block0 = threeBlocks.[0]
+            let block1 = threeBlocks.[1]
+            Buffer.BlockCopy(block0, threeStart, block0, threeStart-18, BLOCK_SIZE-threeStart)
+            Buffer.BlockCopy(block1, 0, block0, BLOCK_SIZE-18, 18)
+            for i = 0 to 17 do block1.[i] <- 255uy
