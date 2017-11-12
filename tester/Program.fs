@@ -29,20 +29,13 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
-    let fsData = Mandelbrot.main [|"16000"|]
-    let csData = MandelBrot.Main [|"16000"|]
-    
-    Seq.mapi2 (fun i f c -> i,f,c) fsData csData
-    |> Seq.where (fun (_,f,c) -> f<>c)
-    |> Seq.truncate 30
-    |> Seq.iter (fun (i,f,c) -> printfn "%i\t%A\t%A" i f c)
-    
-    //let start = System.Diagnostics.Stopwatch.GetTimestamp()
+    let start = System.Diagnostics.Stopwatch.GetTimestamp()
+    BinaryTrees.main [|"21"|] |> ignore
     //Fasta.Main([|"250000"|])
     //Mandelbrot.main [|"200"|] |> ignore //fs
     //KNucleotide.Main [||] |> ignore
-    //let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
-    //Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
+    let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
+    Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
     0
     //Improved.MandelBrot.Main([|"16000"|])
     //isFasterThan (fun () -> MandelBrot.Main [|"16000"|]) (fun () -> MandelBrotOld.Main [|"16000"|]) "Improved C# Mandelbrot faster than original"

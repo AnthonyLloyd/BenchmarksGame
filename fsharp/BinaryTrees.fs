@@ -1,28 +1,27 @@
 ﻿// The Computer Language Benchmarks Game
 // http://benchmarksgame.alioth.debian.org/
 //
-// Modification by Don Syme & Jomo Fisher to use null as representation
-// of Empty node and to use a single Next element.
+// Modification by Don Syme & Jomo Fisher to use a nullable Next element
 // Based on F# version by Robert Pickering
 // Based on ocaml version by Troestler Christophe & Isaac Gouy
-// multithreaded by Anthony Lloyd
+// Multithreaded by Anthony Lloyd
 
-type Next = { Left: Tree; Right: Tree }
-and [<Struct>] Tree = | Tree of Next
+type Next = Next of Tree * Tree
+and [<Struct>] Tree = Tree of Next
 
 [<EntryPoint>]
 let main args =
     let minDepth = 4
-    let maxDepth =if args.Length=0 then 10 else max (minDepth+2) (int args.[0])
+    let maxDepth = max (match args with [|n|] -> int n |_ -> 0) (minDepth+2)
     let stretchDepth = maxDepth + 1
 
     let rec make depth =
         if depth=0 then Tree Unchecked.defaultof<_>
-        else Tree {Left = make (depth-1); Right = make (depth-1)}
+        else Next (make (depth-1), make (depth-1)) |> Tree
 
     let rec check (Tree n) =
         if box n |> isNull then 1
-        else 1 + check n.Left + check n.Right
+        else let (Next(l,r)) = n in 1 + check l + check r
 
     let stretchTree = System.Threading.Tasks.Task.Run(fun () ->
         let check = make stretchDepth |> check |> string
@@ -46,4 +45,4 @@ let main args =
     stretchTree.Result |> stdout.WriteLine
     loopTrees |> Array.iter stdout.WriteLine
     fst longLivedTree.Result |> stdout.WriteLine
-    exit 0
+    0//exit 0

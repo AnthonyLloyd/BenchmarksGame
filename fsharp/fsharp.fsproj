@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <Compile Remove="**/*.fs" />
-    <Compile Include="Mandelbrot.fs" />
+    <Compile Include="BinaryTrees.fs" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.3.0" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.4.0" />
   </ItemGroup>

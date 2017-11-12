@@ -1,9 +1,10 @@
 /* The Computer Language Benchmarks Game
    http://benchmarksgame.alioth.debian.org/ 
 
-   contributed by Marek Safar  
+   contributed by Marek Safar
    *reset*
    concurrency added by Peperud
+   fixed long-lived tree by Anthony Lloyd
 */
 
 using System;
@@ -21,12 +22,15 @@ public class BinaryTrees
         int maxDepth = n < (MinDepth + 2) ? MinDepth + 2 : n;
         int stretchDepth = maxDepth + 1;
 
-        var tcheck = new[]
-        {
-            Task.Run(() => TreeNode.BottomUpTree(stretchDepth).ItemCheck()),
-            Task.Run(() => TreeNode.BottomUpTree(maxDepth).ItemCheck())
-        };
+        var stretchTreeCheck =
+            Task.Run(() => TreeNode.BottomUpTree(stretchDepth).ItemCheck());
 
+        var longLivedTree = Task.Run(() =>
+        {
+             var tree = TreeNode.BottomUpTree(maxDepth);
+             return Tuple.Create(tree.ItemCheck(), tree);
+        });
+        
         var results = new Task<string>[(maxDepth - MinDepth) / 2 + 1];
 
         for (int depth = MinDepth; depth <= maxDepth; depth += 2)
@@ -37,15 +41,6 @@ public class BinaryTrees
 
             results[(safeDept - MinDepth) / 2] = Task.Run(() =>
             {
-                //for (var i = 1; i <= iterations; i++)
-                //{
-                //    check += (TreeNode.BottomUpTree(safeDept)).ItemCheck();
-                //}
-
-                // 
-                // This is a somewhat silly, however overparallelizing towards 
-                // the end gave me a little better numbers on average
-                //
                 int i = 1;
                 while (i <= iterations)
                 {
@@ -72,19 +67,16 @@ public class BinaryTrees
             });
         }
 
-        tcheck[0].Wait();
         Console.WriteLine("stretch tree of depth {0}\t check: {1}",
-            stretchDepth, tcheck[0].Result);
+            stretchDepth, stretchTreeCheck.Result);
 
         for (int i = 0; i < results.Length; i++)
         {
-            results[i].Wait();
             Console.WriteLine(results[i].Result);
         }
 
-        tcheck[1].Wait();
         Console.WriteLine("long lived tree of depth {0}\t check: {1}",
-            maxDepth, tcheck[1].Result);
+            maxDepth, longLivedTree.Result.Item1);
     }
 
     struct TreeNode
@@ -119,7 +111,6 @@ public class BinaryTrees
 
         internal int ItemCheck()
         {
-            // if necessary deallocate here
             if (next == null)
             {
                 return 1;
