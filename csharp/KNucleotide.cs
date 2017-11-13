@@ -14,11 +14,11 @@ using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 
 class Wrapper { public int v=1; }
-public static class KNucleotide
+public static class KNucleotideCS
 {
     const int BLOCK_SIZE = 1024 * 1024 * 8;
-    static List<byte[]> threeBlocks = new List<byte[]>();
-    static int threeStart, threeEnd;
+    public static List<byte[]> threeBlocks = new List<byte[]>();
+    public static int threeStart, threeEnd;
     static byte[] tonum = new byte[256];
     static char[] tochar = new char[] {'A', 'C', 'G', 'T'};
 
@@ -54,9 +54,10 @@ public static class KNucleotide
         }
     }
 
-    static void loadThreeData()
+    public static void LoadThreeData()
     {
-        var stream = Console.OpenStandardInput();
+        //var stream = Console.OpenStandardInput();
+        var stream = System.IO.File.OpenRead(@"C:\Users\Ant\Google Drive\BenchmarkGame\fasta25000000.txt");
         
         // find three sequence
         int matchIndex = 0;
@@ -187,7 +188,7 @@ public static class KNucleotide
         tonum['t'] = 3; tonum['T'] = 3;
         tonum['\n'] = 255; tonum['>'] = 255; tonum[255] = 255;
 
-        loadThreeData();
+        LoadThreeData();
 
         Parallel.ForEach(threeBlocks, bytes =>
         {
