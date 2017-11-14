@@ -1,9 +1,12 @@
 // The Computer Language Benchmarks Game
 // http://benchmarksgame.alioth.debian.org/
 
+#nowarn "9"
+
 open System
 open System.Collections.Generic
 open System.Threading.Tasks
+open Microsoft.FSharp.NativeInterop
 
 [<Literal>]
 let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
@@ -84,7 +87,7 @@ let main _ =
                 for i = 0 to 17 do block1.[i] <- 255uy
             threeBlocks
 
-    threeStart, List.rev threeBlocks, threeEnd
+    threeStart, List.rev threeBlocks |> List.toArray, threeEnd
 
   let toChar = [|'A'; 'C'; 'G'; 'T'|]
   let toNum = Array.zeroCreate<byte> 256
@@ -108,22 +111,25 @@ let main _ =
              startKey (l-1) (start+1)
       startKey l threeStart
       let dict = Dictionary<_,_>()
-      let inline check (nb:byte) =
+      let inline check (a:byte[]) lo hi =
+        use a = fixed a
+        for i = lo to hi do
+          let nb = NativePtr.get a i
           if nb<>255uy then
               rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int nb
               match dict.TryGetValue rollingKey with
               | true, v -> incr v
               | false, _ -> dict.[rollingKey] <- ref 1
 
-      for i = threeStart+l to firstBlock.Length-1 do
-          check firstBlock.[i]
+      check firstBlock (threeStart+l) (firstBlock.Length-1)
       
-      for bl = 1 to List.length threeBlocks-2 do
-          Array.iter check threeBlocks.[bl]
+      for i = 1 to threeBlocks.Length-2 do
+          let block = threeBlocks.[i]
+          check block 0 (block.Length-1)
+          
+      let lastBlock = threeBlocks.[threeBlocks.Length-1]
+      check lastBlock 0 (threeEnd-1)
 
-      let lastBlock = threeBlocks.[List.length threeBlocks-1]
-      for i = 0 to threeEnd-1 do
-          check lastBlock.[i]
       summary dict
     )
 
@@ -144,14 +150,10 @@ let main _ =
     let mutable key = 0
     for i = 0 to fragment.Length-1 do
         key <- (key <<< 2) ||| int toNum.[int fragment.[i]]
-    let n =
-        match dict.TryGetValue key with
-        | true, v -> !v
-        | false, _ -> 0
-    String.Concat(n.ToString(), "\t", fragment)
+    let b,v = dict.TryGetValue key
+    String.Concat((if b then !v else 0).ToString(), "\t", fragment)
 
-  let count64 l mask (summary:_->string) : Task<string> =
-    Task.Run (fun () ->
+  let count64 l mask summary =
       let mutable rollingKey = 0L
       let firstBlock = threeBlocks.[0]
       let rec startKey l start =
@@ -160,49 +162,48 @@ let main _ =
              startKey (l-1) (start+1)
       startKey l threeStart
       let dict = Dictionary<_,_>()
-      let inline check (nb:byte) =
+      let inline check (a:byte[]) lo hi =
+        use a = fixed a
+        for i = lo to hi do
+          let nb = NativePtr.get a i
           if nb<>255uy then
               rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
               match dict.TryGetValue rollingKey with
               | true, v -> incr v
               | false, _ -> dict.[rollingKey] <- ref 1
 
-      for i = threeStart+l to firstBlock.Length-1 do
-          check firstBlock.[i]
+      check firstBlock (threeStart+l) (firstBlock.Length-1)
       
-      for bl = 1 to List.length threeBlocks-2 do
-          Array.iter check threeBlocks.[bl]
+      for i = 1 to threeBlocks.Length-2 do
+          let block = threeBlocks.[i]
+          check block 0 (block.Length-1)
 
-      let lastBlock = threeBlocks.[List.length threeBlocks-1]
-      for i = 0 to threeEnd-1 do
-          check lastBlock.[i]
+      let lastBlock = threeBlocks.[threeBlocks.Length-1]
+      check lastBlock 0 (threeEnd-1)
+
       summary dict
-    )
 
   let writeCount64 (fragment:string) (dict:Dictionary<_,_>) =
     let mutable key = 0L
     for i = 0 to fragment.Length-1 do
         key <- (key <<< 2) ||| int64 toNum.[int fragment.[i]]
-    let n =
-        match dict.TryGetValue key with
-        | true, v -> !v
-        | false, _ -> 0
-    String.Concat(n.ToString(), "\t", fragment)
+    let b,v = dict.TryGetValue key
+    String.Concat((if b then !v else 0).ToString(), "\t", fragment)
 
-  let task18 = count64 18 34359738367L (writeCount64 "GGTATTTTAATTTATAGT")
   let task12 = count 12 8388607 (writeCount "GGTATTTTAATT")
   let task6 = count 6 0b1111111111 (writeCount "GGTATT")
-  let task1 = count 1 0 (writeFrequencies 1)
-  let task2 = count 2 0b11 (writeFrequencies 2)
-  let task3 = count 3 0b1111 (writeCount "GGT")
   let task4 = count 4 0b111111 (writeCount "GGTA")
-  
+  let task3 = count 3 0b1111 (writeCount "GGT")
+  let task2 = count 2 0b11 (writeFrequencies 2)
+  let task1 = count 1 0 (writeFrequencies 1)
+  let task18 = count64 18 34359738367L (writeCount64 "GGTATTTTAATTTATAGT")
+
   task1.Result |> stdout.WriteLine
   task2.Result |> stdout.WriteLine
   task3.Result |> stdout.WriteLine
   task4.Result |> stdout.WriteLine
   task6.Result |> stdout.WriteLine
   task12.Result |> stdout.WriteLine
-  task18.Result |> stdout.WriteLine
+  stdout.WriteLine task18
 
   0
