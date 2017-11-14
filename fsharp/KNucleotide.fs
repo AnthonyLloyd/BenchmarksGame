@@ -2,9 +2,11 @@
 // http://benchmarksgame.alioth.debian.org/
 
 open System
+open System.Text
+open System.Collections.Generic
 
 [<Literal>]
-let BLOCK_SIZE = 8388608
+let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
 
 let threeStart,threeBlocks,threeEnd =
     use input = IO.File.OpenRead(@"C:\Users\Ant\Google Drive\BenchmarkGame\fasta25000000.txt")
@@ -81,6 +83,61 @@ let threeStart,threeBlocks,threeEnd =
             threeBlocks
 
     threeStart, List.rev threeBlocks, threeEnd
+
+let count l mask summary =
+    let mutable rollingKey = 0L
+    let firstBlock = threeBlocks.[0]
+    let rec startKey l start =
+        if l>0 then
+           rollingKey <- (rollingKey<<<2) ||| int64 firstBlock.[start]
+           startKey (l-1) (start+1)
+    startKey l threeStart
+    let dict = Dictionary<int64,int ref>()
+    let inline check (nb:byte) =
+        if nb<>255uy then
+            rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
+            match dict.TryGetValue rollingKey with
+            | true, v -> incr v
+            | false, _ -> dict.[rollingKey] <- ref 1
+
+
+    for i = threeStart+l to firstBlock.Length-1 do
+        check firstBlock.[i]
+    
+    for bl = 1 to List.length threeBlocks-2 do
+        Array.iter check threeBlocks.[bl]
+
+    let lastBlock = threeBlocks.[List.length threeBlocks-1]
+    for i = 0 to threeEnd-1 do
+        check lastBlock.[i]
+    summary dict
+
+let writeFrequencies (freq:Dictionary<int64,int ref>) fragmentLength =
+    let sb = StringBuilder()
+    let percent = 100.0 / (Seq.sumBy (!) freq.Values |> float)
+    freq
+    |> Seq.sortByDescending (fun kv -> !kv.Value)
+    |> Seq.iter (fun kv ->
+        let keyChars = Array.zeroCreate fragmentLength
+        let mutable key = kv.Key
+        for i in keyChars.Length-1..-1..0 do
+            keyChars.[i] <- tochar[key & 0x3]
+            key <- key >>> 2
+        sb.Append(keyChars) |> ignore
+        sb.Append(" ") |> ignore
+        sb.AppendLine((float !kv.Value * percent).ToString("F3")) |> ignore
+    )
+    sb.ToString()
+
+let writeCount (dict:Dictionary<int64,int ref>) (fragment:string) =
+    let mutable key = 0L
+    for i = 0 to fragment.Length-1 do
+        key <- (key <<< 2) ||| tonum[fragment[i]]
+    let n =
+        match dict.TryGetValue key with
+        | true, v -> !v
+        | false, _ -> 0
+    string.Concat(n.ToString(), "\t", fragment)
 
 [<EntryPoint>]
 let main _ =
