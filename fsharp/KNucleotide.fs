@@ -7,7 +7,6 @@
 
 open System
 open System.Collections.Generic
-open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 
 [<Literal>]
@@ -99,13 +98,12 @@ let main _ =
   toNum.[int 't'B] <- 3uy; toNum.[int 'T'B] <- 3uy
   toNum.[int '\n'B] <- 255uy; toNum.[int '>'B] <- 255uy; toNum.[255] <- 255uy
 
-  Parallel.ForEach(threeBlocks, fun bs ->
+  Array.Parallel.iter (fun bs ->
     for i = 0 to Array.length bs-1 do
         bs.[i] <- toNum.[int bs.[i]]
-  ) |> ignore
+  ) threeBlocks
 
   let count l mask (summary:_->string) =
-    Task.Run (fun () ->
       let mutable rollingKey = 0
       let firstBlock = threeBlocks.[0]
       let rec startKey l start =
@@ -133,7 +131,6 @@ let main _ =
       check lastBlock 0 (threeEnd-1)
 
       summary dict
-    )
 
   let writeFrequencies fragmentLength (freq:Dictionary<_,_>) =
     let percent = 100.0 / (Seq.sumBy (!) freq.Values |> float)
@@ -156,7 +153,6 @@ let main _ =
     String.Concat((if b then string !v else "0"), "\t", fragment)
 
   let count64 l mask (summary:_->string) =
-    Task.Run(fun () ->
       let mutable rollingKey = 0L
       let firstBlock = threeBlocks.[0]
       let rec startKey l start =
@@ -184,7 +180,6 @@ let main _ =
       check lastBlock 0 (threeEnd-1)
 
       summary dict
-    )  
 
   let writeCount64 (fragment:string) (dict:Dictionary<_,_>) =
     let mutable key = 0L
@@ -193,20 +188,14 @@ let main _ =
     let b,v = dict.TryGetValue key
     String.Concat((if b then string !v else "0"), "\t", fragment)
 
-  let task18 = count64 18 34359738367L (writeCount64 "GGTATTTTAATTTATAGT")
-  let task12 = count 12 8388607 (writeCount "GGTATTTTAATT")
-  let task6 = count 6 0b1111111111 (writeCount "GGTATT")
-  let task4 = count 4 0b111111 (writeCount "GGTA")
-  let task3 = count 3 0b1111 (writeCount "GGT")
-  let task2 = count 2 0b11 (writeFrequencies 2)
-  let task1 = count 1 0 (writeFrequencies 1)
-
-  task1.Result |> stdout.WriteLine
-  task2.Result |> stdout.WriteLine
-  task3.Result |> stdout.WriteLine
-  task4.Result |> stdout.WriteLine
-  task6.Result |> stdout.WriteLine
-  task12.Result |> stdout.WriteLine
-  task18.Result |> stdout.WriteLine
+  Array.Parallel.map (fun f -> f()) [|
+    fun () -> count64 18 34359738367L (writeCount64 "GGTATTTTAATTTATAGT")
+    fun () -> count 12 8388607 (writeCount "GGTATTTTAATT")
+    fun () -> count 6 0b1111111111 (writeCount "GGTATT")
+    fun () -> count 4 0b111111 (writeCount "GGTA")
+    fun () -> count 3 0b1111 (writeCount "GGT")
+    fun () -> count 2 0b11 (writeFrequencies 2)
+    fun () -> count 1 0 (writeFrequencies 1)
+  |] |> Array.rev |> Array.iter stdout.WriteLine
 
   0
