@@ -189,12 +189,12 @@ let main _ =
     String.Concat((if b then string !v else "0"), "\t", fragment)
 
   Array.Parallel.map (fun f -> f()) [|
-    fun () -> count64 18 34359738367L (writeCount64 "GGTATTTTAATTTATAGT")
-    fun () -> count 12 8388607 (writeCount "GGTATTTTAATT")
-    fun () -> count 6 0b1111111111 (writeCount "GGTATT")
-    fun () -> count 4 0b111111 (writeCount "GGTA")
-    fun () -> count 3 0b1111 (writeCount "GGT")
-    fun () -> count 2 0b11 (writeFrequencies 2)
+    fun () -> count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
+    fun () -> count 12 0x7FFFFF (writeCount "GGTATTTTAATT")
+    fun () -> count 6 0x3FF (writeCount "GGTATT")
+    fun () -> count 4 0x3F (writeCount "GGTA")
+    fun () -> count 3 0xF (writeCount "GGT")
+    fun () -> count 2 0x3 (writeFrequencies 2)
     fun () -> count 1 0 (writeFrequencies 1)
   |] |> Array.rev |> Array.iter stdout.WriteLine
 
