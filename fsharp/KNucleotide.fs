@@ -2,13 +2,15 @@
 // http://benchmarksgame.alioth.debian.org/
 
 open System
-open System.Text
 open System.Collections.Generic
+open System.Threading.Tasks
 
 [<Literal>]
 let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
 
-let threeStart,threeBlocks,threeEnd =
+[<EntryPoint>]
+let main _ =
+  let threeStart,threeBlocks,threeEnd =
     use input = IO.File.OpenRead(@"C:\Users\Ant\Google Drive\BenchmarkGame\fasta25000000.txt")
     //let input = Console.OpenStandardInput()
     let mutable threeEnd = 0
@@ -84,61 +86,123 @@ let threeStart,threeBlocks,threeEnd =
 
     threeStart, List.rev threeBlocks, threeEnd
 
-let count l mask summary =
-    let mutable rollingKey = 0L
-    let firstBlock = threeBlocks.[0]
-    let rec startKey l start =
-        if l>0 then
-           rollingKey <- (rollingKey<<<2) ||| int64 firstBlock.[start]
-           startKey (l-1) (start+1)
-    startKey l threeStart
-    let dict = Dictionary<int64,int ref>()
-    let inline check (nb:byte) =
-        if nb<>255uy then
-            rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
-            match dict.TryGetValue rollingKey with
-            | true, v -> incr v
-            | false, _ -> dict.[rollingKey] <- ref 1
+  let toChar = [|'A'; 'C'; 'G'; 'T'|]
+  let toNum = Array.zeroCreate<byte> 256
+  toNum.[int 'c'B] <- 1uy; toNum.[int 'C'B] <- 1uy
+  toNum.[int 'g'B] <- 2uy; toNum.[int 'G'B] <- 2uy
+  toNum.[int 't'B] <- 3uy; toNum.[int 'T'B] <- 3uy
+  toNum.[int '\n'B] <- 255uy; toNum.[int '>'B] <- 255uy; toNum.[255] <- 255uy
 
+  Parallel.ForEach(threeBlocks, fun bs ->
+    for i = 0 to Array.length bs-1 do
+        bs.[i] <- toNum.[int bs.[i]]
+  ) |> ignore
 
-    for i = threeStart+l to firstBlock.Length-1 do
-        check firstBlock.[i]
-    
-    for bl = 1 to List.length threeBlocks-2 do
-        Array.iter check threeBlocks.[bl]
+  let count l mask (summary:_->string) : Task<string> =
+    Task.Run (fun () ->
+      let mutable rollingKey = 0
+      let firstBlock = threeBlocks.[0]
+      let rec startKey l start =
+          if l>0 then
+             rollingKey <- (rollingKey<<<2) ||| int firstBlock.[start]
+             startKey (l-1) (start+1)
+      startKey l threeStart
+      let dict = Dictionary<_,_>()
+      let inline check (nb:byte) =
+          if nb<>255uy then
+              rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int nb
+              match dict.TryGetValue rollingKey with
+              | true, v -> incr v
+              | false, _ -> dict.[rollingKey] <- ref 1
 
-    let lastBlock = threeBlocks.[List.length threeBlocks-1]
-    for i = 0 to threeEnd-1 do
-        check lastBlock.[i]
-    summary dict
+      for i = threeStart+l to firstBlock.Length-1 do
+          check firstBlock.[i]
+      
+      for bl = 1 to List.length threeBlocks-2 do
+          Array.iter check threeBlocks.[bl]
 
-let writeFrequencies (freq:Dictionary<int64,int ref>) fragmentLength =
-    let sb = StringBuilder()
+      let lastBlock = threeBlocks.[List.length threeBlocks-1]
+      for i = 0 to threeEnd-1 do
+          check lastBlock.[i]
+      summary dict
+    )
+
+  let writeFrequencies fragmentLength (freq:Dictionary<_,_>) =
     let percent = 100.0 / (Seq.sumBy (!) freq.Values |> float)
-    freq
-    |> Seq.sortByDescending (fun kv -> !kv.Value)
-    |> Seq.iter (fun kv ->
+    freq |> Seq.sortByDescending (fun kv -> kv.Value)
+    |> Seq.collect (fun kv ->
         let keyChars = Array.zeroCreate fragmentLength
         let mutable key = kv.Key
         for i in keyChars.Length-1..-1..0 do
-            keyChars.[i] <- tochar[key & 0x3]
+            keyChars.[i] <- toChar.[int key &&& 0x3]
             key <- key >>> 2
-        sb.Append(keyChars) |> ignore
-        sb.Append(" ") |> ignore
-        sb.AppendLine((float !kv.Value * percent).ToString("F3")) |> ignore
-    )
-    sb.ToString()
+        [String(keyChars);" ";(float !kv.Value * percent).ToString("F3");"\n"]
+      )
+    |> String.Concat
 
-let writeCount (dict:Dictionary<int64,int ref>) (fragment:string) =
-    let mutable key = 0L
+  let writeCount (fragment:string) (dict:Dictionary<_,_>) =
+    let mutable key = 0
     for i = 0 to fragment.Length-1 do
-        key <- (key <<< 2) ||| tonum[fragment[i]]
+        key <- (key <<< 2) ||| int toNum.[int fragment.[i]]
     let n =
         match dict.TryGetValue key with
         | true, v -> !v
         | false, _ -> 0
-    string.Concat(n.ToString(), "\t", fragment)
+    String.Concat(n.ToString(), "\t", fragment)
 
-[<EntryPoint>]
-let main _ =
-    0
+  let count64 l mask (summary:_->string) : Task<string> =
+    Task.Run (fun () ->
+      let mutable rollingKey = 0L
+      let firstBlock = threeBlocks.[0]
+      let rec startKey l start =
+          if l>0 then
+             rollingKey <- (rollingKey<<<2) ||| int64 firstBlock.[start]
+             startKey (l-1) (start+1)
+      startKey l threeStart
+      let dict = Dictionary<_,_>()
+      let inline check (nb:byte) =
+          if nb<>255uy then
+              rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
+              match dict.TryGetValue rollingKey with
+              | true, v -> incr v
+              | false, _ -> dict.[rollingKey] <- ref 1
+
+      for i = threeStart+l to firstBlock.Length-1 do
+          check firstBlock.[i]
+      
+      for bl = 1 to List.length threeBlocks-2 do
+          Array.iter check threeBlocks.[bl]
+
+      let lastBlock = threeBlocks.[List.length threeBlocks-1]
+      for i = 0 to threeEnd-1 do
+          check lastBlock.[i]
+      summary dict
+    )
+
+  let writeCount64 (fragment:string) (dict:Dictionary<_,_>) =
+    let mutable key = 0L
+    for i = 0 to fragment.Length-1 do
+        key <- (key <<< 2) ||| int64 toNum.[int fragment.[i]]
+    let n =
+        match dict.TryGetValue key with
+        | true, v -> !v
+        | false, _ -> 0
+    String.Concat(n.ToString(), "\t", fragment)
+
+  let task18 = count64 18 34359738367L (writeCount64 "GGTATTTTAATTTATAGT")
+  let task12 = count 12 8388607 (writeCount "GGTATTTTAATT")
+  let task6 = count 6 0b1111111111 (writeCount "GGTATT")
+  let task1 = count 1 0 (writeFrequencies 1)
+  let task2 = count 2 0b11 (writeFrequencies 2)
+  let task3 = count 3 0b1111 (writeCount "GGT")
+  let task4 = count 4 0b111111 (writeCount "GGTA")
+  
+  task1.Result |> stdout.WriteLine
+  task2.Result |> stdout.WriteLine
+  task3.Result |> stdout.WriteLine
+  task4.Result |> stdout.WriteLine
+  task6.Result |> stdout.WriteLine
+  task12.Result |> stdout.WriteLine
+  task18.Result |> stdout.WriteLine
+
+  0

@@ -30,20 +30,11 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
+    let start = System.Diagnostics.Stopwatch.GetTimestamp()
     KNucleotide.main [||] |> ignore
-    KNucleotideCS.LoadThreeData()
-    if KNucleotideCS.threeStart<>KNucleotide.threeStart then printfn "Start: %i %i" KNucleotideCS.threeStart KNucleotide.threeStart
-    if KNucleotideCS.threeEnd<>KNucleotide.threeEnd then printfn "End: %i %i" KNucleotideCS.threeEnd KNucleotide.threeEnd
-    Seq.iteri2 (fun i a1 a2 ->
-      if a1<>a2 then printfn "diff %i" i
-    ) KNucleotideCS.threeBlocks KNucleotide.threeBlocks
-    //let start = System.Diagnostics.Stopwatch.GetTimestamp()
-    //BinaryTrees.main [|"21"|] |> ignore
-    //Fasta.Main([|"250000"|])
-    //Mandelbrot.main [|"200"|] |> ignore //fs
-    //KNucleotide.Main [||] |> ignore
-    //let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
-    //Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
+    //KNucleotideCS.Main [||] |> ignore
+    let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
+    Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
     0
     //Improved.MandelBrot.Main([|"16000"|])
     //isFasterThan (fun () -> MandelBrot.Main [|"16000"|]) (fun () -> MandelBrotOld.Main [|"16000"|]) "Improved C# Mandelbrot faster than original"
@@ -52,7 +43,12 @@ let main argv =
     // Improved.NBody.Main([|"5"|])
     // NBody.Test [|"50000000"|] |> ignore
 
-
+    // KNucleotideCS.LoadThreeData()
+    // if KNucleotideCS.threeStart<>KNucleotide.threeStart then printfn "Start: %i %i" KNucleotideCS.threeStart KNucleotide.threeStart
+    // if KNucleotideCS.threeEnd<>KNucleotide.threeEnd then printfn "End: %i %i" KNucleotideCS.threeEnd KNucleotide.threeEnd
+    // Seq.iteri2 (fun i a1 a2 ->
+    //   if a1<>a2 then printfn "diff %i" i
+    // ) KNucleotideCS.threeBlocks KNucleotide.threeBlocks
     
 
     // Create big faster file
