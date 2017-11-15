@@ -4,6 +4,7 @@
 // ported from C# version by Anthony Lloyd
 
 open System
+open System.Threading.Tasks
 open System.Collections.Generic
 
 [<Literal>]
@@ -148,43 +149,59 @@ let main _ =
     let b,v = dict.TryGetValue key
     String.Concat((if b then string !v else "0"), "\t", fragment)
 
-  let count64 l mask (summary:_->string) =
-      let mutable rollingKey = 0L
-      let firstBlock = threeBlocks.[0]
-      let rec startKey l start =
+  let countEnding l mask b =
+    let mutable rollingKey = 0L
+    let firstBlock = threeBlocks.[0]
+    let rec startKey l start =
           if l>0 then
              rollingKey <- (rollingKey<<<2) ||| int64 firstBlock.[start]
              startKey (l-1) (start+1)
-      startKey l threeStart
-      let dict = Dictionary<_,_>()
-      let inline check a lo hi =
+    startKey l threeStart
+    let dict = Dictionary<_,_>()
+    let inline check a lo hi =
         for i = lo to hi do
           let nb = Array.get a i
-          if nb<>255uy then
-              rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
-              match dict.TryGetValue rollingKey with
-              | true, v -> incr v
-              | false, _ -> dict.[rollingKey] <- ref 1
+          if nb=b then
+            rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
+            match dict.TryGetValue rollingKey with
+            | true, v -> incr v
+            | false, _ -> dict.[rollingKey] <- ref 1
+          elif nb<>255uy then
+            rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
 
-      check firstBlock (threeStart+l) (BLOCK_SIZE-1)
-      
-      for i = 1 to threeBlocks.Length-2 do
-          check threeBlocks.[i] 0 (BLOCK_SIZE-1)
+    check firstBlock (threeStart+l) (BLOCK_SIZE-1)
 
-      let lastBlock = threeBlocks.[threeBlocks.Length-1]
-      check lastBlock 0 (threeEnd-1)
+    for i = 1 to threeBlocks.Length-2 do
+        check threeBlocks.[i] 0 (BLOCK_SIZE-1)
 
-      summary dict
+    let lastBlock = threeBlocks.[threeBlocks.Length-1]
+    check lastBlock 0 (threeEnd-1)
+
+    dict
+
+  let count64 l mask (summary:_->string) =
+    Task.Factory.ContinueWhenAll(
+      Array.init 4 (fun i -> Task.Run(fun () -> byte i |> countEnding l mask))
+      ,(fun dicts ->
+          let d = Dictionary<_,_>(dicts |> Seq.sumBy (fun i -> i.Result.Count))
+          dicts |> Array.iter (fun di ->
+            di.Result |> Seq.iter (fun kv ->
+              d.[kv.Key] <- !kv.Value
+            )
+          )
+          summary d
+       ))
 
   let writeCount64 (fragment:string) (dict:Dictionary<_,_>) =
     let mutable key = 0L
     for i = 0 to fragment.Length-1 do
         key <- (key <<< 2) ||| int64 toNum.[int fragment.[i]]
     let b,v = dict.TryGetValue key
-    String.Concat((if b then string !v else "0"), "\t", fragment)
+    String.Concat((if b then string v else "?"), "\t", fragment)
+
+  let task18 = count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
 
   Array.Parallel.map (fun f -> f()) [|
-    fun () -> count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
     fun () -> count 12 0x7FFFFF (writeCount "GGTATTTTAATT")
     fun () -> count 6 0x3FF (writeCount "GGTATT")
     fun () -> count 4 0x3F (writeCount "GGTA")
@@ -192,5 +209,7 @@ let main _ =
     fun () -> count 2 0x3 (writeFrequencies 2)
     fun () -> count 1 0 (writeFrequencies 1)
   |] |> Array.rev |> Array.iter stdout.WriteLine
+
+  task18.Result |> stdout.WriteLine
 
   0
