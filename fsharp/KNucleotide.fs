@@ -3,11 +3,8 @@
 //
 // ported from C# version by Anthony Lloyd
 
-#nowarn "9"
-
 open System
 open System.Collections.Generic
-open Microsoft.FSharp.NativeInterop
 
 [<Literal>]
 let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
@@ -15,7 +12,7 @@ let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
 [<EntryPoint>]
 let main _ =
   let threeStart,threeBlocks,threeEnd =
-    use input = IO.File.OpenRead(@"C:\Users\Ant\Google Drive\BenchmarkGame\fasta25000000.txt")
+    use input = IO.File.OpenRead(@"C:\temp\fasta25000000.txt")
     //let input = Console.OpenStandardInput()
     let mutable threeEnd = 0
     let read buffer =
@@ -112,10 +109,9 @@ let main _ =
              startKey (l-1) (start+1)
       startKey l threeStart
       let dict = Dictionary<_,_>()
-      let inline check (a:byte[]) lo hi =
-        use a = fixed a
+      let inline check a lo hi =
         for i = lo to hi do
-          let nb = NativePtr.get a i
+          let nb = Array.get a i
           if nb<>255uy then
               rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int nb
               match dict.TryGetValue rollingKey with
@@ -161,10 +157,9 @@ let main _ =
              startKey (l-1) (start+1)
       startKey l threeStart
       let dict = Dictionary<_,_>()
-      let inline check (a:byte[]) lo hi =
-        use a = fixed a
+      let inline check a lo hi =
         for i = lo to hi do
-          let nb = NativePtr.get a i
+          let nb = Array.get a i
           if nb<>255uy then
               rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
               match dict.TryGetValue rollingKey with
