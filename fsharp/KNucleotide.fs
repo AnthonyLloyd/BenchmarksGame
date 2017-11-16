@@ -106,7 +106,7 @@ let main _ =
       let firstBlock = threeBlocks.[0]
       let rec startKey l start =
           if l>0 then
-             rollingKey <- (rollingKey<<<2) ||| int firstBlock.[start]
+             rollingKey <- rollingKey <<< 2 ||| int firstBlock.[start]
              startKey (l-1) (start+1)
       startKey l threeStart
       let dict = Dictionary<_,_>()
@@ -114,7 +114,7 @@ let main _ =
         for i = lo to hi do
           let nb = Array.get a i
           if nb<>255uy then
-              rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int nb
+              rollingKey <- rollingKey &&& mask <<< 2 ||| int nb
               match dict.TryGetValue rollingKey with
               | true, v -> incr v
               | false, _ -> dict.[rollingKey] <- ref 1
@@ -145,29 +145,29 @@ let main _ =
   let writeCount (fragment:string) (dict:Dictionary<_,_>) =
     let mutable key = 0
     for i = 0 to fragment.Length-1 do
-        key <- (key <<< 2) ||| int toNum.[int fragment.[i]]
+        key <- key <<< 2 ||| int toNum.[int fragment.[i]]
     let b,v = dict.TryGetValue key
     String.Concat((if b then string !v else "0"), "\t", fragment)
 
-  let countEnding l mask b =
+  let inline countEnding l mask b =
     let mutable rollingKey = 0L
     let firstBlock = threeBlocks.[0]
     let rec startKey l start =
           if l>0 then
-             rollingKey <- (rollingKey<<<2) ||| int64 firstBlock.[start]
+             rollingKey <- rollingKey <<< 2 ||| int64 firstBlock.[start]
              startKey (l-1) (start+1)
     startKey l threeStart
     let dict = Dictionary<_,_>()
     let inline check a lo hi =
         for i = lo to hi do
           let nb = Array.get a i
-          if nb=b then
-            rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
-            match dict.TryGetValue rollingKey with
-            | true, v -> incr v
-            | false, _ -> dict.[rollingKey] <- ref 1
-          elif nb<>255uy then
-            rollingKey <- ((rollingKey &&& mask) <<< 2) ||| int64 nb
+          if nb<>255uy then
+            rollingKey <- rollingKey &&& mask <<< 2 ||| int64 nb
+            if int rollingKey &&& 15 |> int = b then
+              let intKey = rollingKey >>> 4 |> uint32
+              match dict.TryGetValue intKey with
+              | true, v -> incr v
+              | false, _ -> dict.[intKey] <- ref 1
 
     check firstBlock (threeStart+l) (BLOCK_SIZE-1)
 
@@ -181,12 +181,12 @@ let main _ =
 
   let count64 l mask (summary:_->string) =
     Task.Factory.ContinueWhenAll(
-      Array.init 4 (fun i -> Task.Run(fun () -> byte i |> countEnding l mask))
+      Array.init 16 (fun i -> Task.Run(fun () -> countEnding l mask i))
       ,(fun dicts ->
           let d = Dictionary<_,_>(dicts |> Seq.sumBy (fun i -> i.Result.Count))
-          dicts |> Array.iter (fun di ->
+          dicts |> Array.iteri (fun i di ->
             di.Result |> Seq.iter (fun kv ->
-              d.[kv.Key] <- !kv.Value
+              d.[int64 kv.Key <<< 4 ||| int64 i] <- !kv.Value
             )
           )
           summary d
@@ -195,9 +195,9 @@ let main _ =
   let writeCount64 (fragment:string) (dict:Dictionary<_,_>) =
     let mutable key = 0L
     for i = 0 to fragment.Length-1 do
-        key <- (key <<< 2) ||| int64 toNum.[int fragment.[i]]
+        key <- key <<< 2 ||| int64 toNum.[int fragment.[i]]
     let b,v = dict.TryGetValue key
-    String.Concat((if b then string v else "?"), "\t", fragment)
+    String.Concat((if b then string v else "0"), "\t", fragment)
 
   let task18 = count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
 
