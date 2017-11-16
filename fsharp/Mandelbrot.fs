@@ -14,27 +14,27 @@ open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 
-let inline ptrGet p i =
-    Unsafe.Read(IntPtr.Add(NativePtr.toNativeInt p, 8*i).ToPointer())
-let inline ptrSet p i v =
-    Unsafe.Write(IntPtr.Add(NativePtr.toNativeInt p, 8*i).ToPointer(), v)
+let inline padd (p:nativeint) (i:int) = IntPtr.Add(p, 8*i)
 
-let inline getByte (pcrb:nativeptr<float>) (ciby:float) =
+let inline ptrGet (p:nativeint) i : Vector<float> =
+    Unsafe.Read((padd p i).ToPointer())
+let inline ptrSet (p:nativeint) i (v:Vector<float>) =
+    Unsafe.Write((padd p i).ToPointer(), v)
+
+let inline getByte (pcrbi:nativeint) (ciby:float) =
     let rec calc i res =
         if i=8 then res
         else
-            let vCrbx = ptrGet pcrb i
+            let vCrbx = ptrGet pcrbi i
             let vCiby = Vector ciby
-            let rec calc2 j zr zi b0 b1 =
+            let rec calc2 j zr zi b =
                 let nZr = zr * zr - zi * zi + vCrbx
                 let nZi = let zrzi = zr * zi in zrzi + zrzi + vCiby
                 let t = nZr * nZr + nZi * nZi
-                let b0 = b0 || t.[0]>4.0
-                let b1 = b1 || t.[1]>4.0
-                if b0 && b1 then 3
-                elif j=0 then if b0 then 2 elif b1 then 1 else 0
-                else calc2 (j-1) nZr nZi b0 b1
-            calc (i+2) ((res<<<2) + calc2 48 vCrbx vCiby false false)
+                let b = b ||| (if t.[0]>4.0 then 2 else 0) ||| if t.[1]>4.0 then 1 else 0
+                if b=3 || j=0 then b
+                else calc2 (j-1) nZr nZi b
+            calc (i+2) ((res<<<2) + calc2 48 vCrbx vCiby 0)
     calc 0 0 ^^^ -1 |> byte
 
 [<EntryPoint>]
@@ -45,21 +45,20 @@ let main args =
     let data = Array.zeroCreate (size*lineLength+s.Length)
     Text.ASCIIEncoding.ASCII.GetBytes(s, 0, s.Length, data, 0) |> ignore
     let crb = Array.zeroCreate (size+2)
-    use pdata = fixed &data.[s.Length]
     use pcrb = fixed &crb.[0]
+    let pcrbi = NativePtr.toNativeInt pcrb
     let invN = Vector (2.0/float size)
     let onePtFive = Vector 1.5
     let step = Vector 2.0
     let rec loop i value =
         if i<size then
-            ptrSet pcrb i (value*invN-onePtFive)
+            ptrSet pcrbi i (value*invN-onePtFive)
             loop (i+2) (value+step)
     Vector [|0.0;1.0;0.0;0.0;0.0;0.0;0.0;0.0|] |> loop 0
     Parallel.For(0, size, fun y ->
-        let ciby = NativePtr.get pcrb y+0.5
+        let ciby = crb.[y]+0.5
         for x = 0 to lineLength-1 do
-            getByte (NativePtr.add pcrb (x*8)) ciby
-            |> NativePtr.set pdata (y*lineLength+x)
+            data.[y*lineLength+x] <- getByte (padd pcrbi (x*8)) ciby
     ) |> ignore
-    Console.OpenStandardOutput().Write(data, 0, data.Length)
-    exit 0
+    //Console.OpenStandardOutput().Write(data, 0, data.Length)
+    0
