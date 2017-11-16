@@ -4,7 +4,6 @@
 // ported from C# version by Anthony Lloyd
 
 open System
-open System.Threading.Tasks
 open System.Collections.Generic
 
 [<Literal>]
@@ -90,7 +89,7 @@ let main _ =
     threeStart, List.rev threeBlocks |> List.toArray, threeEnd
 
   let toChar = [|'A'; 'C'; 'G'; 'T'|]
-  let toNum = Array.zeroCreate<byte> 256
+  let toNum = Array.zeroCreate 256
   toNum.[int 'c'B] <- 1uy; toNum.[int 'C'B] <- 1uy
   toNum.[int 'g'B] <- 2uy; toNum.[int 'G'B] <- 2uy
   toNum.[int 't'B] <- 3uy; toNum.[int 'T'B] <- 3uy
@@ -101,7 +100,7 @@ let main _ =
         bs.[i] <- toNum.[int bs.[i]]
   ) threeBlocks
 
-  let count l mask (summary:_->string) =
+  let count l mask (summary:_->string) = async {
       let mutable rollingKey = 0
       let firstBlock = threeBlocks.[0]
       let rec startKey l start =
@@ -109,7 +108,7 @@ let main _ =
              rollingKey <- rollingKey <<< 2 ||| int firstBlock.[start]
              startKey (l-1) (start+1)
       startKey l threeStart
-      let dict = Dictionary<_,_>()
+      let dict = Dictionary()
       let inline check a lo hi =
         for i = lo to hi do
           let nb = Array.get a i
@@ -126,8 +125,8 @@ let main _ =
           
       let lastBlock = threeBlocks.[threeBlocks.Length-1]
       check lastBlock 0 (threeEnd-1)
-
-      summary dict
+      return summary dict
+    }
 
   let writeFrequencies fragmentLength (freq:Dictionary<_,_>) =
     let percent = 100.0 / (Seq.sumBy (!) freq.Values |> float)
@@ -149,7 +148,7 @@ let main _ =
     let b,v = dict.TryGetValue key
     String.Concat((if b then string !v else "0"), "\t", fragment)
 
-  let inline countEnding l mask b =
+  let countEnding l mask b =
     let mutable rollingKey = 0L
     let firstBlock = threeBlocks.[0]
     let rec startKey l start =
@@ -157,17 +156,17 @@ let main _ =
              rollingKey <- rollingKey <<< 2 ||| int64 firstBlock.[start]
              startKey (l-1) (start+1)
     startKey l threeStart
-    let dict = Dictionary<_,_>()
+    let dict = Dictionary()
     let inline check a lo hi =
         for i = lo to hi do
           let nb = Array.get a i
-          if nb<>255uy then
+          if nb=b then
             rollingKey <- rollingKey &&& mask <<< 2 ||| int64 nb
-            if int rollingKey &&& 15 |> int = b then
-              let intKey = rollingKey >>> 4 |> uint32
-              match dict.TryGetValue intKey with
-              | true, v -> incr v
-              | false, _ -> dict.[intKey] <- ref 1
+            match dict.TryGetValue rollingKey with
+            | true, v -> incr v
+            | false, _ -> dict.[rollingKey] <- ref 1
+          elif nb<>255uy then
+            rollingKey <- rollingKey &&& mask <<< 2 ||| int64 nb
 
     check firstBlock (threeStart+l) (BLOCK_SIZE-1)
 
@@ -179,37 +178,35 @@ let main _ =
 
     dict
 
-  let count64 l mask (summary:_->string) =
-    Task.Factory.ContinueWhenAll(
-      Array.init 16 (fun i -> Task.Run(fun () -> countEnding l mask i))
-      ,(fun dicts ->
-          let d = Dictionary<_,_>(dicts |> Seq.sumBy (fun i -> i.Result.Count))
-          dicts |> Array.iteri (fun i di ->
-            di.Result |> Seq.iter (fun kv ->
-              d.[int64 kv.Key <<< 4 ||| int64 i] <- !kv.Value
-            )
-          )
-          summary d
-       ))
+  let count64 l mask (summary:_->string) = async {
+      let! dicts =
+        Seq.init 4 (fun i -> async { return byte i |> countEnding l mask })
+        |> Async.Parallel
+      let d = Dictionary(dicts |> Array.sumBy (fun i -> i.Count))
+      dicts |> Array.iter (fun di ->
+        di |> Seq.iter (fun kv -> d.[kv.Key] <- !kv.Value)
+      )
+      return summary d
+    }
 
   let writeCount64 (fragment:string) (dict:Dictionary<_,_>) =
     let mutable key = 0L
     for i = 0 to fragment.Length-1 do
         key <- key <<< 2 ||| int64 toNum.[int fragment.[i]]
     let b,v = dict.TryGetValue key
-    String.Concat((if b then string v else "0"), "\t", fragment)
+    String.Concat((if b then string v else "?"), "\t", fragment)
 
-  let task18 = count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
-
-  Array.Parallel.map (fun f -> f()) [|
-    fun () -> count 12 0x7FFFFF (writeCount "GGTATTTTAATT")
-    fun () -> count 6 0x3FF (writeCount "GGTATT")
-    fun () -> count 4 0x3F (writeCount "GGTA")
-    fun () -> count 3 0xF (writeCount "GGT")
-    fun () -> count 2 0x3 (writeFrequencies 2)
-    fun () -> count 1 0 (writeFrequencies 1)
-  |] |> Array.rev |> Array.iter stdout.WriteLine
-
-  task18.Result |> stdout.WriteLine
+  Async.Parallel [
+    count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
+    count 12 0x7FFFFF (writeCount "GGTATTTTAATT")
+    count 6 0x3FF (writeCount "GGTATT")
+    count 4 0x3F (writeCount "GGTA")
+    count 3 0xF (writeCount "GGT")
+    count 2 0x3 (writeFrequencies 2)
+    count 1 0 (writeFrequencies 1)
+  ]
+  |> Async.RunSynchronously
+  |> Array.rev
+  |> Array.iter stdout.WriteLine
 
   0
