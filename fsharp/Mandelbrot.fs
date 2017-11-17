@@ -17,7 +17,7 @@ open Microsoft.FSharp.NativeInterop
 //[<EntryPoint>]
 let main (args:string[]) =
     let inline padd p i = IntPtr.Add(p,8*i)
-    let inline ptrGet p i : Vector<float> = Unsafe.Read((padd p i).ToPointer())
+    let inline ptrGet p i = Unsafe.Read((padd p i).ToPointer())
     let inline ptrSet p i v = Unsafe.Write((padd p i).ToPointer(), v)
     let inline getByte (ciby:float) pcrbi =
         let rec calc i res =
@@ -25,15 +25,19 @@ let main (args:string[]) =
             else
                 let vCrbx = ptrGet pcrbi i
                 let vCiby = Vector ciby
-                let rec calc2 j zr zi b =
+                let mutable zr = vCrbx
+                let mutable zi = vCiby
+                let mutable j = 49
+                let mutable b = 0
+                while b<>3 && j>0 do
+                    j <- j-1
                     let nZr = zr * zr - zi * zi + vCrbx
-                    let nZi = let zrzi = zr * zi in zrzi + zrzi + vCiby
-                    let t = nZr * nZr + nZi * nZi
-                    let b = b ||| if t.[0]>4.0 then 2 else 0
-                              ||| if t.[1]>4.0 then 1 else 0
-                    if b=3 || j=0 then b
-                    else calc2 (j-1) nZr nZi b
-                calc (i+2) ((res <<< 2) + calc2 48 vCrbx vCiby 0)
+                    zi <- let zrzi = zr * zi in zrzi + zrzi + vCiby
+                    zr <- nZr
+                    let t = nZr * nZr + zi * zi
+                    b <- b ||| if t.[0]>4.0 then 2 else 0
+                           ||| if t.[1]>4.0 then 1 else 0
+                calc (i+2) ((res <<< 2) + b)
         calc 0 0 ^^^ -1 |> byte
     let size = if args.Length=0 then 200 else int args.[0]
     let lineLength = size >>> 3
