@@ -14,31 +14,27 @@ open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 
-let inline padd (p:nativeint) (i:int) = IntPtr.Add(p, 8*i)
-
-let inline ptrGet (p:nativeint) i : Vector<float> =
-    Unsafe.Read((padd p i).ToPointer())
-let inline ptrSet (p:nativeint) i (v:Vector<float>) =
-    Unsafe.Write((padd p i).ToPointer(), v)
-
-let inline getByte (pcrbi:nativeint) (ciby:float) =
-    let rec calc i res =
-        if i=8 then res
-        else
-            let vCrbx = ptrGet pcrbi i
-            let vCiby = Vector ciby
-            let rec calc2 j zr zi b =
-                let nZr = zr * zr - zi * zi + vCrbx
-                let nZi = let zrzi = zr * zi in zrzi + zrzi + vCiby
-                let t = nZr * nZr + nZi * nZi
-                let b = b ||| (if t.[0]>4.0 then 2 else 0) ||| if t.[1]>4.0 then 1 else 0
-                if b=3 || j=0 then b
-                else calc2 (j-1) nZr nZi b
-            calc (i+2) ((res<<<2) + calc2 48 vCrbx vCiby 0)
-    calc 0 0 ^^^ -1 |> byte
-
 [<EntryPoint>]
 let main args =
+    let inline padd p i = IntPtr.Add(p,8*i)
+    let inline ptrGet p i : Vector<float> = Unsafe.Read((padd p i).ToPointer())
+    let inline ptrSet p i (v:Vector<float>) = Unsafe.Write((padd p i).ToPointer(), v)
+    let inline getByte (ciby:float) pcrbi =
+        let rec calc i res =
+            if i=8 then res
+            else
+                let vCrbx = ptrGet pcrbi i
+                let vCiby = Vector ciby
+                let rec calc2 j zr zi b =
+                    let nZr = zr * zr - zi * zi + vCrbx
+                    let nZi = let zrzi = zr * zi in zrzi + zrzi + vCiby
+                    let t = nZr * nZr + nZi * nZi
+                    let b = b ||| if t.[0]>4.0 then 2 else 0
+                              ||| if t.[1]>4.0 then 1 else 0
+                    if b=3 || j=0 then b
+                    else calc2 (j-1) nZr nZi b
+                calc (i+2) ((res<<<2) + calc2 48 vCrbx vCiby 0)
+        calc 0 0 ^^^ -1 |> byte
     let size = if args.Length=0 then 200 else int args.[0]
     let lineLength = size >>> 3
     let s = "P4\n"+string size+" "+string size+"\n"
@@ -58,7 +54,7 @@ let main args =
     Parallel.For(0, size, fun y ->
         let ciby = crb.[y]+0.5
         for x = 0 to lineLength-1 do
-            data.[y*lineLength+x] <- getByte (padd pcrbi (x*8)) ciby
+            data.[y*lineLength+x] <- x*8 |> padd pcrbi |> getByte ciby
     ) |> ignore
     //Console.OpenStandardOutput().Write(data, 0, data.Length)
     0

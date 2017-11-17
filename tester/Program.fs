@@ -32,7 +32,8 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 let main argv =
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
     //Mandelbrot.main [||] |> ignore
-    Mandelbrot.main [|"16000"|] |> ignore
+    //Mandelbrot.main [|"16000"|] |> ignore
+    MandelBrot.Main [|"16000"|] |> ignore
     //KNucleotide.main [||] |> ignore
     //KNucleotideCS.Main [||] |> ignore
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
