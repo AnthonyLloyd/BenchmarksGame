@@ -14,11 +14,11 @@ open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 
-[<EntryPoint>]
-let main args =
+//[<EntryPoint>]
+let main (args:string[]) =
     let inline padd p i = IntPtr.Add(p,8*i)
     let inline ptrGet p i : Vector<float> = Unsafe.Read((padd p i).ToPointer())
-    let inline ptrSet p i (v:Vector<float>) = Unsafe.Write((padd p i).ToPointer(), v)
+    let inline ptrSet p i v = Unsafe.Write((padd p i).ToPointer(), v)
     let inline getByte (ciby:float) pcrbi =
         let rec calc i res =
             if i=8 then res
@@ -33,7 +33,7 @@ let main args =
                               ||| if t.[1]>4.0 then 1 else 0
                     if b=3 || j=0 then b
                     else calc2 (j-1) nZr nZi b
-                calc (i+2) ((res<<<2) + calc2 48 vCrbx vCiby 0)
+                calc (i+2) ((res <<< 2) + calc2 48 vCrbx vCiby 0)
         calc 0 0 ^^^ -1 |> byte
     let size = if args.Length=0 then 200 else int args.[0]
     let lineLength = size >>> 3
@@ -41,6 +41,7 @@ let main args =
     let data = Array.zeroCreate (size*lineLength+s.Length)
     Text.ASCIIEncoding.ASCII.GetBytes(s, 0, s.Length, data, 0) |> ignore
     let crb = Array.zeroCreate (size+2)
+    use pdata = fixed &data.[s.Length]
     use pcrb = fixed &crb.[0]
     let pcrbi = NativePtr.toNativeInt pcrb
     let invN = Vector (2.0/float size)
@@ -52,9 +53,11 @@ let main args =
             loop (i+2) (value+step)
     Vector [|0.0;1.0;0.0;0.0;0.0;0.0;0.0;0.0|] |> loop 0
     Parallel.For(0, size, fun y ->
-        let ciby = crb.[y]+0.5
+        let ciby = NativePtr.get pcrb y+0.5
         for x = 0 to lineLength-1 do
-            data.[y*lineLength+x] <- x*8 |> padd pcrbi |> getByte ciby
+            x*8 |> padd pcrbi |> getByte ciby
+            |> NativePtr.set pdata (y*lineLength+x)
     ) |> ignore
+    data
     //Console.OpenStandardOutput().Write(data, 0, data.Length)
-    0
+    //exit 0
