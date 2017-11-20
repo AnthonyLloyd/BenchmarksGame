@@ -10,7 +10,7 @@ using System;
 using System.Threading;
 using System.Runtime.CompilerServices;
 
-public static class FannkuchReduxOld
+public static class FannkuchRedux
 {
     static int[] fact, chkSums, maxFlips;
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
