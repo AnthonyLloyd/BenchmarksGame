@@ -1,10 +1,13 @@
 // The Computer Language Benchmarks Game
 // http://benchmarksgame.alioth.debian.org/
 //
-// ported from C# version by Anthony Lloyd
+// ported from C# version adding native by Anthony Lloyd
+
+#nowarn "9"
 
 open System
 open System.Threading
+open Microsoft.FSharp.NativeInterop
 
 [<EntryPoint>]
 let main args =
@@ -17,51 +20,55 @@ let main args =
         Array.set fact i factn
 
     let inline firstPermutation p pp count idx =
-        for i = 0 to n-1 do Array.set p i i
+        for i = 0 to n-1 do NativePtr.set p i i
         let rec loop i idx =
             if i>0 then
                 let d = idx/Array.get fact i
-                Array.set count i d
+                NativePtr.set count i d
                 loop (i-1) <|
                     if d=0 then idx
                     else
-                        for j = 0 to i do Array.set pp j p.[j]
-                        for j = 0 to i do Array.set p j pp.[(j+d) % (i+1)]
+                        for j = 0 to i do
+                            NativePtr.get p j
+                            |> NativePtr.set pp j
+                        for j = 0 to i do
+                            NativePtr.get pp ((j+d) % (i+1))
+                            |> NativePtr.set p j
                         idx % fact.[i]
         loop (n-1) idx
 
     let inline nextPermutation p count =
-        let mutable first = Array.get p 1
-        p.[1] <- p.[0]
-        p.[0] <- first
+        let mutable first = NativePtr.get p 1
+        NativePtr.get p 0 |> NativePtr.set p 1
+        NativePtr.set p 0 first
         let mutable i = 1
-        while let c = Array.get count i+1 in count.[i] <- c; c > i do
-            count.[i] <- 0
+        while let c =NativePtr.get count i+1 in NativePtr.set count i c; c>i do
+            NativePtr.set count i 0
             i <- i+1
-            let next = p.[1]
-            p.[0] <- next
-            for j = 1 to i-1 do p.[j] <- p.[j+1]
-            p.[i] <- first
+            let next = NativePtr.get p 1
+            NativePtr.set p 0 next
+            for j = 1 to i-1 do NativePtr.get p (j+1) |> NativePtr.set p j
+            NativePtr.set p i first
             first <- next
         first
 
     let inline countFlips first p pp =
         if first=0 then 0
-        elif Array.get p first=0 then 1
+        elif NativePtr.get p first=0 then 1
         else
-            for i = 0 to Array.length pp-1 do pp.[i] <- p.[i]
+            for i = 0 to n-1 do NativePtr.get p i |> NativePtr.set pp i
             let rec loop flips first =
                 let rec swap lo hi =
                     if lo<hi then
-                        let t = pp.[lo]
-                        pp.[lo] <- pp.[hi]
-                        pp.[hi] <- t
+                        let t = NativePtr.get pp lo
+                        NativePtr.get pp hi |> NativePtr.set pp lo
+                        NativePtr.set pp hi t
                         swap (lo+1) (hi-1)
                 swap 1 (first-1)
-                let tp = pp.[first]
-                if pp.[tp]=0 then flips
+                let tp = NativePtr.get pp first
+                if NativePtr.get pp tp=0 then flips
                 else
-                    pp.[first] <- first
+                    NativePtr.set pp first first
                     loop (flips+1) tp
             loop 2 first
 
@@ -69,16 +76,16 @@ let main args =
     let maxFlips = Array.zeroCreate Environment.ProcessorCount
 
     let run n taskId taskSize =
-        let p = Array.zeroCreate n
-        let pp = Array.zeroCreate n
-        let count = Array.zeroCreate n
+        use p = fixed &(Array.zeroCreate n).[0]
+        use pp = fixed &(Array.zeroCreate n).[0]
+        use count = fixed &(Array.zeroCreate n).[0]
         firstPermutation p pp count (taskId*taskSize)
         let rec loop i chksum maxflips =
             if i=0 then chksum, maxflips
             else
                 let flips = countFlips (nextPermutation p count) p pp
                 loop (i-1) (chksum + (1-(i%2)*2) * flips) (max flips maxflips)
-        let flips = countFlips p.[0] p pp
+        let flips = countFlips (NativePtr.get p 0) p pp
         let chksum, maxflips = loop (taskSize-1) flips flips
         chkSums.[taskId] <- chksum
         maxFlips.[taskId] <- maxflips
@@ -98,5 +105,8 @@ let main args =
             threads.[i].Join()
             loop (i+1) (chksum+chkSums.[i]) (max maxflips maxFlips.[i])
     let chksum, maxflips = loop 1 chkSums.[0] maxFlips.[0]
-    stdout.WriteLine (string chksum+"\nPfannkuchen("+string n+") = "+string maxflips)
-    0
+
+    string chksum+"\nPfannkuchen("+string n+") = "+string maxflips
+    |> stdout.WriteLine
+
+    exit 0

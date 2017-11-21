@@ -32,11 +32,14 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 let main argv =
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
     
-    //FannkuchRedux.Main [|"12"|] |> ignore
+    
     FannkuchRedux.main [|"12"|] |> ignore
+    
     
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
+
+    FannkuchRedux.Main [|"12"|] |> ignore
 
     // FannkuchRedux.Main [|"12"|] |> ignore
 
