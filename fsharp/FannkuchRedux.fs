@@ -4,7 +4,7 @@
 // ported from C# version by Anthony Lloyd
 
 open System
-open System.Threading.Tasks
+open System.Threading
 
 [<EntryPoint>]
 let main args =
@@ -12,34 +12,30 @@ let main args =
     let fact = Array.zeroCreate (n+1)
     fact.[0] <- 1
     let mutable factn = 1
-    for i = 1 to fact.Length-1 do
+    for i = 1 to n do
         factn <- factn * i
-        fact.[i] <- factn
-
-    let chkSums = Array.zeroCreate Environment.ProcessorCount
-    let maxFlips = Array.zeroCreate Environment.ProcessorCount
+        Array.set fact i factn
 
     let inline firstPermutation p pp count idx =
-        for i = 0 to Array.length p-1 do Array.set p i i
+        for i = 0 to n-1 do Array.set p i i
         let rec loop i idx =
             if i>0 then
                 let d = idx/Array.get fact i
                 Array.set count i d
-                let idx =
-                    if d<=0 then idx //d=0
+                loop (i-1) <|
+                    if d=0 then idx
                     else
                         for j = 0 to i do Array.set pp j p.[j]
                         for j = 0 to i do Array.set p j pp.[(j+d) % (i+1)]
                         idx % fact.[i]
-                loop (i-1) idx
-        loop (count.Length-1) idx
+        loop (n-1) idx
 
-    let inline nextPermutation p (count:int[]) =
+    let inline nextPermutation p count =
         let mutable first = Array.get p 1
         p.[1] <- p.[0]
         p.[0] <- first
         let mutable i = 1
-        while let c = count.[i]+1 in count.[i] <- c; c > i do
+        while let c = Array.get count i+1 in count.[i] <- c; c > i do
             count.[i] <- 0
             i <- i+1
             let next = p.[1]
@@ -69,6 +65,9 @@ let main args =
                     loop (flips+1) tp
             loop 2 first
 
+    let chkSums = Array.zeroCreate Environment.ProcessorCount
+    let maxFlips = Array.zeroCreate Environment.ProcessorCount
+
     let run n taskId taskSize =
         let p = Array.zeroCreate n
         let pp = Array.zeroCreate n
@@ -88,13 +87,15 @@ let main args =
     let threads = Array.zeroCreate Environment.ProcessorCount
 
     for i = 1 to Environment.ProcessorCount-1 do
-        threads.[i] <- Task.Run(fun () -> run n i taskSize)
+        let thread = Thread(fun () -> run n i taskSize)
+        thread.Start()
+        threads.[i] <- thread
     run n 0 taskSize
 
     let rec loop i chksum maxflips =
         if i=threads.Length then chksum, maxflips
         else
-            threads.[i].Wait()
+            threads.[i].Join()
             loop (i+1) (chksum+chkSums.[i]) (max maxflips maxFlips.[i])
     let chksum, maxflips = loop 1 chkSums.[0] maxFlips.[0]
     stdout.WriteLine (string chksum+"\nPfannkuchen("+string n+") = "+string maxflips)
