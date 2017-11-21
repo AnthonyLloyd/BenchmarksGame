@@ -21,18 +21,18 @@ let main args =
 
     let inline firstPermutation p pp count idx =
         for i = 0 to Array.length p-1 do Array.set p i i
-        let rec loopDown i idx =
+        let rec loop i idx =
             if i>0 then
                 let d = idx/Array.get fact i
                 Array.set count i d
                 let idx =
-                    if d=0 then idx
+                    if d<=0 then idx //d=0
                     else
                         for j = 0 to i do Array.set pp j p.[j]
                         for j = 0 to i do Array.set p j pp.[(j+d) % (i+1)]
                         idx % fact.[i]
-                loopDown (i-1) idx
-        loopDown (count.Length-1) idx
+                loop (i-1) idx
+        loop (count.Length-1) idx
 
     let inline nextPermutation p (count:int[]) =
         let mutable first = Array.get p 1
@@ -40,8 +40,8 @@ let main args =
         p.[0] <- first
         let mutable i = 1
         while let c = count.[i]+1 in count.[i] <- c; c > i do
-            i <- i+1
             count.[i] <- 0
+            i <- i+1
             let next = p.[1]
             p.[0] <- next
             for j = 1 to i-1 do p.[j] <- p.[j+1]
@@ -50,7 +50,8 @@ let main args =
         first
 
     let inline countFlips first p pp =
-        if first=0 || Array.get p first=0 then 0
+        if first=0 then 0
+        elif Array.get p first=0 then 1
         else
             for i = 0 to Array.length pp-1 do pp.[i] <- p.[i]
             let rec loop flips first =
@@ -59,6 +60,7 @@ let main args =
                         let t = pp.[lo]
                         pp.[lo] <- pp.[hi]
                         pp.[hi] <- t
+                        swap (lo+1) (hi-1)
                 swap 1 (first-1)
                 let tp = pp.[first]
                 if pp.[tp]=0 then flips
@@ -93,7 +95,7 @@ let main args =
         if i=threads.Length then chksum, maxflips
         else
             threads.[i].Wait()
-            loop (i-1) (chksum+chkSums.[i]) (max maxflips maxFlips.[i])
+            loop (i+1) (chksum+chkSums.[i]) (max maxflips maxFlips.[i])
     let chksum, maxflips = loop 1 chkSums.[0] maxFlips.[0]
     stdout.WriteLine (string chksum+"\nPfannkuchen("+string n+") = "+string maxflips)
     0

@@ -32,21 +32,19 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 let main argv =
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
     
-    
-    let fsData = Mandelbrot.main [|"16000"|]
-    
-    
+    //FannkuchRedux.Main [|"12"|] |> ignore
+    FannkuchRedux.main [|"12"|] |> ignore
     
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
 
-    let csData = MandelBrot.Main [|"16000"|]
+    // FannkuchRedux.Main [|"12"|] |> ignore
 
     
-    Seq.mapi2 (fun i f c -> i,f,c) fsData csData
-    |> Seq.where (fun (_,f,c) -> f<>c)
-    |> Seq.truncate 30
-    |> Seq.iter (fun (i,f,c) -> printfn "%i\t%A\t%A" i f c)
+    // Seq.mapi2 (fun i f c -> i,f,c) fsData csData
+    // |> Seq.where (fun (_,f,c) -> f<>c)
+    // |> Seq.truncate 30
+    // |> Seq.iter (fun (i,f,c) -> printfn "%i\t%A\t%A" i f c)
 
 
 
