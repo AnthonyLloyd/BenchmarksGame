@@ -34,12 +34,12 @@ let main argv =
     
     
     FannkuchRedux.main [|"12"|] |> ignore
-    
+    //FannkuchRedux.Main [|"12"|] |> ignore
     
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
 
-    FannkuchRedux.Main [|"12"|] |> ignore
+    
 
     // FannkuchRedux.Main [|"12"|] |> ignore
 

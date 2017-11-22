@@ -21,21 +21,19 @@ let main args =
 
     let inline firstPermutation p pp count idx =
         for i = 0 to n-1 do NativePtr.set p i i
-        let rec loop i idx =
-            if i>0 then
-                let d = idx/Array.get fact i
-                NativePtr.set count i d
-                loop (i-1) <|
-                    if d=0 then idx
-                    else
-                        for j = 0 to i do
-                            NativePtr.get p j
-                            |> NativePtr.set pp j
-                        for j = 0 to i do
-                            NativePtr.get pp ((j+d) % (i+1))
-                            |> NativePtr.set p j
-                        idx % fact.[i]
-        loop (n-1) idx
+        let mutable idx = idx
+        for i = n-1 downto 1 do
+            let d = idx/Array.get fact i
+            NativePtr.set count i d
+            if d<>0 then
+                idx <-
+                    for j = 0 to i do
+                        NativePtr.get p j
+                        |> NativePtr.set pp j
+                    for j = 0 to i do
+                        NativePtr.get pp ((j+d) % (i+1))
+                        |> NativePtr.set p j
+                    idx % fact.[i]
 
     let inline nextPermutation p count =
         let mutable first = NativePtr.get p 1
@@ -80,33 +78,27 @@ let main args =
         use pp = fixed &(Array.zeroCreate n).[0]
         use count = fixed &(Array.zeroCreate n).[0]
         firstPermutation p pp count (taskId*taskSize)
-        let rec loop i chksum maxflips =
-            if i=0 then chksum, maxflips
-            else
-                let flips = countFlips (nextPermutation p count) p pp
-                loop (i-1) (chksum + (1-(i%2)*2) * flips) (max flips maxflips)
-        let flips = countFlips (NativePtr.get p 0) p pp
-        let chksum, maxflips = loop (taskSize-1) flips flips
+        let mutable chksum = countFlips (NativePtr.get p 0) p pp
+        let mutable maxflips = chksum
+        for i = 1 to taskSize-1 do
+            let flips = countFlips (nextPermutation p count) p pp
+            chksum <- chksum + (1-(i%2)*2) * flips
+            if flips>maxflips then maxflips <- flips
         chkSums.[taskId] <- chksum
         maxFlips.[taskId] <- maxflips
 
     let taskSize = factn / Environment.ProcessorCount
-    let threads = Array.zeroCreate Environment.ProcessorCount
 
-    for i = 1 to Environment.ProcessorCount-1 do
-        let thread = Thread(fun () -> run n i taskSize)
-        thread.Start()
-        threads.[i] <- thread
+    let threads =
+        Array.init (Environment.ProcessorCount-1) (fun i ->
+            let thread = Thread(fun () -> run n (i+1) taskSize)
+            thread.Start()
+            thread
+        )
     run n 0 taskSize
+    threads |> Array.iter (fun t -> t.Join())
+    
+    string (Array.sum chkSums)+"\nPfannkuchen("+string n+") = "+
+        string (Array.max maxFlips) |> stdout.WriteLine
 
-    let rec loop i chksum maxflips =
-        if i=threads.Length then chksum, maxflips
-        else
-            threads.[i].Join()
-            loop (i+1) (chksum+chkSums.[i]) (max maxflips maxFlips.[i])
-    let chksum, maxflips = loop 1 chkSums.[0] maxFlips.[0]
-
-    string chksum+"\nPfannkuchen("+string n+") = "+string maxflips
-    |> stdout.WriteLine
-
-    exit 0
+    0
