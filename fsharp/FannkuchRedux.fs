@@ -11,92 +11,93 @@ open Microsoft.FSharp.NativeInterop
 
 [<EntryPoint>]
 let main args =
-    let n = if args.Length=0 then 7 else int args.[0]
-    let fact = Array.zeroCreate (n+1)
-    fact.[0] <- 1
-    let mutable factn = 1
-    for i = 1 to n do
-        factn <- factn * i
-        Array.set fact i factn
 
-    let inline firstPermutation p pp count idx =
-        for i = 0 to n-1 do NativePtr.set p i i
-        let mutable idx = idx
-        for i = n-1 downto 1 do
-            let d = idx/Array.get fact i
-            NativePtr.set count i d
-            if d<>0 then
-                idx <-
-                    for j = 0 to i do
-                        NativePtr.get p j
-                        |> NativePtr.set pp j
-                    for j = 0 to i do
-                        NativePtr.get pp ((j+d) % (i+1))
-                        |> NativePtr.set p j
-                    idx % fact.[i]
-
-    let inline nextPermutation p count =
-        let mutable first = NativePtr.get p 1
-        NativePtr.get p 0 |> NativePtr.set p 1
-        NativePtr.set p 0 first
-        let mutable i = 1
-        while let c =NativePtr.get count i+1 in NativePtr.set count i c; c>i do
-            NativePtr.set count i 0
-            i <- i+1
-            let next = NativePtr.get p 1
-            NativePtr.set p 0 next
-            for j = 1 to i-1 do NativePtr.get p (j+1) |> NativePtr.set p j
-            NativePtr.set p i first
-            first <- next
-        first
-
-    let inline countFlips first p pp =
-        if first=0 then 0
-        elif NativePtr.get p first=0 then 1
-        else
-            for i = 0 to n-1 do NativePtr.get p i |> NativePtr.set pp i
-            let rec loop flips first =
-                let mutable lo = 1
-                let mutable hi = first-1
-                while lo<hi do
-                    let t = NativePtr.get pp lo
-                    NativePtr.get pp hi |> NativePtr.set pp lo
-                    NativePtr.set pp hi t
-                    lo <- lo+1
-                    hi <- hi-1
-                let tp = NativePtr.get pp first
-                if NativePtr.get pp tp=0 then flips
-                else
-                    NativePtr.set pp first first
-                    loop (flips+1) tp
-            loop 2 first
-
-    let chkSums = Array.zeroCreate Environment.ProcessorCount
-    let maxFlips = Array.zeroCreate Environment.ProcessorCount
-
-    let run n taskId taskSize =
+    let inline run n fact taskSize chkSums maxFlips taskId =
         use p = fixed &(Array.zeroCreate n).[0]
         use pp = fixed &(Array.zeroCreate n).[0]
         use count = fixed &(Array.zeroCreate n).[0]
-        firstPermutation p pp count (taskId*taskSize)
-        let mutable chksum = countFlips (NativePtr.get p 0) p pp
+
+        let inline firstPermutation idx =
+            for i = 0 to n-1 do NativePtr.set p i i
+            let mutable idx = idx
+            for i = n-1 downto 1 do
+                let d = idx/NativePtr.get fact i
+                NativePtr.set count i d
+                if d<>0 then
+                    idx <-
+                        for j = 0 to i do
+                            NativePtr.get p j
+                            |> NativePtr.set pp j
+                        for j = 0 to i do
+                            NativePtr.get pp ((j+d) % (i+1))
+                            |> NativePtr.set p j
+                        idx % NativePtr.get fact i
+
+        let inline nextPermutation() =
+            let mutable first = NativePtr.get p 1
+            NativePtr.get p 0 |> NativePtr.set p 1
+            NativePtr.set p 0 first
+            let mutable i = 1
+            while let c =NativePtr.get count i+1 in NativePtr.set count i c; c>i do
+                NativePtr.set count i 0
+                i <- i+1
+                let next = NativePtr.get p 1
+                NativePtr.set p 0 next
+                for j = 1 to i-1 do NativePtr.get p (j+1) |> NativePtr.set p j
+                NativePtr.set p i first
+                first <- next
+            first
+
+        let inline countFlips first =
+            if first=0 then 0
+            elif NativePtr.get p first=0 then 1
+            else
+                for i = 0 to n-1 do NativePtr.get p i |> NativePtr.set pp i
+                let rec loop flips first =
+                    let mutable lo = 1
+                    let mutable hi = first-1
+                    while lo<hi do
+                        let t = NativePtr.get pp lo
+                        NativePtr.get pp hi |> NativePtr.set pp lo
+                        NativePtr.set pp hi t
+                        lo <- lo+1
+                        hi <- hi-1
+                    let tp = NativePtr.get pp first
+                    if NativePtr.get pp tp=0 then flips
+                    else
+                        NativePtr.set pp first first
+                        loop (flips+1) tp
+                loop 2 first
+
+        firstPermutation (taskId*taskSize)
+        let mutable chksum = countFlips (NativePtr.get p 0)
         let mutable maxflips = chksum
         for i = 1 to taskSize-1 do
-            let flips = countFlips (nextPermutation p count) p pp
+            let flips = nextPermutation() |> countFlips
             chksum <- chksum + (1-(i%2)*2) * flips
             if flips>maxflips then maxflips <- flips
-        chkSums.[taskId] <- chksum
-        maxFlips.[taskId] <- maxflips
+        Array.set chkSums taskId chksum
+        Array.set maxFlips taskId maxflips
 
+    let n = if args.Length=0 then 7 else int args.[0]
+    use fact = fixed &(Array.zeroCreate (n+1)).[0]
+    NativePtr.set fact 0 1
+    let mutable factn = 1
+    for i = 1 to n do
+        factn <- factn * i
+        NativePtr.set fact i factn
+
+    let chkSums = Array.zeroCreate Environment.ProcessorCount
+    let maxFlips = Array.zeroCreate Environment.ProcessorCount
     let taskSize = factn / Environment.ProcessorCount
 
     let threads =
         Array.init (Environment.ProcessorCount-1) (fun i ->
-            let thread = Thread(fun () -> run n (i+1) taskSize)
+            let thread = Thread(fun () -> run n fact taskSize chkSums maxFlips (i+1))
             thread.Start()
             thread
         )
-    run n 0 taskSize
+    run n fact taskSize chkSums maxFlips 0
     threads |> Array.iter (fun t -> t.Join())
     
     string (Array.sum chkSums)+"\nPfannkuchen("+string n+") = "+
