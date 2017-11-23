@@ -56,13 +56,14 @@ let main args =
         else
             for i = 0 to n-1 do NativePtr.get p i |> NativePtr.set pp i
             let rec loop flips first =
-                let rec swap lo hi =
-                    if lo<hi then
-                        let t = NativePtr.get pp lo
-                        NativePtr.get pp hi |> NativePtr.set pp lo
-                        NativePtr.set pp hi t
-                        swap (lo+1) (hi-1)
-                swap 1 (first-1)
+                let mutable lo = 1
+                let mutable hi = first-1
+                while lo<hi do
+                    let t = NativePtr.get pp lo
+                    NativePtr.get pp hi |> NativePtr.set pp lo
+                    NativePtr.set pp hi t
+                    lo <- lo+1
+                    hi <- hi-1
                 let tp = NativePtr.get pp first
                 if NativePtr.get pp tp=0 then flips
                 else
