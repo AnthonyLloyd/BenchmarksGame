@@ -12,8 +12,7 @@ let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
 [<EntryPoint>]
 let main _ =
   let threeStart,threeBlocks,threeEnd =
-    use input = IO.File.OpenRead(@"C:\temp\fasta25000000.txt")
-    //let input = Console.OpenStandardInput()
+    let input = Console.OpenStandardInput()
     let mutable threeEnd = 0
     let read buffer =
         let rec read offset count =
@@ -196,17 +195,24 @@ let main _ =
     let b,v = dict.TryGetValue key
     String.Concat((if b then string v else "?"), "\t", fragment)
 
-  Async.Parallel [
-    count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
-    count 12 0x7FFFFF (writeCount "GGTATTTTAATT")
-    count 6 0x3FF (writeCount "GGTATT")
-    count 4 0x3F (writeCount "GGTA")
-    count 3 0xF (writeCount "GGT")
-    count 2 0x3 (writeFrequencies 2)
-    count 1 0 (writeFrequencies 1)
-  ]
-  |> Async.RunSynchronously
-  |> Array.rev
-  |> Array.iter stdout.WriteLine
+  let results =
+    Async.Parallel [
+      count 12 0x7FFFFF (writeCount "GGTATTTTAATT")
+      count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
+      count 6 0x3FF (writeCount "GGTATT")
+      count 4 0x3F (writeCount "GGTA")
+      count 3 0xF (writeCount "GGT")
+      count 2 0x3 (writeFrequencies 2)
+      count 1 0 (writeFrequencies 1)
+    ]
+    |> Async.RunSynchronously
+  
+  stdout.WriteLine results.[6]
+  stdout.WriteLine results.[5]
+  stdout.WriteLine results.[4]
+  stdout.WriteLine results.[3]
+  stdout.WriteLine results.[2]
+  stdout.WriteLine results.[0]
+  stdout.WriteLine results.[1]
 
-  0
+  exit 0
