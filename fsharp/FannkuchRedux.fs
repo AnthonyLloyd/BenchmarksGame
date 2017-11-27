@@ -5,14 +5,12 @@
 
 #nowarn "9"
 
-open System
-open System.Threading
 open Microsoft.FSharp.NativeInterop
 
 [<EntryPoint>]
 let main args =
 
-    let inline run n fact taskSize chkSums maxFlips taskId =
+    let inline run n fact taskSize taskId =
         use p = fixed &(Array.zeroCreate n).[0]
         use pp = fixed &(Array.zeroCreate n).[0]
         use count = fixed &(Array.zeroCreate n).[0]
@@ -38,7 +36,7 @@ let main args =
             NativePtr.get p 0 |> NativePtr.set p 1
             NativePtr.set p 0 first
             let mutable i = 1
-            while let c =NativePtr.get count i+1 in NativePtr.set count i c; c>i do
+            while let c=NativePtr.get count i+1 in NativePtr.set count i c;c>i do
                 NativePtr.set count i 0
                 i <- i+1
                 let next = NativePtr.get p 1
@@ -76,8 +74,7 @@ let main args =
             let flips = nextPermutation() |> countFlips
             chksum <- chksum + (1-(i%2)*2) * flips
             if flips>maxflips then maxflips <- flips
-        Array.set chkSums taskId chksum
-        Array.set maxFlips taskId maxflips
+        chksum, maxflips
 
     let n = if args.Length=0 then 7 else int args.[0]
     use fact = fixed &(Array.zeroCreate (n+1)).[0]
@@ -87,20 +84,15 @@ let main args =
         factn <- factn * i
         NativePtr.set fact i factn
 
-    let chkSums = Array.zeroCreate Environment.ProcessorCount
-    let maxFlips = Array.zeroCreate Environment.ProcessorCount
-    let taskSize = factn / Environment.ProcessorCount
+    let chksum, maxFlips =
+        let taskSize = factn / System.Environment.ProcessorCount
+        Array.init System.Environment.ProcessorCount
+            (fun i -> async { return run n fact taskSize i})
+        |> Async.Parallel
+        |> Async.RunSynchronously
+        |> Array.reduce (fun (c1,f1) (c2,f2) -> c1+c2,max f1 f2) 
+           
+    string chksum+"\nPfannkuchen("+string n+") = "+string maxFlips
+    |> stdout.WriteLine
 
-    let threads =
-        Array.init (Environment.ProcessorCount-1) (fun i ->
-            let thread = Thread(fun () -> run n fact taskSize chkSums maxFlips (i+1))
-            thread.Start()
-            thread
-        )
-    run n fact taskSize chkSums maxFlips 0
-    threads |> Array.iter (fun t -> t.Join())
-    
-    string (Array.sum chkSums)+"\nPfannkuchen("+string n+") = "+
-        string (Array.max maxFlips) |> stdout.WriteLine
-
-    0
+    exit 0
