@@ -32,8 +32,10 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 let main argv =
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
     
-    //KNucleotide.main [||] |> ignore
-    FannkuchRedux.main [|"12"|] |> ignore
+    //pidigitsAlt.Main([|"10000"|])
+    //11722.9672429485
+    KNucleotide.main [||] |> ignore
+    //FannkuchRedux.main [|"12"|] |> ignore
     //FannkuchRedux.Main [|"12"|] |> ignore
     
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()

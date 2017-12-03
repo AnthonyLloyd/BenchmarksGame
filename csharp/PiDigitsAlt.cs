@@ -10,7 +10,7 @@ using System;
 using System.Text;
 using System.Runtime.InteropServices;
 
-public class pidigits {
+public class pidigitsAlt {
 
    GmpInteger q = new GmpInteger(), r = new GmpInteger(), s = new GmpInteger(), t = new GmpInteger();
    GmpInteger u = new GmpInteger(), v = new GmpInteger(), w = new GmpInteger();
@@ -19,7 +19,7 @@ public class pidigits {
    StringBuilder strBuf = new StringBuilder (40);
    int n;
 
-   pidigits (int n)
+   public pidigitsAlt (int n)
    {
       this.n=n;
    }
@@ -79,7 +79,7 @@ public class pidigits {
    }
 
    /* Generate successive digits of PI. */
-   void Run()
+   public void Run()
    {
      int k = 1;
      i = 0;
@@ -100,7 +100,7 @@ public class pidigits {
    }
 
    public static void Main(String[] args) {
-       pidigits m = new pidigits(Int32.Parse (args[0]));
+       pidigitsAlt m = new pidigitsAlt(Int32.Parse (args[0]));
        m.Run();
    }
 }

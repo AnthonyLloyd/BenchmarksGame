@@ -3,8 +3,20 @@
 //
 // ported from C# version by Anthony Lloyd
 
+#nowarn "9"
+
 open System
 open System.Collections.Generic
+open Microsoft.FSharp.NativeInterop
+
+type Counter =
+  {
+    mutable X0 : int16; mutable X1 : int16; mutable X2 : int16; mutable X3 : int16
+    mutable X4 : int16; mutable X5 : int16; mutable X6 : int16; mutable X7 : int16
+    mutable X8 : int16; mutable X9 : int16; mutable X10 : int16; mutable X11 : int16
+    mutable X12 : int16; mutable X13 : int16; mutable X14 : int16; mutable X15 : int16
+  }
+  member c.Inc i = match i with |0->c.X0<-c.X0+1s
 
 [<Literal>]
 let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
@@ -12,7 +24,7 @@ let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
 [<EntryPoint>]
 let main _ =
   let threeStart,threeBlocks,threeEnd =
-    let input = Console.OpenStandardInput()
+    use input = IO.File.OpenRead(@"C:\temp\fasta25000000.txt")
     let mutable threeEnd = 0
     let read buffer =
         let rec read offset count =
@@ -147,58 +159,54 @@ let main _ =
     let b,v = dict.TryGetValue key
     String.Concat((if b then string !v else "0"), "\t", fragment)
 
-  let countEnding l mask b =
-    let mutable rollingKey = 0L
-    let firstBlock = threeBlocks.[0]
-    let rec startKey l start =
-          if l>0 then
-             rollingKey <- rollingKey <<< 2 ||| int64 firstBlock.[start]
-             startKey (l-1) (start+1)
-    startKey l threeStart
-    let dict = Dictionary()
-    let inline check a lo hi =
-        for i = lo to hi do
-          let nb = Array.get a i
-          if nb=b then
-            rollingKey <- rollingKey &&& mask <<< 2 ||| int64 nb
-            match dict.TryGetValue rollingKey with
-            | true, v -> incr v
-            | false, _ -> dict.[rollingKey] <- ref 1
-          elif nb<>255uy then
-            rollingKey <- rollingKey &&& mask <<< 2 ||| int64 nb
-
-    check firstBlock (threeStart+l) (BLOCK_SIZE-1)
-
-    for i = 1 to threeBlocks.Length-2 do
-        check threeBlocks.[i] 0 (BLOCK_SIZE-1)
-
-    let lastBlock = threeBlocks.[threeBlocks.Length-1]
-    check lastBlock 0 (threeEnd-1)
-
-    dict
-
   let count64 l mask (summary:_->string) = async {
-      let! dicts =
-        Seq.init 4 (fun i -> async { return byte i |> countEnding l mask })
-        |> Async.Parallel
-      let d = Dictionary(dicts |> Array.sumBy (fun i -> i.Count))
-      dicts |> Array.iter (fun di ->
-        di |> Seq.iter (fun kv -> d.[kv.Key] <- !kv.Value)
-      )
-      return summary d
-    }
+      let mutable rollingKey = 0L
+      let firstBlock = threeBlocks.[0]
+      let rec startKey l start =
+            if l>0 then
+               rollingKey <- rollingKey <<< 2 ||| int64 firstBlock.[start]
+               startKey (l-1) (start+1)
+      startKey l threeStart
+      let dict = Dictionary()
+      let inline check a lo hi =
+          for i = lo to hi do
+            let nb = Array.get a i
+            if nb<>255uy then
+              rollingKey <- rollingKey &&& mask <<< 2 ||| int64 nb
+              let k = uint32(rollingKey>>>4)
+              let i = int rollingKey &&& 15
+              match dict.TryGetValue k with
+              | true, a ->
+                Array.get a i + 1 |> Array.set a i
+              | false, _ ->
+                let a = Array.zeroCreate 16
+                Array.set a i 1 
+                dict.[k] <- a
+            
+      check firstBlock (threeStart+l) (BLOCK_SIZE-1)
 
-  let writeCount64 (fragment:string) (dict:Dictionary<_,_>) =
+      for i = 1 to threeBlocks.Length-2 do
+          check threeBlocks.[i] 0 (BLOCK_SIZE-1)
+
+      let lastBlock = threeBlocks.[threeBlocks.Length-1]
+      check lastBlock 0 (threeEnd-1)
+
+      return summary dict
+   }
+
+  let writeCount64 (fragment:string) (dict:Dictionary<_,int[]>) =
     let mutable key = 0L
-    for i = 0 to fragment.Length-1 do
+    for i = 0 to fragment.Length-3 do
         key <- key <<< 2 ||| int64 toNum.[int fragment.[i]]
-    let b,v = dict.TryGetValue key
-    String.Concat((if b then string v else "?"), "\t", fragment)
+    let i = int64 toNum.[int fragment.[fragment.Length-2]] <<< 2
+        ||| int64 toNum.[int fragment.[fragment.Length-1]]
+    let b,v = dict.TryGetValue(uint32 key)
+    String.Concat((if b then string(v.[int i]) else "0"), "\t", fragment)
 
   let results =
     Async.Parallel [
-      count 12 0x7FFFFF (writeCount "GGTATTTTAATT")
       count64 18 0x7FFFFFFFFL (writeCount64 "GGTATTTTAATTTATAGT")
+      count 12 0x7FFFFF (writeCount "GGTATTTTAATT")
       count 6 0x3FF (writeCount "GGTATT")
       count 4 0x3F (writeCount "GGTA")
       count 3 0xF (writeCount "GGT")
@@ -212,7 +220,7 @@ let main _ =
   stdout.WriteLine results.[4]
   stdout.WriteLine results.[3]
   stdout.WriteLine results.[2]
-  stdout.WriteLine results.[0]
   stdout.WriteLine results.[1]
+  stdout.WriteLine results.[0]
 
-  exit 0
+  0
