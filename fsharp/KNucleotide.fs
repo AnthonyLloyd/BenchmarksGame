@@ -3,11 +3,8 @@
 //
 // ported from C# version by Anthony Lloyd
 
-#nowarn "9"
-
 open System
 open System.Collections.Generic
-open Microsoft.FSharp.NativeInterop
 
 type Counter =
   {
@@ -16,7 +13,21 @@ type Counter =
     mutable X8 : int16; mutable X9 : int16; mutable X10 : int16; mutable X11 : int16
     mutable X12 : int16; mutable X13 : int16; mutable X14 : int16; mutable X15 : int16
   }
-  member c.Inc i = match i with |0->c.X0<-c.X0+1s
+  static member Create i =
+    let c = {X0=0s;X1=0s;X2=0s;X3=0s;X4=0s;X5=0s;X6=0s;X7=0s;X8=0s;X9=0s;X10=0s;X11=0s;X12=0s;X13=0s;X14=0s;X15=0s}
+    c.Inc i
+    c
+  member c.Inc i = match i with |0->c.X0<-c.X0+1s|1->c.X1<-c.X1+1s|2->c.X2<-c.X2+1s|3->c.X3<-c.X3+1s
+                                |4->c.X4<-c.X4+1s|5->c.X5<-c.X5+1s|6->c.X6<-c.X6+1s|7->c.X7<-c.X7+1s
+                                |8->c.X8<-c.X8+1s|9->c.X9<-c.X9+1s|10->c.X10<-c.X10+1s|11->c.X11<-c.X11+1s
+                                |12->c.X12<-c.X12+1s|13->c.X13<-c.X13+1s|14->c.X14<-c.X14+1s|15->c.X15<-c.X15+1s
+                                |_ ->()
+  member c.Get i = match i with |0->c.X0|1->c.X1|2->c.X2|3->c.X3
+                                |4->c.X4|5->c.X5|6->c.X6|7->c.X7
+                                |8->c.X8|9->c.X9|10->c.X10|11->c.X11
+                                |12->c.X12|13->c.X13|14->c.X14|15->c.X15
+                                |_ ->0s
+
 
 [<Literal>]
 let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
@@ -176,12 +187,8 @@ let main _ =
               let k = uint32(rollingKey>>>4)
               let i = int rollingKey &&& 15
               match dict.TryGetValue k with
-              | true, a ->
-                Array.get a i + 1 |> Array.set a i
-              | false, _ ->
-                let a = Array.zeroCreate 16
-                Array.set a i 1 
-                dict.[k] <- a
+              | true, a -> (a:Counter).Inc i
+              | false, _ -> dict.[k] <- Counter.Create i
             
       check firstBlock (threeStart+l) (BLOCK_SIZE-1)
 
@@ -194,14 +201,14 @@ let main _ =
       return summary dict
    }
 
-  let writeCount64 (fragment:string) (dict:Dictionary<_,int[]>) =
+  let writeCount64 (fragment:string) (dict:Dictionary<_,Counter>) =
     let mutable key = 0L
     for i = 0 to fragment.Length-3 do
         key <- key <<< 2 ||| int64 toNum.[int fragment.[i]]
     let i = int64 toNum.[int fragment.[fragment.Length-2]] <<< 2
         ||| int64 toNum.[int fragment.[fragment.Length-1]]
     let b,v = dict.TryGetValue(uint32 key)
-    String.Concat((if b then string(v.[int i]) else "0"), "\t", fragment)
+    String.Concat((if b then string(v.Get(int i)) else "0"), "\t", fragment)
 
   let results =
     Async.Parallel [
