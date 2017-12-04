@@ -87,7 +87,7 @@ let main args =
         mpzTdiv(&w, &u, &v)
         mpzGet(&w)
 
-    let ch = Array.zeroCreate 10
+    let bytes = Array.zeroCreate 10
     let n = int args.[0]
     let mutable i = 0
     let mutable c = 0
@@ -96,19 +96,19 @@ let main args =
     while more do
         let y = extract 3
         if y = extract 4 then
-            ch.[c] <- char(48+y)
+            bytes.[c] <- byte(48+y)
             c <- c + 1
             i <- i + 1
             if i%10=0 || i=n then
                 while c<>10 do
-                    ch.[c] <- ' '
+                    bytes.[c] <- ' 'B
                     c<-c+1
-            c <- 0
-            stdout.Write ch
+                c <- 0
+            stdout.Write [|0uy|]//Write ch
             stdout.Write "\t:"
             stdout.WriteLine i
             if i=n then more<-false
-            else composeR 10  (-10*y) 0 1
+            else composeR 10 (-10*y) 0 1
         else
             composeL k (4*k+2) 0 (2*k+1)
             k<-k+1
