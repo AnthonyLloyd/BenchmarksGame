@@ -36,7 +36,7 @@ let mpz_set_si(src : mpz_t byref, value : int) : unit = failwith ""
 let mpz_get_si(src : mpz_t byref) : int = 0
 
 [<EntryPoint>]
-let main _ =
+let main args =
 
     let init() = 
         let mutable result = mpz_t()
@@ -48,8 +48,7 @@ let main _ =
     let mutable i = 0
     let mutable c = 0
     let ch = Array.zeroCreate 10
-    let args = System.Environment.GetCommandLineArgs()
-    let n = Int32.Parse args.[1]
+    let n = int args.[0]
     let intZero = int '0'
 
     let inline compose_r(bq, br, bs, bt) = 
