@@ -87,7 +87,8 @@ let main args =
         mpzTdiv(&w, &u, &v)
         mpzGet(&w)
 
-    let bytes = Array.zeroCreate 10
+    let bytes = Array.zeroCreate 12
+    bytes.[10] <- '\t'B; bytes.[11] <- ':'B
     let n = int args.[0]
     let mutable i = 0
     let mutable c = 0
@@ -104,8 +105,7 @@ let main args =
                     bytes.[c] <- ' 'B
                     c<-c+1
                 c <- 0
-            stdout.Write [|0uy|]//Write ch
-            stdout.Write "\t:"
+            stdout.Write bytes
             stdout.WriteLine i
             if i=n then more<-false
             else composeR 10 (-10*y) 0 1
