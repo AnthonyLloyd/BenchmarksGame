@@ -34,7 +34,7 @@ let main argv =
     
     //pidigitsAlt.Main([|"10000"|])
     //11722.9672429485
-    KNucleotide.main [||] |> ignore
+    PiDigits.main [||] |> ignore
     //FannkuchRedux.main [|"12"|] |> ignore
     //FannkuchRedux.Main [|"12"|] |> ignore
     
