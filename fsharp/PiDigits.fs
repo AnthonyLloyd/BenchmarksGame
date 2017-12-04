@@ -87,14 +87,14 @@ let main args =
         mpzTdiv(&w, &u, &v)
         mpzGet(&w)
 
+    let out = System.Console.OpenStandardOutput()
+    let n = int args.[0]
     let bytes = Array.zeroCreate 12
     bytes.[10] <- '\t'B; bytes.[11] <- ':'B
-    let n = int args.[0]
     let mutable i = 0
     let mutable c = 0
     let mutable k = 1
-    let mutable more = true
-    while more do
+    while i<>n do
         let y = extract 3
         if y = extract 4 then
             bytes.[c] <- byte(48+y)
@@ -105,10 +105,9 @@ let main args =
                     bytes.[c] <- ' 'B
                     c<-c+1
                 c <- 0
-            stdout.Write bytes
+            out.Write(bytes,0,12)
             stdout.WriteLine i
-            if i=n then more<-false
-            else composeR 10 (-10*y) 0 1
+            if i<>n then composeR 10 (-10*y) 0 1
         else
             composeL k (4*k+2) 0 (2*k+1)
             k<-k+1
