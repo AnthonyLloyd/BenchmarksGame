@@ -1,12 +1,10 @@
-﻿(**
- * The Computer Language Benchmarks Game
- * http://benchmarksgame.alioth.debian.org/
- *
- * Port to F# by Jomo Fisher of the C# port that uses native GMP:
- * 	contributed by Mike Pall
- * 	java port by Stefan Krause
- *  C# port by Miguel de Icaza
-*)
+﻿// The Computer Language Benchmarks Game
+// http://benchmarksgame.alioth.debian.org/
+//
+// Port to F# by Jomo Fisher of the C#
+// Small optimisations by Anthony Lloyd
+
+#nowarn "9"
 
 open System.Runtime.InteropServices
 
@@ -96,15 +94,14 @@ let main args =
     while true do
         let y = extract 3
         if y = extract 4 then
-            let c = i%10
+            bytes.[i%10] <- byte(48+y)
             i<-i+1
-            bytes.[c] <- byte(48+y)
-            if c=9 then
+            if i%10=0 then
                 out.Write(bytes,0,12)
                 System.Console.WriteLine i
             if i=n then
-                if c<>9 then
-                    for c = c+1 to 9 do
+                if i%10<>0 then
+                    for c = i%10 to 9 do
                         bytes.[c] <- ' 'B
                     out.Write(bytes,0,12)
                     System.Console.WriteLine n
