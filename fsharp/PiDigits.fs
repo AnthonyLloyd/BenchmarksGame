@@ -8,49 +8,49 @@
  *  C# port by Miguel de Icaza
 *)
 
-open System
 open System.Runtime.InteropServices
 
-[<Struct; StructLayout (LayoutKind.Sequential)>]
+[<Struct; StructLayout(LayoutKind.Sequential)>]
 type MPZ =
    val _mp_alloc:int
    val _mp_size:int
-   val ptr:IntPtr
+   val ptr:System.IntPtr
 
-[<DllImport ("gmp", EntryPoint="__gmpz_init",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp", EntryPoint="__gmpz_init",ExactSpelling=true,SetLastError=false)>]
 extern void mpzInit(MPZ& _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_mul_si",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp", EntryPoint="__gmpz_mul_si",ExactSpelling=true,SetLastError=false)>]
 extern void mpzMul(MPZ& _dest, MPZ&_src, int _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_add",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp", EntryPoint="__gmpz_add",ExactSpelling=true,SetLastError=false)>]
 extern void mpzAdd(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_tdiv_q",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp", EntryPoint="__gmpz_tdiv_q",ExactSpelling=true,SetLastError=false)>]
 extern void mpzTdiv(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_set_si",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp", EntryPoint="__gmpz_set_si",ExactSpelling=true,SetLastError=false)>]
 extern void mpzSet(MPZ& _src, int _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_get_si",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>] 
+[<DllImport ("gmp", EntryPoint="__gmpz_get_si",ExactSpelling=true,SetLastError=false)>]
 extern int mpzGet(MPZ& _src)
 
 [<EntryPoint>]
 let main args =
 
-    let init() = 
+    let inline init() =
         let mutable result = MPZ()
         mpzInit(&result)
         result
 
-    let mutable q,r,s,t,u,v,w = init(),init(),init(),init(),init(),init(),init()
+    let mutable q = init()
+    let mutable r = init()
+    let mutable s = init()
+    let mutable t = init()
+    let mutable u = init()
+    let mutable v = init()
+    let mutable w = init()
 
-    let mutable i = 0
-    let mutable c = 0
-    let ch = Array.zeroCreate 10
-    let n = int args.[0]
-    
-    let inline composeR(bq, br, bs, bt) = 
+    let inline composeR bq br bs bt =
         mpzMul(&u, &r, bs)
         mpzMul(&r, &r, bq)
         mpzMul(&v, &t, br)
@@ -63,7 +63,7 @@ let main args =
         mpzMul(&q, &q, bq)
 
     // Compose matrix with numbers on the left.
-    let inline composeL(bq, br, bs, bt) =
+    let inline composeL bq br bs bt =
         mpzMul(&r, &r, bt)
         mpzMul(&u, &q, br)
         mpzAdd(&r, &r, &u)
@@ -76,7 +76,7 @@ let main args =
         mpzMul(&q, &q, bq)
 
     // Extract one digit.
-    let inline extract(j) = 
+    let inline extract j = 
         mpzMul(&u, &q, j)
         mpzAdd(&u, &u, &r)
         mpzMul(&v, &s, j)
@@ -84,9 +84,13 @@ let main args =
         mpzTdiv(&w, &u, &v)
         mpzGet(&w)
 
+    let ch = Array.zeroCreate 10
+    let n = int args.[0]
+    let mutable i = 0
+    let mutable c = 0
 
-    // Print one digit. Returns 1 for the last digit. 
-    let inline prdigit(y:int) = 
+    // Print one digit. Returns 1 for the last digit.
+    let inline prdigit y =
         ch.[c] <- char(48+y)
         c <- c + 1
         i <- i + 1
@@ -95,9 +99,9 @@ let main args =
                 ch.[c] <- ' '
                 c<-c+1
             c <- 0
-            Console.Write(ch)
-            Console.Write("\t:")
-            Console.WriteLine(i)
+            stdout.Write ch
+            stdout.Write "\t:"
+            stdout.WriteLine i
         i = n
 
     // Generate successive digits of PI.
@@ -112,9 +116,9 @@ let main args =
         let y = extract 3
         if y = extract 4 then
             if prdigit y then more<-false
-            else composeR(10, -10*y, 0, 1)
+            else composeR 10  (-10*y) 0 1
         else
-            composeL(k, 4*k+2, 0, 2*k+1);
+            composeL k (4*k+2) 0 (2*k+1)
             k<-k+1
 
     0
