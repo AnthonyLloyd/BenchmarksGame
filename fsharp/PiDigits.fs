@@ -92,24 +92,25 @@ let main args =
     let bytes = Array.zeroCreate 12
     bytes.[10] <- '\t'B; bytes.[11] <- ':'B
     let mutable i = 0
-    let mutable c = 0
     let mutable k = 1
-    while i<>n do
+    while true do
         let y = extract 3
         if y = extract 4 then
+            let c = i%10
+            i<-i+1
             bytes.[c] <- byte(48+y)
-            c <- c + 1
-            i <- i + 1
-            if i%10=0 || i=n then
-                while c<>10 do
-                    bytes.[c] <- ' 'B
-                    c<-c+1
-                c <- 0
+            if c=9 then
                 out.Write(bytes,0,12)
-                stdout.WriteLine i
-            if i<>n then composeR 10 (-10*y) 0 1
+                System.Console.WriteLine i
+            if i=n then
+                if c<>9 then
+                    for c = c+1 to 9 do
+                        bytes.[c] <- ' 'B
+                    out.Write(bytes,0,12)
+                    System.Console.WriteLine  n
+                exit 0
+            else composeR 10 (-10*y) 0 1
         else
             composeL k (4*k+2) 0 (2*k+1)
             k<-k+1
-
-    0
+    exit 0
