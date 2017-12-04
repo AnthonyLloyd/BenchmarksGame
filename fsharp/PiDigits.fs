@@ -12,35 +12,37 @@ open System
 open System.Runtime.InteropServices
 
 [<Struct; StructLayout (LayoutKind.Sequential)>]
-type mpz_t =
+type MPZ =
    val _mp_alloc:int
    val _mp_size:int
    val ptr:IntPtr
 
+//[<DllImport(DLL,CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=true)>]
+
 [<DllImport ("gmp", EntryPoint="__gmpz_init")>]
-let mpz_init(value : mpz_t byref) : unit = failwith ""
+extern void mpzInit(MPZ& _value)
 
 [<DllImport ("gmp", EntryPoint="__gmpz_mul_si")>]
-let mpz_mul_si(dest : mpz_t byref, src : mpz_t byref, value : int) : unit = failwith ""
+extern void mpzMul(MPZ& _dest, MPZ&_src, int _value)
 
 [<DllImport ("gmp", EntryPoint="__gmpz_add")>]
-let mpz_add(dest : mpz_t byref, src : mpz_t byref, src2 : mpz_t byref) : unit = failwith ""
+extern void mpzAdd(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
 [<DllImport ("gmp", EntryPoint="__gmpz_tdiv_q")>]
-let mpz_tdiv_q(dest : mpz_t byref, src : mpz_t byref, src2 : mpz_t byref) : unit = failwith ""
+extern void mpzTdiv(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
 [<DllImport ("gmp", EntryPoint="__gmpz_set_si")>]
-let mpz_set_si(src : mpz_t byref, value : int) : unit = failwith ""
+extern void mpzSet(MPZ& _src, int _value)
 
 [<DllImport ("gmp", EntryPoint="__gmpz_get_si")>] 
-let mpz_get_si(src : mpz_t byref) : int = 0
+extern int mpzGet(MPZ& _src)
 
 [<EntryPoint>]
 let main args =
 
     let init() = 
-        let mutable result = mpz_t()
-        mpz_init(&result)
+        let mutable result = MPZ()
+        mpzInit(&result)
         result
 
     let mutable q,r,s,t,u,v,w = init(),init(),init(),init(),init(),init(),init()
@@ -49,46 +51,45 @@ let main args =
     let mutable c = 0
     let ch = Array.zeroCreate 10
     let n = int args.[0]
-    let intZero = int '0'
-
-    let inline compose_r(bq, br, bs, bt) = 
-        mpz_mul_si(&u, &r, bs)
-        mpz_mul_si(&r, &r, bq)
-        mpz_mul_si(&v, &t, br)
-        mpz_add(&r, &r, &v)
-        mpz_mul_si(&t, &t, bt)
-        mpz_add(&t, &t, &u)
-        mpz_mul_si(&s, &s, bt)
-        mpz_mul_si(&u, &q, bs)
-        mpz_add(&s, &s, &u)
-        mpz_mul_si(&q, &q, bq)
+    
+    let inline composeR(bq, br, bs, bt) = 
+        mpzMul(&u, &r, bs)
+        mpzMul(&r, &r, bq)
+        mpzMul(&v, &t, br)
+        mpzAdd(&r, &r, &v)
+        mpzMul(&t, &t, bt)
+        mpzAdd(&t, &t, &u)
+        mpzMul(&s, &s, bt)
+        mpzMul(&u, &q, bs)
+        mpzAdd(&s, &s, &u)
+        mpzMul(&q, &q, bq)
 
     // Compose matrix with numbers on the left.
-    let inline compose_l(bq, br, bs, bt) =
-        mpz_mul_si(&r, &r, bt)
-        mpz_mul_si(&u, &q, br)
-        mpz_add(&r, &r, &u)
-        mpz_mul_si(&u, &t, bs)
-        mpz_mul_si(&t, &t, bt)
-        mpz_mul_si(&v, &s, br)
-        mpz_add(&t, &t, &v)
-        mpz_mul_si(&s, &s, bq)
-        mpz_add(&s, &s, &u)
-        mpz_mul_si(&q, &q, bq)
+    let inline composeL(bq, br, bs, bt) =
+        mpzMul(&r, &r, bt)
+        mpzMul(&u, &q, br)
+        mpzAdd(&r, &r, &u)
+        mpzMul(&u, &t, bs)
+        mpzMul(&t, &t, bt)
+        mpzMul(&v, &s, br)
+        mpzAdd(&t, &t, &v)
+        mpzMul(&s, &s, bq)
+        mpzAdd(&s, &s, &u)
+        mpzMul(&q, &q, bq)
 
     // Extract one digit.
     let inline extract(j) = 
-        mpz_mul_si(&u, &q, j)
-        mpz_add(&u, &u, &r)
-        mpz_mul_si(&v, &s, j)
-        mpz_add(&v, &v, &t)
-        mpz_tdiv_q(&w, &u, &v)
-        mpz_get_si(&w)
+        mpzMul(&u, &q, j)
+        mpzAdd(&u, &u, &r)
+        mpzMul(&v, &s, j)
+        mpzAdd(&v, &v, &t)
+        mpzTdiv(&w, &u, &v)
+        mpzGet(&w)
 
 
     // Print one digit. Returns 1 for the last digit. 
     let inline prdigit(y:int) = 
-        ch.[c] <- char (intZero + y)
+        ch.[c] <- char(48+y)
         c <- c + 1
         i <- i + 1
         if (i%10=0 || i = n) then
@@ -104,18 +105,18 @@ let main args =
     // Generate successive digits of PI.
     let mutable k = 1
     i <- 0
-    mpz_set_si(&q, 1)
-    mpz_set_si(&r, 0)
-    mpz_set_si(&s, 0)
-    mpz_set_si(&t, 1)
+    mpzSet(&q, 1)
+    mpzSet(&r, 0)
+    mpzSet(&s, 0)
+    mpzSet(&t, 1)
     let mutable more = true
     while more do
         let y = extract 3
         if y = extract 4 then
             if prdigit y then more<-false
-            else compose_r(10, -10*y, 0, 1)
+            else composeR(10, -10*y, 0, 1)
         else
-            compose_l(k, 4*k+2, 0, 2*k+1);
+            composeL(k, 4*k+2, 0, 2*k+1);
             k<-k+1
 
     0
