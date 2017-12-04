@@ -105,8 +105,8 @@ let main args =
                     bytes.[c] <- ' 'B
                     c<-c+1
                 c <- 0
-            out.Write(bytes,0,12)
-            stdout.WriteLine i
+                out.Write(bytes,0,12)
+                stdout.WriteLine i
             if i<>n then composeR 10 (-10*y) 0 1
         else
             composeL k (4*k+2) 0 (2*k+1)
