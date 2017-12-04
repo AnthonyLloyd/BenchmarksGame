@@ -17,24 +17,22 @@ type MPZ =
    val _mp_size:int
    val ptr:IntPtr
 
-//[<DllImport(DLL,CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=true)>]
-
-[<DllImport ("gmp", EntryPoint="__gmpz_init")>]
+[<DllImport ("gmp", EntryPoint="__gmpz_init",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
 extern void mpzInit(MPZ& _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_mul_si")>]
+[<DllImport ("gmp", EntryPoint="__gmpz_mul_si",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
 extern void mpzMul(MPZ& _dest, MPZ&_src, int _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_add")>]
+[<DllImport ("gmp", EntryPoint="__gmpz_add",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
 extern void mpzAdd(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_tdiv_q")>]
+[<DllImport ("gmp", EntryPoint="__gmpz_tdiv_q",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
 extern void mpzTdiv(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_set_si")>]
+[<DllImport ("gmp", EntryPoint="__gmpz_set_si",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>]
 extern void mpzSet(MPZ& _src, int _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_get_si")>] 
+[<DllImport ("gmp", EntryPoint="__gmpz_get_si",CallingConvention=CallingConvention.Cdecl,ExactSpelling=true,SetLastError=false)>] 
 extern int mpzGet(MPZ& _src)
 
 [<EntryPoint>]
