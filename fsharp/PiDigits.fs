@@ -50,6 +50,11 @@ let main args =
     let mutable v = init()
     let mutable w = init()
 
+    mpzSet(&q, 1)
+    mpzSet(&r, 0)
+    mpzSet(&s, 0)
+    mpzSet(&t, 1)
+
     let inline composeR bq br bs bt =
         mpzMul(&u, &r, bs)
         mpzMul(&r, &r, bq)
@@ -62,7 +67,6 @@ let main args =
         mpzAdd(&s, &s, &u)
         mpzMul(&q, &q, bq)
 
-    // Compose matrix with numbers on the left.
     let inline composeL bq br bs bt =
         mpzMul(&r, &r, bt)
         mpzMul(&u, &q, br)
@@ -75,7 +79,6 @@ let main args =
         mpzAdd(&s, &s, &u)
         mpzMul(&q, &q, bq)
 
-    // Extract one digit.
     let inline extract j = 
         mpzMul(&u, &q, j)
         mpzAdd(&u, &u, &r)
@@ -88,34 +91,23 @@ let main args =
     let n = int args.[0]
     let mutable i = 0
     let mutable c = 0
-
-    // Print one digit. Returns 1 for the last digit.
-    let inline prdigit y =
-        ch.[c] <- char(48+y)
-        c <- c + 1
-        i <- i + 1
-        if (i%10=0 || i = n) then
-            while c<>ch.Length do
-                ch.[c] <- ' '
-                c<-c+1
-            c <- 0
-            stdout.Write ch
-            stdout.Write "\t:"
-            stdout.WriteLine i
-        i = n
-
-    // Generate successive digits of PI.
     let mutable k = 1
-    i <- 0
-    mpzSet(&q, 1)
-    mpzSet(&r, 0)
-    mpzSet(&s, 0)
-    mpzSet(&t, 1)
     let mutable more = true
     while more do
         let y = extract 3
         if y = extract 4 then
-            if prdigit y then more<-false
+            ch.[c] <- char(48+y)
+            c <- c + 1
+            i <- i + 1
+            if i%10=0 || i=n then
+                while c<>10 do
+                    ch.[c] <- ' '
+                    c<-c+1
+            c <- 0
+            stdout.Write ch
+            stdout.Write "\t:"
+            stdout.WriteLine i
+            if i=n then more<-false
             else composeR 10  (-10*y) 0 1
         else
             composeL k (4*k+2) 0 (2*k+1)
