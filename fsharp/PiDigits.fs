@@ -16,22 +16,22 @@ type MPZ =
    val _mp_size:int
    val ptr:System.IntPtr
 
-[<DllImport ("gmp", EntryPoint="__gmpz_init",ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp",EntryPoint="__gmpz_init",ExactSpelling=true)>]
 extern void mpzInit(MPZ& _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_mul_si",ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp",EntryPoint="__gmpz_mul_si",ExactSpelling=true)>]
 extern void mpzMul(MPZ& _dest, MPZ&_src, int _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_add",ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp",EntryPoint="__gmpz_add",ExactSpelling=true)>]
 extern void mpzAdd(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_tdiv_q",ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp",EntryPoint="__gmpz_tdiv_q",ExactSpelling=true)>]
 extern void mpzTdiv(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_set_si",ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp",EntryPoint="__gmpz_set_si",ExactSpelling=true)>]
 extern void mpzSet(MPZ& _src, int _value)
 
-[<DllImport ("gmp", EntryPoint="__gmpz_get_si",ExactSpelling=true,SetLastError=false)>]
+[<DllImport ("gmp",EntryPoint="__gmpz_get_si",ExactSpelling=true)>]
 extern int mpzGet(MPZ& _src)
 
 [<EntryPoint>]
@@ -107,7 +107,7 @@ let main args =
                     for c = c+1 to 9 do
                         bytes.[c] <- ' 'B
                     out.Write(bytes,0,12)
-                    System.Console.WriteLine  n
+                    System.Console.WriteLine n
                 exit 0
             else composeR 10 (-10*y) 0 1
         else

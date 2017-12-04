@@ -34,7 +34,7 @@ let main argv =
     
     //pidigitsAlt.Main([|"10000"|])
     //11722.9672429485
-    PiDigits.main [|"10000"|] |> ignore
+    PiDigits.main [|"9997"|] |> ignore
     //FannkuchRedux.main [|"12"|] |> ignore
     //FannkuchRedux.Main [|"12"|] |> ignore
     
