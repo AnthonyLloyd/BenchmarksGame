@@ -77,7 +77,7 @@ let main args =
         mpzAdd(&s, &s, &u)
         mpzMul(&q, &q, bq)
 
-    let inline extract j = 
+    let inline extract j =
         mpzMul(&u, &q, j)
         mpzAdd(&u, &u, &r)
         mpzMul(&v, &s, j)
