@@ -1,0 +1,9 @@
+os: linux
+language: csharp
+dist: trusty
+sudo: false
+dotnet: 2.0.3
+
+script:
+  - dotnet build tester/tester.fsproj -c Release
+  - dotnet tester/bin/Release/netcoreapp2.0/tester.dll
