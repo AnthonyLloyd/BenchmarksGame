@@ -21,11 +21,10 @@ let main args =
     // }
 
     let regexCount pattern = async {
-        let mutable c = 0
-        let mutable m = (regex pattern).Match text
-        while m.Success do
-            c <- c + 1
-            m <- m.NextMatch()
+        let rec loop c (m:Match) =
+            if not m.Success then c
+            else loop (c+1) (m.NextMatch())
+        let c = loop 0 ((regex pattern).Match text)
         return pattern + " " + string c
     }
 

@@ -30,7 +30,7 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
-    let args = [|System.IO.File.ReadAllText(@"C:\temp\fasta5000000.txt")|]
+    let args = [|System.IO.File.ReadAllText(@"C:\temp\fasta2500000.txt")|]
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
     
     //pidigitsAlt.Main([|"10000"|])
