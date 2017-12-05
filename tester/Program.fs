@@ -30,14 +30,18 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
+    let args = [|System.IO.File.ReadAllText(@"C:\temp\fasta5000000.txt")|]
     let start = System.Diagnostics.Stopwatch.GetTimestamp()
     
     //pidigitsAlt.Main([|"10000"|])
     //11722.9672429485
-    PiDigits.main [|"9997"|] |> ignore
+    //PiDigits.main [|"9997"|] |> ignore
     //FannkuchRedux.main [|"12"|] |> ignore
     //FannkuchRedux.Main [|"12"|] |> ignore
-    
+    RegexRedux.main args |> ignore
+    //regexreduxImproved.Main [||] |> ignore
+    //Fasta.Main argv |> ignore
+
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
 

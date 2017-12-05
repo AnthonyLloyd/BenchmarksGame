@@ -18,7 +18,7 @@ public class regexredux
     {
 
         // read FASTA sequence
-        String sequence = System.IO.File.ReadAllText(@"C:\temp\input5000000.txt");//Console.In.ReadToEnd();
+        String sequence = System.IO.File.ReadAllText(@"C:\Users\Ant\Google Drive\BenchmarkGame\fasta5000000.txt");//Console.In.ReadToEnd();
         int initialLength = sequence.Length;
 
         // remove FASTA sequence descriptions and new-lines

@@ -27,7 +27,7 @@ public static class regexreduxImproved
 
     public static void Main(string[] args)
     {
-        var sequences = Console.In.ReadToEnd();
+        var sequences = System.IO.File.ReadAllText(@"C:\Users\Ant\Google Drive\BenchmarkGame\fasta5000000.txt");
         var initialLength = sequences.Length;
         sequences = Regex.Replace(sequences, ">.*\n|\n", "");
         
