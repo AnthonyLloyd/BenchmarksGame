@@ -156,32 +156,29 @@ let main args =
         let d2 = sqr dx + sqr dy + sqr dz
         d2 * sqrt d2
 
-    let inline advance() =
-        let advancements = if args.Length=0 then 1000 else int args.[0]
-        for __ = advancements downto 1 do
-            for i = 0 to N-1 do
-                let mutable bi = NativePtr.get ptrBody i
-                for j = i+1 to N-1 do
-                    let mutable bj = NativePtr.get ptrBody j
-                    let dx = bj.X - bi.X
-                    let dy = bj.Y - bi.Y
-                    let dz = bj.Z - bi.Z
-                    let mag = dt / getD2 dx dy dz
-                    bj.VX <- bj.VX - dx * bi.Mass * mag
-                    bj.VY <- bj.VY - dy * bi.Mass * mag
-                    bj.VZ <- bj.VZ - dz * bi.Mass * mag
-                    NativePtr.set ptrBody j bj
-                    bi.VX <- bi.VX + dx * bj.Mass * mag
-                    bi.VY <- bi.VY + dy * bj.Mass * mag
-                    bi.VZ <- bi.VZ + dz * bj.Mass * mag
-                bi.X <- bi.X + bi.VX * dt
-                bi.Y <- bi.Y + bi.VY * dt
-                bi.Z <- bi.Z + bi.VZ * dt
-                NativePtr.set ptrBody i bi
-
     energy().ToString("F9") |> stdout.WriteLine
 
-    advance()
+    let mutable advancements = if args.Length=0 then 1000 else int args.[0]
+    while (advancements <- advancements - 1; advancements>=0) do
+        for i = 0 to N-1 do
+            let mutable bi = NativePtr.get ptrBody i
+            for j = i+1 to N-1 do
+                let mutable bj = NativePtr.get ptrBody j
+                let dx = bj.X - bi.X
+                let dy = bj.Y - bi.Y
+                let dz = bj.Z - bi.Z
+                let mag = dt / getD2 dx dy dz
+                bj.VX <- bj.VX - dx * bi.Mass * mag
+                bj.VY <- bj.VY - dy * bi.Mass * mag
+                bj.VZ <- bj.VZ - dz * bi.Mass * mag
+                NativePtr.set ptrBody j bj
+                bi.VX <- bi.VX + dx * bj.Mass * mag
+                bi.VY <- bi.VY + dy * bj.Mass * mag
+                bi.VZ <- bi.VZ + dz * bj.Mass * mag
+            bi.X <- bi.X + bi.VX * dt
+            bi.Y <- bi.Y + bi.VY * dt
+            bi.Z <- bi.Z + bi.VZ * dt
+            NativePtr.set ptrBody i bi
 
     energy().ToString("F9") |> stdout.WriteLine
 
