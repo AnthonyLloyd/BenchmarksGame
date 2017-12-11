@@ -5,6 +5,10 @@
 
 #nowarn "9"
 
+open System.Runtime.InteropServices
+open System.Runtime.CompilerServices
+open Microsoft.FSharp.NativeInterop
+
 [<Literal>]
 let N = 5
 [<Literal>]
@@ -72,8 +76,6 @@ let Nvz = -9.51592254519715870e-05
 [<Literal>]
 let Nmass = 5.15138902046611451e-05
 
-open System.Runtime.InteropServices
-
 [<Struct;StructLayout(LayoutKind.Explicit, Size=56)>]
 type NBody =
       [<FieldOffset(0)>] val mutable X: float
@@ -84,8 +86,6 @@ type NBody =
       [<FieldOffset(40)>] val mutable VZ: float
       [<FieldOffset(48)>] val mutable Mass : float
       new(x,y,z,vx,vy,vz,mass) = {X=x;Y=y;Z=z;VX=vx;VY=vy;VZ=vz;Mass=mass}
-
-open Microsoft.FSharp.NativeInterop
 
 [<EntryPoint>]
 let main args =
@@ -164,24 +164,19 @@ let main args =
     let pointer = NativePtr.toNativeInt ptrBody
 
     let inline getNative i j =
-        pointer + nativeint(i + j)
-        |> NativePtr.ofNativeInt<float>
-        |> NativePtr.read
+        let p = (pointer + nativeint(i+j)).ToPointer()
+        Unsafe.Read p
         
     let inline addNative i j v =
-        let p =
-            pointer + nativeint(i + j)
-            |> NativePtr.ofNativeInt<float>
-        NativePtr.read p + v |> NativePtr.write p
+        let p = (pointer + nativeint(i+j)).ToPointer()
+        Unsafe.Write(p,Unsafe.Read p + v)
 
     let inline subNative i j v =
-        let p =
-            pointer + nativeint(i + j)
-            |> NativePtr.ofNativeInt<float>
-        NativePtr.read p - v |> NativePtr.write p
+        let p = (pointer + nativeint(i+j)).ToPointer()
+        Unsafe.Write(p,Unsafe.Read p - v)
 
     let mutable advancements = if args.Length=0 then 1000 else int args.[0]
-    while (advancements <- advancements - 1; advancements>=0) do
+    while advancements>0 do
         let mutable pi = 0
         while pi < N * 56 do
             let biX = getNative pi 0
@@ -206,6 +201,7 @@ let main args =
             getNative pi 32 * dt |> addNative pi 8
             getNative pi 40 * dt |> addNative pi 16
             pi <- pi + 56
+        advancements <- advancements-1
 
     energy().ToString("F9") |> stdout.WriteLine
 

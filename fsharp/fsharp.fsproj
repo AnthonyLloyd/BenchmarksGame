@@ -3,14 +3,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
-    <!-- <AllowUnsafeBlocks>true</AllowUnsafeBlocks> -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="**/*.fs" />
     <Compile Include="NBody.fs" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.3.0" />
-    <!-- <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.4.0" /> -->
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.4.0" />
   </ItemGroup>
 
 </Project>
