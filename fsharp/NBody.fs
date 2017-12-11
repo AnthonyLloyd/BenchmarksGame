@@ -13,7 +13,8 @@ let dt = 0.01
 let Pi = 3.141592653589793
 [<Literal>]
 let DaysPeryear = 365.24
-let Solarmass = 4.0 * 3.141592653589793 * 3.141592653589793
+[<Literal>]
+let Solarmass = 39.4784176043574//4.0 * 3.141592653589793 * 3.141592653589793
 [<Literal>]
 let Jx = 4.84143144246472090e+00
 [<Literal>]
@@ -71,15 +72,17 @@ let Nvz = -9.51592254519715870e-05
 [<Literal>]
 let Nmass = 5.15138902046611451e-05
 
-[<Struct>]
+open System.Runtime.InteropServices
+
+[<Struct;StructLayout(LayoutKind.Explicit, Size=56)>]
 type NBody =
-      val mutable X: float
-      val mutable Y: float
-      val mutable Z: float
-      val mutable VX: float
-      val mutable VY: float
-      val mutable VZ: float
-      val mutable Mass : float
+      [<FieldOffset(0)>] val mutable X: float
+      [<FieldOffset(8)>] val mutable Y: float
+      [<FieldOffset(16)>] val mutable Z: float
+      [<FieldOffset(24)>] val mutable VX: float
+      [<FieldOffset(32)>] val mutable VY: float
+      [<FieldOffset(40)>] val mutable VZ: float
+      [<FieldOffset(48)>] val mutable Mass : float
       new(x,y,z,vx,vy,vz,mass) = {X=x;Y=y;Z=z;VX=vx;VY=vy;VZ=vz;Mass=mass}
 
 open Microsoft.FSharp.NativeInterop
@@ -158,27 +161,47 @@ let main args =
 
     energy().ToString("F9") |> stdout.WriteLine
 
+    let pointer = NativePtr.toNativeInt ptrBody
+
+    let inline getNative i j =
+        pointer + (7n * nativeint i + j) * 8n
+        |> NativePtr.ofNativeInt<float>
+        |> NativePtr.read
+        
+    let inline addNative i j v =
+        let p =
+            pointer + (7n * nativeint i + j) * 8n
+            |> NativePtr.ofNativeInt<float>
+        NativePtr.read p + v |> NativePtr.write p
+
+    let inline subNative i j v =
+        let p =
+            pointer + (7n * nativeint i + j) * 8n
+            |> NativePtr.ofNativeInt<float>
+        NativePtr.read p - v |> NativePtr.write p
+
     let mutable advancements = if args.Length=0 then 1000 else int args.[0]
     while (advancements <- advancements - 1; advancements>=0) do
         for i = 0 to N-1 do
-            let mutable bi = NativePtr.get ptrBody i
+            let biX = getNative i 0n
+            let biY = getNative i 1n
+            let biZ = getNative i 2n
+            let biMass = getNative i 6n
             for j = i+1 to N-1 do
-                let mutable bj = NativePtr.get ptrBody j
-                let dx = bj.X - bi.X
-                let dy = bj.Y - bi.Y
-                let dz = bj.Z - bi.Z
+                let dx = getNative j 0n - biX
+                let dy = getNative j 1n - biY
+                let dz = getNative j 2n - biZ
+                let bjMass = getNative j 6n
                 let mag = dt / getD2 dx dy dz
-                bj.VX <- bj.VX - dx * bi.Mass * mag
-                bj.VY <- bj.VY - dy * bi.Mass * mag
-                bj.VZ <- bj.VZ - dz * bi.Mass * mag
-                NativePtr.set ptrBody j bj
-                bi.VX <- bi.VX + dx * bj.Mass * mag
-                bi.VY <- bi.VY + dy * bj.Mass * mag
-                bi.VZ <- bi.VZ + dz * bj.Mass * mag
-            bi.X <- bi.X + bi.VX * dt
-            bi.Y <- bi.Y + bi.VY * dt
-            bi.Z <- bi.Z + bi.VZ * dt
-            NativePtr.set ptrBody i bi
+                dx * biMass * mag |> subNative j 3n
+                dy * biMass * mag |> subNative j 4n
+                dz * biMass * mag |> subNative j 5n
+                dx * bjMass * mag |> addNative i 3n
+                dy * bjMass * mag |> addNative i 4n
+                dz * bjMass * mag |> addNative i 5n
+            getNative i 3n * dt |> addNative i 0n
+            getNative i 4n * dt |> addNative i 1n
+            getNative i 5n * dt |> addNative i 2n
 
     energy().ToString("F9") |> stdout.WriteLine
 
