@@ -5,10 +5,6 @@
 
 #nowarn "9"
 
-open System.Runtime.InteropServices
-open System.Runtime.CompilerServices
-open Microsoft.FSharp.NativeInterop
-
 [<Literal>]
 let N = 5
 [<Literal>]
@@ -76,6 +72,8 @@ let Nvz = -9.51592254519715870e-05
 [<Literal>]
 let Nmass = 5.15138902046611451e-05
 
+open System.Runtime.InteropServices
+
 [<Struct;StructLayout(LayoutKind.Explicit, Size=56)>]
 type NBody =
       [<FieldOffset(0)>] val mutable X: float
@@ -86,6 +84,8 @@ type NBody =
       [<FieldOffset(40)>] val mutable VZ: float
       [<FieldOffset(48)>] val mutable Mass : float
       new(x,y,z,vx,vy,vz,mass) = {X=x;Y=y;Z=z;VX=vx;VY=vy;VZ=vz;Mass=mass}
+
+open Microsoft.FSharp.NativeInterop
 
 [<EntryPoint>]
 let main args =
@@ -164,44 +164,44 @@ let main args =
     let pointer = NativePtr.toNativeInt ptrBody
 
     let inline getNative i j =
-        let p = (pointer + nativeint(i+j)).ToPointer()
-        Unsafe.Read p
+        pointer + (7n * nativeint i + j) * 8n
+        |> NativePtr.ofNativeInt<float>
+        |> NativePtr.read
         
     let inline addNative i j v =
-        let p = (pointer + nativeint(i+j)).ToPointer()
-        Unsafe.Write(p,Unsafe.Read p + v)
+        let p =
+            pointer + (7n * nativeint i + j) * 8n
+            |> NativePtr.ofNativeInt<float>
+        NativePtr.read p + v |> NativePtr.write p
 
     let inline subNative i j v =
-        let p = (pointer + nativeint(i+j)).ToPointer()
-        Unsafe.Write(p,Unsafe.Read p - v)
+        let p =
+            pointer + (7n * nativeint i + j) * 8n
+            |> NativePtr.ofNativeInt<float>
+        NativePtr.read p - v |> NativePtr.write p
 
     let mutable advancements = if args.Length=0 then 1000 else int args.[0]
-    while advancements>0 do
-        let mutable pi = 0
-        while pi < N * 56 do
-            let biX = getNative pi 0
-            let biY = getNative pi 8
-            let biZ = getNative pi 16
-            let biMass = getNative pi 48
-            let mutable pj = pi + 56
-            while pj < N * 56 do
-                let dx = getNative pj 0 - biX
-                let dy = getNative pj 8 - biY
-                let dz = getNative pj 16 - biZ
-                let bjMass = getNative pj 48
+    while (advancements <- advancements - 1; advancements>=0) do
+        for i = 0 to N-1 do
+            let biX = getNative i 0n
+            let biY = getNative i 1n
+            let biZ = getNative i 2n
+            let biMass = getNative i 6n
+            for j = i+1 to N-1 do
+                let dx = getNative j 0n - biX
+                let dy = getNative j 1n - biY
+                let dz = getNative j 2n - biZ
                 let mag = dt / getD2 dx dy dz
-                dx * biMass * mag |> subNative pj 24
-                dy * biMass * mag |> subNative pj 32
-                dz * biMass * mag |> subNative pj 40
-                dx * bjMass * mag |> addNative pi 24
-                dy * bjMass * mag |> addNative pi 32
-                dz * bjMass * mag |> addNative pi 40
-                pj <- pj + 56
-            getNative pi 24 * dt |> addNative pi 0
-            getNative pi 32 * dt |> addNative pi 8
-            getNative pi 40 * dt |> addNative pi 16
-            pi <- pi + 56
-        advancements <- advancements-1
+                dx * biMass * mag |> subNative j 3n
+                dy * biMass * mag |> subNative j 4n
+                dz * biMass * mag |> subNative j 5n
+                let bjMass = getNative j 6n * mag
+                dx * bjMass |> addNative i 3n
+                dy * bjMass |> addNative i 4n
+                dz * bjMass |> addNative i 5n
+            getNative i 3n * dt |> addNative i 0n
+            getNative i 4n * dt |> addNative i 1n
+            getNative i 5n * dt |> addNative i 2n
 
     energy().ToString("F9") |> stdout.WriteLine
 
