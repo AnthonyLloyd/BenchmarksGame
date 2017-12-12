@@ -167,7 +167,13 @@ let main args =
         pointer + (7n * nativeint i + j) * 8n
         |> NativePtr.ofNativeInt<float>
         |> NativePtr.read
-        
+
+    let inline setNative i j v =
+        let p =
+            pointer + (7n * nativeint i + j) * 8n
+            |> NativePtr.ofNativeInt<float>
+        NativePtr.write p v
+
     let inline addNative i j v =
         let p =
             pointer + (7n * nativeint i + j) * 8n
@@ -186,6 +192,9 @@ let main args =
             let biX = getNative i 0n
             let biY = getNative i 1n
             let biZ = getNative i 2n
+            let mutable biVX = getNative i 3n
+            let mutable biVY = getNative i 4n
+            let mutable biVZ = getNative i 5n
             let biMass = getNative i 6n
             for j = i+1 to N-1 do
                 let dx = getNative j 0n - biX
@@ -196,12 +205,18 @@ let main args =
                 dy * biMass * mag |> subNative j 4n
                 dz * biMass * mag |> subNative j 5n
                 let bjMass = getNative j 6n * mag
-                dx * bjMass |> addNative i 3n
-                dy * bjMass |> addNative i 4n
-                dz * bjMass |> addNative i 5n
-            getNative i 3n * dt |> addNative i 0n
-            getNative i 4n * dt |> addNative i 1n
-            getNative i 5n * dt |> addNative i 2n
+                biVX <- biVX + dx * bjMass
+                biVY <- biVY + dy * bjMass
+                biVZ <- biVZ + dz * bjMass
+            biVX * dt |> addNative i 0n
+            biVY * dt |> addNative i 1n
+            biVZ * dt |> addNative i 2n
+            setNative i 3n biVX
+            setNative i 4n biVY
+            setNative i 5n biVZ
+
+
+
 
     energy().ToString("F9") |> stdout.WriteLine
 
