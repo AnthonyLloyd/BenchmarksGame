@@ -155,35 +155,28 @@ let main args =
                 e <- e - bi.Mass * bj.Mass / sqrt(sqr(bi.X-bj.X) + sqr(bi.Y-bj.Y) + sqr(bi.Z-bj.Z))
         e
 
+    energy().ToString("F9") |> stdout.WriteLine
+
     let inline getD2 dx dy dz =
         let d2 = sqr dx + sqr dy + sqr dz
         d2 * sqrt d2
 
-    energy().ToString("F9") |> stdout.WriteLine
-
     let pointer = NativePtr.toNativeInt ptrBody
 
-    let inline getNative i j =
+    let inline moveNative i j =
         pointer + (7n * nativeint i + j) * 8n
         |> NativePtr.ofNativeInt<float>
-        |> NativePtr.read
 
-    let inline setNative i j v =
-        let p =
-            pointer + (7n * nativeint i + j) * 8n
-            |> NativePtr.ofNativeInt<float>
-        NativePtr.write p v
+    let inline getNative i j = moveNative i j |> NativePtr.read
+
+    let inline setNative i j v = NativePtr.write (moveNative i j) v
 
     let inline addNative i j v =
-        let p =
-            pointer + (7n * nativeint i + j) * 8n
-            |> NativePtr.ofNativeInt<float>
+        let p = moveNative i j
         NativePtr.read p + v |> NativePtr.write p
 
     let inline subNative i j v =
-        let p =
-            pointer + (7n * nativeint i + j) * 8n
-            |> NativePtr.ofNativeInt<float>
+        let p = moveNative i j
         NativePtr.read p - v |> NativePtr.write p
 
     let mutable advancements = if args.Length=0 then 1000 else int args.[0]
@@ -214,9 +207,6 @@ let main args =
             setNative i 3n biVX
             setNative i 4n biVY
             setNative i 5n biVZ
-
-
-
 
     energy().ToString("F9") |> stdout.WriteLine
 
