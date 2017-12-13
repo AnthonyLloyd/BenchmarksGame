@@ -1,20 +1,18 @@
 // The Computer Language Benchmarks Game
 // http://benchmarksgame.alioth.debian.org/
 //
-// ported from C# version by Anthony Lloyd
+// ported from C# version with local variable changes by Anthony Lloyd
 
 #nowarn "9"
 
 [<Literal>]
 let N = 5
 [<Literal>]
-let dt = 0.01
-[<Literal>]
-let Pi = 3.141592653589793
+let DT = 0.01
 [<Literal>]
 let DaysPeryear = 365.24
 [<Literal>]
-let Solarmass = 39.4784176043574//4.0 * 3.141592653589793 * 3.141592653589793
+let Solarmass = 39.4784176043574
 [<Literal>]
 let Jx = 4.84143144246472090e+00
 [<Literal>]
@@ -72,20 +70,18 @@ let Nvz = -9.51592254519715870e-05
 [<Literal>]
 let Nmass = 5.15138902046611451e-05
 
-open System.Runtime.InteropServices
-
-[<Struct;StructLayout(LayoutKind.Explicit, Size=56)>]
-type NBody =
-      [<FieldOffset(0)>] val mutable X: float
-      [<FieldOffset(8)>] val mutable Y: float
-      [<FieldOffset(16)>] val mutable Z: float
-      [<FieldOffset(24)>] val mutable VX: float
-      [<FieldOffset(32)>] val mutable VY: float
-      [<FieldOffset(40)>] val mutable VZ: float
-      [<FieldOffset(48)>] val mutable Mass : float
-      new(x,y,z,vx,vy,vz,mass) = {X=x;Y=y;Z=z;VX=vx;VY=vy;VZ=vz;Mass=mass}
-
 open Microsoft.FSharp.NativeInterop
+
+[<Struct>]
+type NBody =
+      val mutable X: float
+      val mutable Y: float
+      val mutable Z: float
+      val mutable VX: float
+      val mutable VY: float
+      val mutable VZ: float
+      val mutable Mass : float
+      new(x,y,z,vx,vy,vz,mass) = {X=x;Y=y;Z=z;VX=vx;VY=vy;VZ=vz;Mass=mass}
 
 [<EntryPoint>]
 let main args =
@@ -152,7 +148,8 @@ let main args =
             e <- e + 0.5 * bi.Mass * (sqr bi.VX + sqr bi.VY + sqr bi.VZ)
             for j = i+1 to N-1 do
                 let bj = NativePtr.get ptrBody j
-                e <- e - bi.Mass * bj.Mass / sqrt(sqr(bi.X-bj.X) + sqr(bi.Y-bj.Y) + sqr(bi.Z-bj.Z))
+                e <- e - bi.Mass * bj.Mass /
+                         sqrt(sqr(bi.X-bj.X) + sqr(bi.Y-bj.Y) + sqr(bi.Z-bj.Z))
         e
 
     energy().ToString("F9") |> stdout.WriteLine
@@ -161,10 +158,8 @@ let main args =
         let d2 = sqr dx + sqr dy + sqr dz
         d2 * sqrt d2
 
-    let pointer = NativePtr.toNativeInt ptrBody
-
     let inline moveNative i j =
-        pointer + (7n * nativeint i + j) * 8n
+        NativePtr.toNativeInt ptrBody + (7n * nativeint i + j) * 8n
         |> NativePtr.ofNativeInt<float>
 
     let inline getNative i j = moveNative i j |> NativePtr.read
@@ -193,7 +188,7 @@ let main args =
                 let dx = getNative j 0n - biX
                 let dy = getNative j 1n - biY
                 let dz = getNative j 2n - biZ
-                let mag = dt / getD2 dx dy dz
+                let mag = DT / getD2 dx dy dz
                 dx * biMass * mag |> subNative j 3n
                 dy * biMass * mag |> subNative j 4n
                 dz * biMass * mag |> subNative j 5n
@@ -201,13 +196,13 @@ let main args =
                 biVX <- biVX + dx * bjMass
                 biVY <- biVY + dy * bjMass
                 biVZ <- biVZ + dz * bjMass
-            biVX * dt |> addNative i 0n
-            biVY * dt |> addNative i 1n
-            biVZ * dt |> addNative i 2n
+            biVX * DT |> addNative i 0n
+            biVY * DT |> addNative i 1n
+            biVZ * DT |> addNative i 2n
             setNative i 3n biVX
             setNative i 4n biVY
             setNative i 5n biVZ
 
     energy().ToString("F9") |> stdout.WriteLine
 
-    0
+    exit 0
