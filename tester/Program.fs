@@ -42,9 +42,10 @@ let main argv =
     //regexreduxImproved.Main [||] |> ignore
     //Fasta.Main argv |> ignore
     
-    NBody.main [|"50000000"|] |> ignore
+    //NBody.main [|"50000000"|] |> ignore
     //NBody_StructPtr2.Main [|"50000000"|] |> ignore
 
+    Mandelbrot.main [|"16000"|] |> ignore
     let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
 
@@ -62,7 +63,7 @@ let main argv =
 
     // let start = System.Diagnostics.Stopwatch.GetTimestamp()
     // //Mandelbrot.main [||] |> ignore
-    // //Mandelbrot.main [|"16000"|] |> ignore
+    // //
     // MandelBrot.Main [|"16000"|] |> ignore
     // //KNucleotide.main [||] |> ignore
     // //KNucleotideCS.Main [||] |> ignore

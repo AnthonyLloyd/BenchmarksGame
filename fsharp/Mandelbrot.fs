@@ -14,14 +14,14 @@ open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 
-//[<EntryPoint>]
+[<EntryPoint>]
 let main (args:string[]) =
-    let inline padd p i = IntPtr.Add(p,8*i)
-    let inline ptrGet p i = Unsafe.Read((padd p i).ToPointer())
-    let inline ptrSet p i v = Unsafe.Write((padd p i).ToPointer(), v)
+    let inline padd p i = p+8n*i
+    let inline ptrGet p i = Unsafe.Read((p+8n*i).ToPointer())
+    let inline ptrSet p i v = Unsafe.Write((p+8n*i).ToPointer(), v)
     let inline getByte (ciby:float) pcrbi =
         let rec calc i res =
-            if i=8 then res
+            if i=8n then res
             else
                 let vCrbx = ptrGet pcrbi i
                 let vCiby = Vector ciby
@@ -37,8 +37,8 @@ let main (args:string[]) =
                     let t = nZr * nZr + zi * zi
                     b <- b ||| if t.[0]>4.0 then 2 else 0
                            ||| if t.[1]>4.0 then 1 else 0
-                calc (i+2) ((res <<< 2) + b)
-        calc 0 0 ^^^ -1 |> byte
+                calc (i+2n) ((res <<< 2) + b)
+        calc 0n 0 ^^^ -1 |> byte
     let size = if args.Length=0 then 200 else int args.[0]
     let lineLength = size >>> 3
     let s = "P4\n"+string size+" "+string size+"\n"
@@ -53,15 +53,15 @@ let main (args:string[]) =
     let step = Vector 2.0
     let rec loop i value =
         if i<size then
-            ptrSet pcrbi i (value*invN-onePtFive)
+            ptrSet pcrbi (nativeint i) (value*invN-onePtFive)
             loop (i+2) (value+step)
     Vector [|0.0;1.0;0.0;0.0;0.0;0.0;0.0;0.0|] |> loop 0
     Parallel.For(0, size, fun y ->
         let ciby = NativePtr.get pcrb y+0.5
         for x = 0 to lineLength-1 do
-            x*8 |> padd pcrbi |> getByte ciby
+            nativeint x*8n |> padd pcrbi |> getByte ciby
             |> NativePtr.set pdata (y*lineLength+x)
     ) |> ignore
-    data
+    0
     //Console.OpenStandardOutput().Write(data, 0, data.Length)
     //exit 0
