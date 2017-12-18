@@ -3,7 +3,7 @@
 //
 // ported from C# version adding native by Anthony Lloyd
 
-module FannkuchRedux
+module FannkuchRedux2
 
 #nowarn "9"
 
@@ -13,9 +13,9 @@ open Microsoft.FSharp.NativeInterop
 let main (args:string[]) =
 
     let inline run n fact taskSize taskId =
-        use p = fixed &(Array.zeroCreate n).[0]
-        use pp = fixed &(Array.zeroCreate n).[0]
-        use count = fixed &(Array.zeroCreate n).[0]
+        let p = fixed &(Array.zeroCreate n).[0]
+        let pp = fixed &(Array.zeroCreate n).[0]
+        let count = fixed &(Array.zeroCreate n).[0]
 
         let inline firstPermutation idx =
             for i = 0 to n-1 do NativePtr.set p i i
@@ -38,14 +38,17 @@ let main (args:string[]) =
             NativePtr.get p 0 |> NativePtr.set p 1
             NativePtr.set p 0 first
             let mutable i = 1
-            while let c=NativePtr.get count i+1 in NativePtr.set count i c;c>i do
+            let mutable c = NativePtr.get count i+1
+            while c>i do
                 NativePtr.set count i 0
-                i <- i+1
                 let next = NativePtr.get p 1
                 NativePtr.set p 0 next
-                for j = 1 to i-1 do NativePtr.get p (j+1) |> NativePtr.set p j
+                for j = 1 to i do NativePtr.get p (j+1) |> NativePtr.set p j
+                i <- i+1
                 NativePtr.set p i first
                 first <- next
+                c <- NativePtr.get count i+1
+            NativePtr.set count i c
             first
 
         let inline countFlips first =
