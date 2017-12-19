@@ -8,7 +8,6 @@ module SpectralNorm
 
 #nowarn "9"
 
-open System
 open Microsoft.FSharp.NativeInterop
 
 //[<EntryPoint>]
@@ -18,8 +17,8 @@ let main (args:string[]) =
     for i = 0 to n-1 do NativePtr.set u i 1.0
     let tmp = NativePtr.stackalloc n
     let v = NativePtr.stackalloc n
-    let nthread = Environment.ProcessorCount
-    let barrier = new Threading.Barrier(nthread)
+    let nthread = System.Environment.ProcessorCount
+    let barrier = new System.Threading.Barrier(nthread)
 
     let inline approximate rbegin rend =
         // return element i,j of infinite matrix A
@@ -55,10 +54,9 @@ let main (args:string[]) =
 
         vBv, vv
 
-    let chunk = n / nthread
     Array.init nthread (fun i -> async {
-        let r1 = i * chunk
-        let r2 = if i<nthread-1 then r1+chunk-1 else n-1
+        let r1 = n/nthread * i
+        let r2 = if i=nthread-1 then n-1 else r1+n/nthread-1
         return approximate r1 r2 } )
     |> Async.Parallel
     |> Async.RunSynchronously
