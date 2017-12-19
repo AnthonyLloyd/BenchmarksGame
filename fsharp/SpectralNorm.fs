@@ -21,11 +21,7 @@ let main (args:string[]) =
     let barrier = new System.Threading.Barrier(nthread)
 
     let inline approximate rbegin rend =
-        // return element i,j of infinite matrix A
-        let inline infA i j = 1.0 / float((i+j) * (i+j+1)/2 + i + 1)
-        let inline infAt i j = infA j i
-
-        // multiply vector v by matrix A
+        
         let inline multiplyAv v res infM =
             for i = rbegin to rend do
                 let mutable sum = 0.0
@@ -33,10 +29,11 @@ let main (args:string[]) =
                     sum <- sum + NativePtr.get<float> v j * infM i j
                 NativePtr.set res i sum
 
-        // multiply vector v by matrix A and then by matrix A transposed
         let inline multiplyatAv v tmp atAv =
+            let inline infA i j = 1.0 / float((i+j) * (i+j+1)/2 + i + 1)
             multiplyAv v tmp infA
             barrier.SignalAndWait()
+            let inline infAt i j = infA j i
             multiplyAv tmp atAv infAt
             barrier.SignalAndWait()
 
@@ -44,14 +41,11 @@ let main (args:string[]) =
             multiplyatAv u tmp v
             multiplyatAv v tmp u
 
-        let mutable vBv = 0.0
-        let mutable vv = 0.0
-
+        let mutable vBv, vv = 0.0, 0.0
         for i = rbegin to rend do
             let vi = NativePtr.get v i
             vv <- vv + vi * vi
             vBv <- vBv + vi * NativePtr.get u i
-
         vBv, vv
 
     Array.init nthread (fun i -> async {
@@ -60,7 +54,7 @@ let main (args:string[]) =
         return approximate r1 r2 } )
     |> Async.Parallel
     |> Async.RunSynchronously
-    |> Array.reduce (fun (f1,s1) (f2,s2) -> f1+f2,s1+s2)
+    |> Array.reduce (fun (f1,s1) (f2,s2) -> f1+f2, s1+s2)
     ||> (/) |> sqrt
 
     // (sqrt (Array.sumBy fst aps/Array.sumBy snd aps)).ToString("F9")
