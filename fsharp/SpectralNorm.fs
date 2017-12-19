@@ -9,33 +9,17 @@ module SpectralNorm
 #nowarn "9"
 
 open System
-open System.Threading
 open Microsoft.FSharp.NativeInterop
-
-type BarrierHandle(threads:int) =
-    let mutable current = threads
-    let mutable handle = new ManualResetEvent false
-    member __.WaitOne() =
-        let h = handle
-        if Interlocked.Decrement(&current) > 0 then
-            h.WaitOne() |> ignore
-        else
-            handle <- new ManualResetEvent false
-            Interlocked.Exchange(&current, threads) |> ignore
-            h.Set() |> ignore
-            h.Dispose()
 
 //[<EntryPoint>]
 let main (args:string[]) =
-    let n = if args.Length=0 then 2500 else int args.[0]
+    let n = if Array.isEmpty args then 2500 else int args.[0]
     let u = NativePtr.stackalloc n
     for i = 0 to n-1 do NativePtr.set u i 1.0
     let tmp = NativePtr.stackalloc n
     let v = NativePtr.stackalloc n
-
     let nthread = Environment.ProcessorCount
-    let barrier = BarrierHandle nthread
-    let chunk = n / nthread
+    let barrier = new Threading.Barrier(nthread)
 
     let inline approximate rbegin rend =
         // return element i,j of infinite matrix A
@@ -47,15 +31,15 @@ let main (args:string[]) =
             for i = rbegin to rend do
                 let mutable sum = 0.0
                 for j = 0 to n-1 do
-                    sum <- sum + infM i j * NativePtr.get<float> v j
+                    sum <- sum + NativePtr.get<float> v j * infM i j
                 NativePtr.set res i sum
 
         // multiply vector v by matrix A and then by matrix A transposed
         let inline multiplyatAv v tmp atAv =
             multiplyAv v tmp infA
-            barrier.WaitOne()
+            barrier.SignalAndWait()
             multiplyAv tmp atAv infAt
-            barrier.WaitOne()
+            barrier.SignalAndWait()
 
         for __ = 0 to 9 do
             multiplyatAv u tmp v
@@ -65,22 +49,22 @@ let main (args:string[]) =
         let mutable vv = 0.0
 
         for i = rbegin to rend do
-            let ui = NativePtr.get u i
             let vi = NativePtr.get v i
-            vBv <- vBv + ui * vi
             vv <- vv + vi * vi
+            vBv <- vBv + vi * NativePtr.get u i
 
         vBv, vv
 
-    let aps =
-        Array.init nthread (fun i ->
-            let r1 = i * chunk
-            let r2 = if i<nthread-1 then r1+chunk-1 else n-1
-            async { return approximate r1 r2 } )
-        |> Async.Parallel
-        |> Async.RunSynchronously
+    let chunk = n / nthread
+    Array.init nthread (fun i -> async {
+        let r1 = i * chunk
+        let r2 = if i<nthread-1 then r1+chunk-1 else n-1
+        return approximate r1 r2 } )
+    |> Async.Parallel
+    |> Async.RunSynchronously
+    |> Array.reduce (fun (f1,s1) (f2,s2) -> f1+f2,s1+s2)
+    ||> (/) |> sqrt
 
-    sqrt(Array.sumBy fst aps/Array.sumBy snd aps)
     // (sqrt (Array.sumBy fst aps/Array.sumBy snd aps)).ToString("F9")
     // |> stdout.WriteLine
 
