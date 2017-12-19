@@ -46,8 +46,8 @@ let main argv =
     //NBody_StructPtr2.Main [|"50000000"|] |> ignore
 
     isFasterThan
-      (fun () -> FannkuchRedux2.main [|"12"|])
-      (fun () -> FannkuchRedux.main [|"12"|])
+      (fun () -> SpectralNorm.main [|"5500"|])
+      (fun () -> SpectralNormOld.main [|"5500"|])
       "check 2 is faster"
 
     // let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
