@@ -12,10 +12,10 @@ open Microsoft.FSharp.NativeInterop
 //[<EntryPoint>]
 let main (args:string[]) =
 
-    let inline run n fact taskSize taskId =
-        let p = fixed &(Array.zeroCreate n).[0]
-        let pp = fixed &(Array.zeroCreate n).[0]
-        let count = fixed &(Array.zeroCreate n).[0]
+    let run n fact taskSize taskId =
+        let p = NativePtr.stackalloc n
+        let pp = NativePtr.stackalloc n
+        let count = NativePtr.stackalloc n
 
         let inline firstPermutation idx =
             for i = 0 to n-1 do NativePtr.set p i i
@@ -24,22 +24,19 @@ let main (args:string[]) =
                 let d = idx/NativePtr.get fact i
                 NativePtr.set count i d
                 if d<>0 then
-                    idx <-
-                        for j = 0 to i do
-                            NativePtr.get p j
-                            |> NativePtr.set pp j
-                        for j = 0 to i do
-                            NativePtr.get pp ((j+d) % (i+1))
-                            |> NativePtr.set p j
-                        idx % NativePtr.get fact i
+                    for j = 0 to i do
+                        NativePtr.get p j |> NativePtr.set pp j
+                    for j = 0 to i do
+                        NativePtr.get pp ((j+d) % (i+1)) |> NativePtr.set p j
+                    idx <- idx % NativePtr.get fact i
 
         let inline nextPermutation() =
             let mutable first = NativePtr.get p 1
             NativePtr.get p 0 |> NativePtr.set p 1
             NativePtr.set p 0 first
             let mutable i = 1
-            let mutable c = NativePtr.get count i+1
-            while c>i do
+            let mutable c = NativePtr.get count i
+            while c>=i do
                 NativePtr.set count i 0
                 let next = NativePtr.get p 1
                 NativePtr.set p 0 next
@@ -47,8 +44,8 @@ let main (args:string[]) =
                 i <- i+1
                 NativePtr.set p i first
                 first <- next
-                c <- NativePtr.get count i+1
-            NativePtr.set count i c
+                c <- NativePtr.get count i
+            NativePtr.set count i (c+1)
             first
 
         let inline countFlips first =
@@ -92,7 +89,7 @@ let main (args:string[]) =
     let chksum, maxFlips =
         let taskSize = factn / System.Environment.ProcessorCount
         Array.init System.Environment.ProcessorCount
-            (fun i -> async { return run n fact taskSize i})
+            (fun i -> async { return run n fact taskSize i })
         |> Async.Parallel
         |> Async.RunSynchronously
         |> Array.reduce (fun (c1,f1) (c2,f2) -> c1+c2,max f1 f2) 
