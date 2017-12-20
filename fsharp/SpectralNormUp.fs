@@ -3,17 +3,16 @@
 //
 // Based on C# version by Isaac Gouy, The Anh Tran, Alan McGovern
 // Contributed by Don Syme
+// Small optimisations by Anthony Lloyd
 
 module SpectralNormUp
 
 #nowarn "9"
 
-open System
-open System.Threading
 open Microsoft.FSharp.NativeInterop
 
-let approximate n1 u tmp v rbegin rend (barrier: Barrier) =
-    
+let approximate n1 u tmp v rbegin rend (barrier: System.Threading.Barrier) =
+
     let inline multiplyAv v Av A =
         for i = rbegin to rend do
             let mutable sum = A i 0 * NativePtr.read v
@@ -22,11 +21,11 @@ let approximate n1 u tmp v rbegin rend (barrier: Barrier) =
             NativePtr.set Av i sum
 
     let inline multiplyatAv v tmp atAv =
-        let inline matA i j = 1.0 / float((i + j) * (i + j + 1) / 2 + i + 1)
-        multiplyAv v tmp matA
+        let inline A i j = 1.0 / float((i + j) * (i + j + 1) / 2 + i + 1)
+        multiplyAv v tmp A
         barrier.SignalAndWait()
-        let inline matAt i j = matA j i
-        multiplyAv tmp atAv matAt
+        let inline At i j = A j i
+        multiplyAv tmp atAv At
         barrier.SignalAndWait()
 
     for __ = 0 to 9 do
@@ -48,8 +47,8 @@ let main (args:string[]) =
     let u = fixed &(Array.create n 1.0).[0]
     let tmp = NativePtr.stackalloc n
     let v = NativePtr.stackalloc n
-    let nthread = Environment.ProcessorCount
-    let barrier = new Barrier(nthread)
+    let nthread = System.Environment.ProcessorCount
+    let barrier = new System.Threading.Barrier(nthread)
     let chunk = n / nthread
     let aps =
         [ for i = 0 to nthread-1 do
