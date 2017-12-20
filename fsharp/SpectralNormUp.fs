@@ -6,24 +6,23 @@
 
 module SpectralNormUp
 
+#nowarn "9"
+
 open System
 open System.Threading
+open Microsoft.FSharp.NativeInterop
 
-let approximate u v tmp rbegin rend (barrier: Barrier) =
-
-    let mutable vBv = 0.0
-    let mutable vv = 0.0
-
+let approximate n1 u tmp v rbegin rend (barrier: Barrier) =
     // return element i,j of infinite matrix A
     let inline A i j = 1.0 / float((i + j) * (i + j + 1) / 2 + i + 1)
     let inline At i j = A j i
     // multiply vector v by matrix A 
     let inline multiplyAv v Av A =
-        for i = rbegin to rend - 1 do
-            let mutable sum = 0.0
-            for j = 0 to Array.length v - 1 do
-                sum <- sum + A i j * Array.get<float> v j
-            Array.set Av i sum
+        for i = rbegin to rend do
+            let mutable sum = A i 0 * NativePtr.read v
+            for j = 1 to n1 do
+                sum <- sum + A i j * NativePtr.get<float> v j
+            NativePtr.set Av i sum
 
     // multiply vector v by matrix A and then by matrix A transposed
     let inline multiplyatAv v tmp atAv =
@@ -36,43 +35,32 @@ let approximate u v tmp rbegin rend (barrier: Barrier) =
         multiplyatAv u tmp v
         multiplyatAv v tmp u
 
-    for i = rbegin to rend - 1 do
-        let vi = Array.get v i
+    let vbegin = NativePtr.get v rbegin
+    let mutable vv = vbegin * vbegin
+    let mutable vBv = vbegin * NativePtr.get u rbegin
+    for i = rbegin+1 to rend do
+        let vi = NativePtr.get v i
         vv <- vv + vi * vi
-        vBv <- vBv + vi * Array.get u i
-
+        vBv <- vBv + vi * NativePtr.get u i
     vBv, vv
-
-
-let runGame n =
-    // create unit vector
-    let u = Array.create n 1.0
-    let tmp = Array.zeroCreate n
-    let v = Array.zeroCreate n
-
-    let nthread = Environment.ProcessorCount
-
-    let barrier = new Barrier(nthread)
-        // create thread and hand out tasks
-    let chunk = n / nthread
-        // objects contain result of each thread
-    let aps = 
-        Async.Parallel 
-          [ for i in 0 .. nthread - 1 do
-                let r1 = i * chunk
-                let r2 = if (i < (nthread - 1)) then r1 + chunk else n
-                yield async { return approximate u v tmp r1 r2 barrier } ]
-         |> Async.RunSynchronously
-
-    let vBv = aps |> Array.sumBy fst
-    let vv = aps |> Array.sumBy snd
-
-    Math.Sqrt(vBv / vv)
 
 //[<EntryPoint>]
 let main (args:string[]) =
-    let n = try int <| args.[0] with _ -> 2500
+    let n = try int args.[0] with _ -> 2500
+    let u = fixed &(Array.create n 1.0).[0]
+    let tmp = NativePtr.stackalloc n
+    let v = NativePtr.stackalloc n
+    let nthread = Environment.ProcessorCount
+    let barrier = new Barrier(nthread)
+    let chunk = n / nthread
+    let aps =
+        [ for i = 0 to nthread-1 do
+            let r1 = i * chunk
+            let r2 = if (i < (nthread - 1)) then r1 + chunk - 1 else n-1
+            yield async { return approximate (n-1) u tmp v r1 r2 barrier } ]
+        |> Async.Parallel
+        |> Async.RunSynchronously
+    sqrt(Array.sumBy fst aps/Array.sumBy snd aps)
 
-    runGame n
     //System.Console.WriteLine("{0:f9}", RunGame n);
     //0
