@@ -13,10 +13,7 @@ open System.Threading
 open Microsoft.FSharp.NativeInterop
 
 let approximate n1 u tmp v rbegin rend (barrier: Barrier) =
-    // return element i,j of infinite matrix A
-    let inline A i j = 1.0 / float((i + j) * (i + j + 1) / 2 + i + 1)
-    let inline At i j = A j i
-    // multiply vector v by matrix A 
+    
     let inline multiplyAv v Av A =
         for i = rbegin to rend do
             let mutable sum = A i 0 * NativePtr.read v
@@ -24,11 +21,12 @@ let approximate n1 u tmp v rbegin rend (barrier: Barrier) =
                 sum <- sum + A i j * NativePtr.get<float> v j
             NativePtr.set Av i sum
 
-    // multiply vector v by matrix A and then by matrix A transposed
     let inline multiplyatAv v tmp atAv =
-        multiplyAv v tmp A
+        let inline matA i j = 1.0 / float((i + j) * (i + j + 1) / 2 + i + 1)
+        multiplyAv v tmp matA
         barrier.SignalAndWait()
-        multiplyAv tmp atAv At
+        let inline matAt i j = matA j i
+        multiplyAv tmp atAv matAt
         barrier.SignalAndWait()
 
     for __ = 0 to 9 do
