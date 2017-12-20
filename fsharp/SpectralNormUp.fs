@@ -9,19 +9,7 @@ module SpectralNormUp
 open System
 open System.Threading
 
-type BarrierHandle(threads:int) =
-    let mutable current = threads
-    let mutable handle = new ManualResetEvent(false)
-    member __.WaitOne() =
-        let h = handle
-        if Interlocked.Decrement(&current) > 0 then
-            h.WaitOne() |> ignore
-        else
-            handle <- new ManualResetEvent(false)
-            current <- threads
-            h.Set() |> ignore
-
-let Approximate(u:double[], v:double[], tmp:double[], rbegin, rend, barrier: BarrierHandle) =
+let Approximate(u:double[], v:double[], tmp:double[], rbegin, rend, barrier: Barrier) =
 
     let mutable vBv = 0.0
     let mutable vv = 0.0
@@ -40,9 +28,9 @@ let Approximate(u:double[], v:double[], tmp:double[], rbegin, rend, barrier: Bar
     // multiply vector v by matrix A and then by matrix A transposed
     let inline multiplyatAv(v:double[], tmp:double[], atAv:double[]) =
         multiplyAv v tmp A
-        barrier.WaitOne()
+        barrier.SignalAndWait()
         multiplyAv tmp atAv At
-        barrier.WaitOne()
+        barrier.SignalAndWait()
 
     for __ = 0 to 9 do
         multiplyatAv(u, tmp, v)
@@ -56,7 +44,7 @@ let Approximate(u:double[], v:double[], tmp:double[], rbegin, rend, barrier: Bar
     (vBv, vv)
 
 
-let RunGame n = 
+let inline RunGame n =
     // create unit vector
     let u = Array.create n 1.0
     let tmp = Array.zeroCreate n
@@ -64,7 +52,7 @@ let RunGame n =
 
     let nthread = Environment.ProcessorCount
 
-    let barrier = BarrierHandle(nthread)
+    let barrier = new Barrier(nthread)
         // create thread and hand out tasks
     let chunk = n / nthread
         // objects contain result of each thread
