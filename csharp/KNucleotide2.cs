@@ -1,20 +1,91 @@
-/* The Computer Language Benchmarks Game
-   http://benchmarksgame.alioth.debian.org/
+// The Computer Language Benchmarks Game
+// https://benchmarksgame-team.pages.debian.net/benchmarksgame/
  
-   submitted by Josh Goldfoot
-   Modified to reduce memory and do more in parallel by Anthony Lloyd
- */
+// submitted by Josh Goldfoot
+// Modified to reduce memory and do more in parallel by Anthony Lloyd
 
 using System;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-class Wrapper { public int v=1; }
-public static class KNucleotide
+class Incrementor : IDisposable
+{
+    static FieldInfo bucketsField = typeof(Dictionary<long, int>).GetField(
+        "_buckets", BindingFlags.NonPublic | BindingFlags.Instance);
+    static FieldInfo entriesField = typeof(Dictionary<long, int>).GetField(
+        "_entries", BindingFlags.NonPublic | BindingFlags.Instance);
+    static FieldInfo countField = typeof(Dictionary<long, int>).GetField(
+        "_count", BindingFlags.NonPublic | BindingFlags.Instance);
+    static MethodInfo resizeMethod = typeof(Dictionary<long, int>).GetMethod(
+        "Resize", BindingFlags.NonPublic | BindingFlags.Instance,
+        null, new Type[0], null);
+    Dictionary<long, int> dictionary;
+    int[] buckets;
+    IntPtr entries;
+    GCHandle handle;
+    int count;
+
+    public Incrementor(Dictionary<long, int> d)
+    {
+        dictionary = d;
+        Sync();
+    }
+
+    void Sync()
+    {
+        buckets = (int[])bucketsField.GetValue(dictionary);
+        handle = GCHandle.Alloc(entriesField.GetValue(dictionary),
+                    GCHandleType.Pinned);
+        entries = handle.AddrOfPinnedObject();
+        count = (int)countField.GetValue(dictionary);
+    }
+
+    public void Increment(long key)
+    {
+        int hashCode = key.GetHashCode() & 0x7FFFFFFF;
+        int targetBucket = hashCode % buckets.Length;
+        int keyLo = (int)(key & uint.MaxValue);
+        int keyHi = (int)(key >> 32);
+        ref int bucket = ref buckets[targetBucket];
+        for (int i = buckets[targetBucket]-1; i >= 0; i = Marshal.ReadInt32(entries, i * 16 + 4))
+        {
+            if (Marshal.ReadInt32(entries, i * 16 + 8) == keyLo && Marshal.ReadInt32(entries, i * 16 + 12) == keyHi)
+            {
+                Marshal.WriteInt32(entries, i * 16 + 16, Marshal.ReadInt32(entries, i * 16 + 16) + 1);
+                return;
+            }
+        }
+        if (count == buckets.Length)
+        {
+            countField.SetValue(dictionary, count);
+            resizeMethod.Invoke(dictionary, null);
+            handle.Free();
+            Sync();
+            targetBucket = hashCode % buckets.Length;
+        }
+        int index = count++;
+        Marshal.WriteInt32(entries, index * 16, hashCode);
+        Marshal.WriteInt32(entries, index * 16 + 4, buckets[targetBucket]-1);
+        Marshal.WriteInt32(entries, index * 16 + 8, keyLo);
+        Marshal.WriteInt32(entries, index * 16 + 12, keyHi);
+        Marshal.WriteInt32(entries, index * 16 + 16, 1);
+        buckets[targetBucket] = index+1;
+    }
+
+    public void Dispose()
+    {
+        countField.SetValue(dictionary, count);
+        handle.Free();
+    }
+}
+
+public static class KNucleotide2
 {
     const int BLOCK_SIZE = 1024 * 1024 * 8;
     public static List<byte[]> threeBlocks = new List<byte[]>();
@@ -57,7 +128,7 @@ public static class KNucleotide
     public static void LoadThreeData()
     {
         //var stream = Console.OpenStandardInput();
-        var stream = System.IO.File.OpenRead(@"C:\Users\Ant\Google Drive\BenchmarkGame\fasta25000000.txt");
+        var stream = System.IO.File.OpenRead(@"C:\temp\fasta25000000.txt");
         
         // find three sequence
         int matchIndex = 0;
@@ -113,18 +184,14 @@ public static class KNucleotide
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void check(Dictionary<long, Wrapper> dict, ref long rollingKey, byte nb, long mask)
+    static void check(Incrementor inc, ref long rollingKey, byte nb, long mask)
     {
         if(nb==255) return;
         rollingKey = ((rollingKey & mask) << 2) | nb;
-        Wrapper w;
-        if (dict.TryGetValue(rollingKey, out w))
-            w.v++;
-        else
-            dict[rollingKey] = new Wrapper();
+        inc.Increment(rollingKey);
     }
 
-    static Task<string> count(int l, long mask, Func<Dictionary<long,Wrapper>,string> summary)
+    static Task<string> count(int l, long mask, Func<Dictionary<long,int>,string> summary)
     {
         return Task.Run(() =>
         {
@@ -132,30 +199,33 @@ public static class KNucleotide
             var firstBlock = threeBlocks[0];
             var start = threeStart;
             while(--l>0) rollingKey = (rollingKey<<2) | firstBlock[start++];
-            var dict = new Dictionary<long,Wrapper>();
-            for(int i=start; i<firstBlock.Length; i++)
-                check(dict, ref rollingKey, firstBlock[i], mask);
-
-            int lastBlockId = threeBlocks.Count-1; 
-            for(int bl=1; bl<lastBlockId; bl++)
+            var dict = new Dictionary<long,int>(1024);
+            using(var incrementor = new Incrementor(dict))
             {
-                var bytes = threeBlocks[bl];
-                for(int i=0; i<bytes.Length; i++)
-                    check(dict, ref rollingKey, bytes[i], mask);
-            }
+                for(int i=start; i<firstBlock.Length; i++)
+                    check(incrementor, ref rollingKey, firstBlock[i], mask);
 
-            var lastBlock = threeBlocks[lastBlockId];
-            for(int i=0; i<threeEnd; i++)
-                check(dict, ref rollingKey, lastBlock[i], mask);
+                int lastBlockId = threeBlocks.Count-1; 
+                for(int bl=1; bl<lastBlockId; bl++)
+                {
+                    var bytes = threeBlocks[bl];
+                    for(int i=0; i<bytes.Length; i++)
+                        check(incrementor, ref rollingKey, bytes[i], mask);
+                }
+
+                var lastBlock = threeBlocks[lastBlockId];
+                for(int i=0; i<threeEnd; i++)
+                    check(incrementor, ref rollingKey, lastBlock[i], mask);
+            }
             return summary(dict);
         });
     }
 
-    static string writeFrequencies(Dictionary<long,Wrapper> freq, int fragmentLength)
+    static string writeFrequencies(Dictionary<long,int> freq, int fragmentLength)
     {
         var sb = new StringBuilder();
-        double percent = 100.0 / freq.Values.Sum(i => i.v);
-        foreach(var kv in freq.OrderByDescending(i => i.Value.v))
+        double percent = 100.0 / freq.Values.Sum();
+        foreach(var kv in freq.OrderByDescending(i => i.Value))
         {
             var keyChars = new char[fragmentLength];
             var key = kv.Key;
@@ -164,20 +234,19 @@ public static class KNucleotide
                 keyChars[i] = tochar[key & 0x3];
                 key >>= 2;
             }
-            sb.Append(keyChars);   
+            sb.Append(keyChars);
             sb.Append(" ");
-            sb.AppendLine((kv.Value.v * percent).ToString("F3"));
+            sb.AppendLine((kv.Value * percent).ToString("F3"));
         }
         return sb.ToString();
     }
 
-    static string writeCount(Dictionary<long,Wrapper> dictionary, string fragment)
+    static string writeCount(Dictionary<long,int> dictionary, string fragment)
     {
         long key = 0;
         for (int i=0; i<fragment.Length; ++i)
             key = (key << 2) | tonum[fragment[i]];
-        Wrapper w;
-        var n = dictionary.TryGetValue(key, out w) ? w.v : 0;
+        var n = dictionary.TryGetValue(key, out var v) ? v : 0;
         return string.Concat(n.ToString(), "\t", fragment);
     }
 

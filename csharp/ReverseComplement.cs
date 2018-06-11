@@ -17,8 +17,8 @@ public static class revcomp
 {
     const int READER_BUFFER_SIZE = 1024 * 1024;
     const byte LF = 10, GT = (byte)'>', SP = 32;
-    static BlockingCollection<byte[]> readQue = new BlockingCollection<byte[]>();
-    static BlockingCollection<RevCompSequence> writeQue = new BlockingCollection<RevCompSequence>();
+    static BlockingCollection<byte[]> readQue;
+    static BlockingCollection<RevCompSequence> writeQue;
     static byte[] map;
     
     static int read(Stream stream, byte[] buffer, int offset, int count)
@@ -170,9 +170,9 @@ public static class revcomp
         if (startIndex == endIndex) startBytes[startIndex] = map[startBytes[startIndex]];
     }
 
-    static void Writer()
+    static byte[] Writer()
     {
-        using (var stream = Stream.Null)//Console.OpenStandardOutput())
+        using (var stream = new MemoryStream()) //Console.OpenStandardOutput()) //Stream.Null)//
         {
             bool first = true;
             RevCompSequence sequence;
@@ -197,13 +197,19 @@ public static class revcomp
                 }
                 stream.Write(pages[pages.Count-1], startIndex, sequence.EndExclusive - startIndex);
             }
+            return stream.ToArray();
         }
     }
 
-    public static void Main(string[] args)
+    public static byte[] Main(string[] args)
     {
+        readQue = new BlockingCollection<byte[]>();
+        writeQue = new BlockingCollection<RevCompSequence>();
+        map = null;
+
         new Thread(Reader).Start();
         new Thread(Grouper).Start();
-        Writer();
+
+        return Writer();
     }
 }

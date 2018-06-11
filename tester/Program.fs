@@ -1,6 +1,5 @@
 ﻿open System
 open Expecto
-open System.Security.Cryptography
 
 /// Expects function `f1` is faster than `f2`. Measurer used to measure only a
 /// subset of the functions. Statistical test to 99.99% confidence level.
@@ -30,6 +29,20 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
+    //ReverseComplement.main([||]) |> ignore
+    //revcomp.Main([||])
+
+    // isFasterThan (fun () -> ReverseComplementSimple.main argv)
+    //              (fun () -> revcomp.Main argv) ""
+
+    KNucleotide2.Main([||])
+
+    // let start = System.Diagnostics.Stopwatch.GetTimestamp();
+    // revcompImproved.Main argv
+    // let end1 = System.Diagnostics.Stopwatch.GetTimestamp();
+    // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
+
+
     //let args = [|System.IO.File.ReadAllText(@"C:\temp\fasta2500000.txt")|]
     // let start = System.Diagnostics.Stopwatch.GetTimestamp()
     
@@ -45,10 +58,10 @@ let main argv =
     //NBody.main [|"50000000"|] |> ignore
     //NBody_StructPtr2.Main [|"50000000"|] |> ignore
 
-    isFasterThan
-      (fun () -> NBody.main [|"50000000"|])
-      (fun () -> NBodyOld.main [|"50000000"|])
-      "check 2 is faster"
+    // isFasterThan
+    //   (fun () -> NBody.main [|"50000000"|])
+    //   (fun () -> NBodyOld.main [|"50000000"|])
+    //   "check 2 is faster"
 
     // let end1 = System.Diagnostics.Stopwatch.GetTimestamp()
     // Console.WriteLine(float(end1-start)*1000.0/float System.Diagnostics.Stopwatch.Frequency)
