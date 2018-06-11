@@ -50,12 +50,10 @@ class Incrementor : IDisposable
     {
         int hashCode = key.GetHashCode() & 0x7FFFFFFF;
         int targetBucket = hashCode % buckets.Length;
-        int keyLo = (int)(key & uint.MaxValue);
-        int keyHi = (int)(key >> 32);
-        ref int bucket = ref buckets[targetBucket];
-        for (int i = buckets[targetBucket]-1; i >= 0; i = Marshal.ReadInt32(entries, i * 16 + 4))
+        for (int i = buckets[targetBucket]-1;; i = Marshal.ReadInt32(entries, i * 16 + 4))
         {
-            if (Marshal.ReadInt32(entries, i * 16 + 8) == keyLo && Marshal.ReadInt32(entries, i * 16 + 12) == keyHi)
+            if ((uint)i >= (uint)buckets.Length) break;
+            if (Marshal.ReadInt32(entries, i * 16) == hashCode && Marshal.ReadInt64(entries, i * 16 + 8) == key)
             {
                 Marshal.WriteInt32(entries, i * 16 + 16, Marshal.ReadInt32(entries, i * 16 + 16) + 1);
                 return;
@@ -63,17 +61,15 @@ class Incrementor : IDisposable
         }
         if (count == buckets.Length)
         {
-            countField.SetValue(dictionary, count);
+            Dispose();
             resizeMethod.Invoke(dictionary, null);
-            handle.Free();
             Sync();
             targetBucket = hashCode % buckets.Length;
         }
         int index = count++;
         Marshal.WriteInt32(entries, index * 16, hashCode);
         Marshal.WriteInt32(entries, index * 16 + 4, buckets[targetBucket]-1);
-        Marshal.WriteInt32(entries, index * 16 + 8, keyLo);
-        Marshal.WriteInt32(entries, index * 16 + 12, keyHi);
+        Marshal.WriteInt64(entries, index * 16 + 8, key);
         Marshal.WriteInt32(entries, index * 16 + 16, 1);
         buckets[targetBucket] = index+1;
     }
@@ -200,7 +196,7 @@ public static class KNucleotide2
             var start = threeStart;
             while(--l>0) rollingKey = (rollingKey<<2) | firstBlock[start++];
             var dict = new Dictionary<long,int>(1024);
-            using(var incrementor = new Incrementor(dict))
+            using (var incrementor = new Incrementor(dict))
             {
                 for(int i=start; i<firstBlock.Length; i++)
                     check(incrementor, ref rollingKey, firstBlock[i], mask);
