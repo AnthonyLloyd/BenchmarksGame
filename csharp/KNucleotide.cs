@@ -181,7 +181,7 @@ public static class KNucleotide
         return string.Concat(n.ToString(), "\t", fragment);
     }
 
-    public static void Main(string[] args)
+    public static void MainOld(string[] args)
     {
         tonum['c'] = 1; tonum['C'] = 1;
         tonum['g'] = 2; tonum['G'] = 2;
@@ -204,12 +204,19 @@ public static class KNucleotide
         var task3 = count(3, 0b1111, d => writeCount(d, "GGT"));
         var task4 = count(4, 0b111111, d => writeCount(d, "GGTA"));
         
-        Console.Out.WriteLineAsync(task1.Result);
-        Console.Out.WriteLineAsync(task2.Result);
-        Console.Out.WriteLineAsync(task3.Result);
-        Console.Out.WriteLineAsync(task4.Result);
-        Console.Out.WriteLineAsync(task6.Result);
-        Console.Out.WriteLineAsync(task12.Result);
-        Console.WriteLine(task18.Result);
+        task1.Wait();
+        task2.Wait();
+        task3.Wait();
+        task4.Wait();
+        task6.Wait();
+        task12.Wait();
+        task18.Wait();
+        // Console.Out.WriteLineAsync(task1.Result);
+        // Console.Out.WriteLineAsync(task2.Result);
+        // Console.Out.WriteLineAsync(task3.Result);
+        // Console.Out.WriteLineAsync(task4.Result);
+        // Console.Out.WriteLineAsync(task6.Result);
+        // Console.Out.WriteLineAsync(task12.Result);
+        // Console.WriteLine(task18.Result);
     }
 }

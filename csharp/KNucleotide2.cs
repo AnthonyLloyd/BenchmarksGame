@@ -48,13 +48,15 @@ class Incrementor : IDisposable
 
     public void Increment(long key)
     {
-        int hashCode = (int)(key & 0x7FFFFFFF);
+        int hashCode = key.GetHashCode() & 0x7FFFFFFF;
         int targetBucket = hashCode % buckets.Length;
-        for (int i = buckets[targetBucket] - 1; (uint)i < (uint)buckets.Length; i = Marshal.ReadInt32(entries, i * 24 + 4))
+        for (int i = buckets[targetBucket] - 1; (uint)i < (uint)buckets.Length;
+            i = Marshal.ReadInt32(entries, i * 24 + 4))
         {
             if (Marshal.ReadInt64(entries, i * 24 + 8) == key)
             {
-                Marshal.WriteInt32(entries, i * 24 + 16, Marshal.ReadInt32(entries, i * 24 + 16) + 1);
+                Marshal.WriteInt32(entries, i * 24 + 16,
+                    Marshal.ReadInt32(entries, i * 24 + 16) + 1);
                 return;
             }
         }
@@ -268,12 +270,19 @@ public static class KNucleotide2
         var task3 = count(3, 0b1111, d => writeCount(d, "GGT"));
         var task4 = count(4, 0b111111, d => writeCount(d, "GGTA"));
         
-        Console.Out.WriteLineAsync(task1.Result);
-        Console.Out.WriteLineAsync(task2.Result);
-        Console.Out.WriteLineAsync(task3.Result);
-        Console.Out.WriteLineAsync(task4.Result);
-        Console.Out.WriteLineAsync(task6.Result);
-        Console.Out.WriteLineAsync(task12.Result);
-        Console.WriteLine(task18.Result);
+        task1.Wait();
+        task2.Wait();
+        task3.Wait();
+        task4.Wait();
+        task6.Wait();
+        task12.Wait();
+        task18.Wait();
+        // Console.Out.WriteLineAsync(task1.Result);
+        // Console.Out.WriteLineAsync(task2.Result);
+        // Console.Out.WriteLineAsync(task3.Result);
+        // Console.Out.WriteLineAsync(task4.Result);
+        // Console.Out.WriteLineAsync(task6.Result);
+        // Console.Out.WriteLineAsync(task12.Result);
+        // Console.WriteLine(task18.Result);
     }
 }

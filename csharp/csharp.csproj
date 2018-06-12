@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.cs" />
+    <Compile Include="KNucleotide.cs" />
     <Compile Include="KNucleotide2.cs" />
   </ItemGroup>
 </Project>
