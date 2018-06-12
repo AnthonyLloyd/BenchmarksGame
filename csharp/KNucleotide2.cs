@@ -48,14 +48,13 @@ class Incrementor : IDisposable
 
     public void Increment(long key)
     {
-        int hashCode = key.GetHashCode() & 0x7FFFFFFF;
+        int hashCode = (int)(key & 0x7FFFFFFF);
         int targetBucket = hashCode % buckets.Length;
-        for (int i = buckets[targetBucket]-1;; i = Marshal.ReadInt32(entries, i * 16 + 4))
+        for (int i = buckets[targetBucket] - 1; (uint)i < (uint)buckets.Length; i = Marshal.ReadInt32(entries, i * 24 + 4))
         {
-            if ((uint)i >= (uint)buckets.Length) break;
-            if (Marshal.ReadInt32(entries, i * 16) == hashCode && Marshal.ReadInt64(entries, i * 16 + 8) == key)
+            if (Marshal.ReadInt64(entries, i * 24 + 8) == key)
             {
-                Marshal.WriteInt32(entries, i * 16 + 16, Marshal.ReadInt32(entries, i * 16 + 16) + 1);
+                Marshal.WriteInt32(entries, i * 24 + 16, Marshal.ReadInt32(entries, i * 24 + 16) + 1);
                 return;
             }
         }
@@ -67,11 +66,11 @@ class Incrementor : IDisposable
             targetBucket = hashCode % buckets.Length;
         }
         int index = count++;
-        Marshal.WriteInt32(entries, index * 16, hashCode);
-        Marshal.WriteInt32(entries, index * 16 + 4, buckets[targetBucket]-1);
-        Marshal.WriteInt64(entries, index * 16 + 8, key);
-        Marshal.WriteInt32(entries, index * 16 + 16, 1);
-        buckets[targetBucket] = index+1;
+        Marshal.WriteInt32(entries, index * 24, hashCode);
+        Marshal.WriteInt32(entries, index * 24 + 4, buckets[targetBucket] - 1);
+        Marshal.WriteInt64(entries, index * 24 + 8, key);
+        Marshal.WriteInt32(entries, index * 24 + 16, 1);
+        buckets[targetBucket] = index + 1;
     }
 
     public void Dispose()
