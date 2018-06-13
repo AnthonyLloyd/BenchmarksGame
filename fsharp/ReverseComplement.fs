@@ -1,10 +1,9 @@
-module ReverseComplement
-
 // The Computer Language Benchmarks Game
 // http://benchmarksgame.alioth.debian.org/
 //
 // contributed by Jimmy Tang
 // multithreaded by Anthony Lloyd
+module ReverseComplement
 
 open System
 open System.Threading
@@ -37,13 +36,14 @@ let main (_:string[]) =
             "ABCDGHKMRTVYabcdghkmrtvy"B
             "TVGHCDMKYABRTVGHCDMKYABR"B
 
-        let reverse startPage startIndex endPage endIndex =
+        let reverse startPage startIndex endPage endIndex (previousThread:Thread option) =
             let mutable loPageID, lo, loPage = startPage, startIndex, pages.[startPage]
             let mutable hiPageID, hi, hiPage = endPage, endIndex, pages.[endPage]
             let inline checkhilo() =
                 if pageSize=lo then
                     loPageID <- loPageID+1
-                    canWriteCount <- loPageID
+                    if previousThread.IsNone || not previousThread.Value.IsAlive then
+                        canWriteCount <- loPageID
                     loPage <- pages.[loPageID]
                     lo <- 0
                 if -1=hi then
@@ -62,37 +62,34 @@ let main (_:string[]) =
                     hiPage.[hi] <- map.[int iValue]
                     lo <- lo+1
                     hi <- hi-1
-            canWriteCount <- endPage
+            if previousThread.IsNone || not previousThread.Value.IsAlive then
+                canWriteCount <- endPage
+            else previousThread.Value.Join()
 
-        let rec reverseAll page i =
+        let rec reverseAll page i previousThread =
             let rec skipHeader page i =
                 while page = readCount do Thread.SpinWait 0
                 let i = Array.IndexOf(pages.[page],'\n'B, i, pageSize-i)
-                if -1<>i then page,i+1
-                else
-                    canWriteCount <- page+1
-                    skipHeader (page+1) 0
+                if -1<>i then page,i+1 else skipHeader (page+1) 0
             let loPageID, lo = skipHeader page i
-            let rec findNextAndReverse pageID i =
+            let rec findNextAndReverse pageID i previousThread =
                 while pageID = readCount do Thread.SpinWait 0
                 let onLastPage = pageID + 1 = readCount && lastPageSize <> -1
                 let thisPageSize = if onLastPage then lastPageSize else pageSize
                 let i = Array.IndexOf(pages.[pageID],'>'B, i, thisPageSize-i)
                 if -1<>i then
-                    reverse loPageID lo pageID (i-1)
-                    Some(pageID,i)
+                    let newThread = new Thread(fun () -> reverse loPageID lo pageID (i-1) previousThread)
+                    newThread.Start()
+                    reverseAll pageID i (Some newThread)
                 elif onLastPage then
-                    reverse loPageID lo pageID (lastPageSize-1)
+                    reverse loPageID lo pageID (lastPageSize-1) previousThread
                     canWriteCount <- readCount
-                    None
-                else findNextAndReverse (pageID+1) 0
-            match findNextAndReverse loPageID lo with
-            | None -> ()
-            | Some(page,i) -> reverseAll page i
-        reverseAll 0 0
+                else findNextAndReverse (pageID+1) 0 previousThread
+            findNextAndReverse loPageID lo previousThread
+        reverseAll 0 0 None
 
-    Thread(ThreadStart reader).Start() |> ignore
-    Thread(ThreadStart reverser).Start() |> ignore
+    Thread(ThreadStart reader).Start()
+    Thread(ThreadStart reverser).Start()
 
     use stream = new MemoryStream()//Console.OpenStandardOutput() //IO.Stream.Null//
     let rec loop writtenCount =
@@ -104,6 +101,3 @@ let main (_:string[]) =
             loop (writtenCount+1)
     loop 0
     stream.ToArray()
-
-// [<EntryPoint>]
-// let Main _ = failwith "dummy"
