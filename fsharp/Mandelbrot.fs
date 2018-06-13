@@ -1,10 +1,11 @@
 // The Computer Language Benchmarks Game
-// http://benchmarksgame.alioth.debian.org/
+// https://benchmarksgame-team.pages.debian.net/benchmarksgame/
 //
 // Adapted by Antti Lankila from the earlier Isaac Gouy's implementation
 // Add multithread & tweaks from C++ by The Anh Tran
 // Translate to F# by Jomo Fisher
 // ported from C# version by Anthony Lloyd
+module Mandelbrot
 
 #nowarn "9"
 
@@ -15,7 +16,7 @@ open System.Threading.Tasks
 open Microsoft.FSharp.NativeInterop
 
 [<EntryPoint>]
-let main (args:string[]) =
+let main args =
     let inline padd p i = p+8n*i
     let inline ptrGet p i = Unsafe.Read((p+8n*i).ToPointer())
     let inline ptrSet p i v = Unsafe.Write((p+8n*i).ToPointer(), v)
@@ -62,6 +63,5 @@ let main (args:string[]) =
             nativeint x*8n |> padd pcrbi |> getByte ciby
             |> NativePtr.set pdata (y*lineLength+x)
     ) |> ignore
+    Console.OpenStandardOutput().Write(data, 0, data.Length)
     0
-    //Console.OpenStandardOutput().Write(data, 0, data.Length)
-    //exit 0

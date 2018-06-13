@@ -3,6 +3,7 @@
  
 // submitted by Josh Goldfoot
 // Modified to reduce memory and do more in parallel by Anthony Lloyd
+// Added dictionary incrementor by Anthony Lloyd
 
 using System;
 using System.IO;
@@ -25,7 +26,7 @@ class Incrementor : IDisposable
     static MethodInfo resizeMethod = typeof(Dictionary<long, int>).GetMethod(
         "Resize", BindingFlags.NonPublic | BindingFlags.Instance,
         null, new Type[0], null);
-    Dictionary<long, int> dictionary;
+    readonly Dictionary<long, int> dictionary;
     int[] buckets;
     IntPtr entries;
     GCHandle handle;
@@ -37,6 +38,7 @@ class Incrementor : IDisposable
         Sync();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     void Sync()
     {
         buckets = (int[])bucketsField.GetValue(dictionary);
@@ -45,7 +47,8 @@ class Incrementor : IDisposable
         entries = handle.AddrOfPinnedObject();
         count = (int)countField.GetValue(dictionary);
     }
-
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Increment(long key)
     {
         int hashCode = key.GetHashCode() & 0x7FFFFFFF;
@@ -82,7 +85,7 @@ class Incrementor : IDisposable
     }
 }
 
-public static class KNucleotide2
+public static class KNucleotide
 {
     const int BLOCK_SIZE = 1024 * 1024 * 8;
     public static List<byte[]> threeBlocks = new List<byte[]>();
@@ -124,8 +127,7 @@ public static class KNucleotide2
 
     public static void LoadThreeData()
     {
-        //var stream = Console.OpenStandardInput();
-        var stream = System.IO.File.OpenRead(@"C:\temp\fasta25000000.txt");
+        var stream = Console.OpenStandardInput();
         
         // find three sequence
         int matchIndex = 0;
@@ -270,19 +272,12 @@ public static class KNucleotide2
         var task3 = count(3, 0b1111, d => writeCount(d, "GGT"));
         var task4 = count(4, 0b111111, d => writeCount(d, "GGTA"));
         
-        task1.Wait();
-        task2.Wait();
-        task3.Wait();
-        task4.Wait();
-        task6.Wait();
-        task12.Wait();
-        task18.Wait();
-        // Console.Out.WriteLineAsync(task1.Result);
-        // Console.Out.WriteLineAsync(task2.Result);
-        // Console.Out.WriteLineAsync(task3.Result);
-        // Console.Out.WriteLineAsync(task4.Result);
-        // Console.Out.WriteLineAsync(task6.Result);
-        // Console.Out.WriteLineAsync(task12.Result);
-        // Console.WriteLine(task18.Result);
+        Console.WriteLine(task1.Result);
+        Console.WriteLine(task2.Result);
+        Console.WriteLine(task3.Result);
+        Console.WriteLine(task4.Result);
+        Console.WriteLine(task6.Result);
+        Console.WriteLine(task12.Result);
+        Console.WriteLine(task18.Result);
     }
 }

@@ -17,7 +17,6 @@ let main (_:string[]) =
     let mutable readCount, canWriteCount, lastPageSize = 0, 0, -1
     let inline reader() =
         use stream = IO.File.OpenRead(@"C:\temp\input25000000.txt")//Console.OpenStandardInput()
-        eprintfn "%i" stream.Length
         let rec loop() =
             let buffer = Array.zeroCreate pageSize
             let rec read offset count =
@@ -98,7 +97,6 @@ let main (_:string[]) =
     use stream = new MemoryStream()//Console.OpenStandardOutput() //IO.Stream.Null//
     let rec loop writtenCount =
         while writtenCount = canWriteCount do Thread.SpinWait 0
-        eprintfn "%A" (readCount,canWriteCount,writtenCount)
         if writtenCount+1 = readCount && lastPageSize <> -1 then
             stream.Write(pages.[writtenCount], 0, lastPageSize)
         else
