@@ -5,6 +5,7 @@
   <ItemGroup>
     <Compile Remove="**/*.fs" />
     <Compile Include="ReverseComplement.fs" />
+    <Compile Include="ReverseComplement2.fs" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.0" />
   </ItemGroup>

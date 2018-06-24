@@ -2,17 +2,166 @@
 // https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // ported from C# version by Anthony Lloyd
-module KNucleotideOld
+module KNucleotideNew
 
 open System
+open System.Reflection
 open System.Collections.Generic
+open System.Runtime.InteropServices
+open System.Runtime.CompilerServices
 
 [<Literal>]
 let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
 
+type Inrementor64 (d:Dictionary<int64, int>) =
+    type dic64 = Dictionary<int64, int>
+    let flags = BindingFlags.NonPublic ||| BindingFlags.Instance
+    let bucketsField = typeof<Dictionary<int64, int>>.GetField("_buckets", flags)
+    let entriesField = typeof<Dictionary<int64, int>>.GetField("_entries", flags)
+    let countField = typeof<Dictionary<int64, int>>.GetField("_count", flags)
+    let resizeMethod = typeof<dic64>.GetMethod("Resize", flags, null, new Type[0], null)
+
+// class Incrementor64 : IDisposable
+// {
+//     static FieldInfo bucketsField = typeof(Dictionary<long, int>).GetField(
+//         "_buckets", BindingFlags.NonPublic | BindingFlags.Instance);
+//     static FieldInfo entriesField = typeof(Dictionary<long, int>).GetField(
+//         "_entries", BindingFlags.NonPublic | BindingFlags.Instance);
+//     static FieldInfo countField = typeof(Dictionary<long, int>).GetField(
+//         "_count", BindingFlags.NonPublic | BindingFlags.Instance);
+//     static MethodInfo resizeMethod = typeof(Dictionary<long, int>).GetMethod(
+//         "Resize", BindingFlags.NonPublic | BindingFlags.Instance,
+//         null, new Type[0], null);
+//     readonly Dictionary<long, int> dictionary;
+//     int[] buckets;
+//     IntPtr entries;
+//     GCHandle handle;
+//     int count;
+
+//     public Incrementor(Dictionary<long, int> d)
+//     {
+//         dictionary = d;
+//         Sync();
+//     }
+
+//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//     void Sync()
+//     {
+//         buckets = (int[])bucketsField.GetValue(dictionary);
+//         handle = GCHandle.Alloc(entriesField.GetValue(dictionary),
+//                     GCHandleType.Pinned);
+//         entries = handle.AddrOfPinnedObject();
+//         count = (int)countField.GetValue(dictionary);
+//     }
+    
+//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//     public void Increment(long key)
+//     {
+//         int hashCode = key.GetHashCode() & 0x7FFFFFFF;
+//         int targetBucket = hashCode % buckets.Length;
+//         for (int i = buckets[targetBucket] - 1; (uint)i < (uint)buckets.Length;
+//             i = Marshal.ReadInt32(entries, i * 24 + 4))
+//         {
+//             if (Marshal.ReadInt64(entries, i * 24 + 8) == key)
+//             {
+//                 Marshal.WriteInt32(entries, i * 24 + 16,
+//                     Marshal.ReadInt32(entries, i * 24 + 16) + 1);
+//                 return;
+//             }
+//         }
+//         if (count == buckets.Length)
+//         {
+//             Dispose();
+//             resizeMethod.Invoke(dictionary, null);
+//             Sync();
+//             targetBucket = hashCode % buckets.Length;
+//         }
+//         int index = count++;
+//         Marshal.WriteInt32(entries, index * 24, hashCode);
+//         Marshal.WriteInt32(entries, index * 24 + 4, buckets[targetBucket] - 1);
+//         Marshal.WriteInt64(entries, index * 24 + 8, key);
+//         Marshal.WriteInt32(entries, index * 24 + 16, 1);
+//         buckets[targetBucket] = index + 1;
+//     }
+
+//     public void Dispose()
+//     {
+//         countField.SetValue(dictionary, count);
+//         handle.Free();
+//     }
+// }
+
+
+// public class DictionaryIntInt : Dictionary<int, int>
+// {
+//     static FieldInfo bucketsField = typeof(Dictionary<int, int>).GetField("buckets", BindingFlags.NonPublic | BindingFlags.Instance);
+//     static FieldInfo entriesField = typeof(Dictionary<int, int>).GetField("entries", BindingFlags.NonPublic | BindingFlags.Instance);
+//     static FieldInfo countField = typeof(Dictionary<int, int>).GetField("count", BindingFlags.NonPublic | BindingFlags.Instance);
+//     static MethodInfo resizeMethod = typeof(Dictionary<int, int>).GetMethod("Resize", BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[0], null);
+
+//     int[] buckets;
+//     IntPtr entries;
+//     GCHandle handle;
+//     int count;
+
+//     public DictionaryIntInt() : base(1000) { }
+
+//     public void Test()
+//     {
+//         Sync();
+//         Increment(1);
+//         Increment(2);
+//         Increment(3);
+//         Increment(4);
+//         CleanUp();
+//     }
+
+//     public void CleanUp()
+//     {
+//         countField.SetValue(this, count);
+//         handle.Free();
+//     }
+
+//     void Sync()
+//     {
+//         buckets = (int[])bucketsField.GetValue(this);
+//         handle = GCHandle.Alloc(entriesField.GetValue(this), GCHandleType.Pinned);
+//         entries = handle.AddrOfPinnedObject();
+//         count = (int)countField.GetValue(this);
+//     }
+
+//     public void Increment(int key)
+//     {
+//         Debug.Assert((key & 0x7FFFFFFF) == key); // int hashCode = key & 0x7FFFFFFF;
+//         int targetBucket = key % buckets.Length;
+//         for (int i = buckets[targetBucket]; i >= 0; i = Marshal.ReadInt32(entries, i * 16 + 4))
+//         {
+//             if (Marshal.ReadInt32(entries, i * 16 + 8) == key)
+//             {
+//                 Marshal.WriteInt32(entries, i * 16 + 12, Marshal.ReadInt32(entries, i * 16 + 12) + 1);
+//                 return;
+//             }
+//         }
+//         if (count == buckets.Length)
+//         {
+//             countField.SetValue(this, count);
+//             resizeMethod.Invoke(this, null);
+//             handle.Free();
+//             Sync();
+//             targetBucket = key % buckets.Length;
+//         }
+//         int index = count++;
+//         Marshal.WriteInt32(entries, index * 16, key);
+//         Marshal.WriteInt32(entries, index * 16 + 4, buckets[targetBucket]);
+//         Marshal.WriteInt32(entries, index * 16 + 8, key);
+//         Marshal.WriteInt32(entries, index * 16 + 12, 1);
+//         buckets[targetBucket] = index;
+//     }
+// }
+
 
 //[<EntryPoint>]
-let main (_:string[]) : int =
+let main (_:string[]) =
   let threeStart,threeBlocks,threeEnd =
     let input = IO.File.OpenRead(@"C:\temp\input25000000.txt") //Console.OpenStandardInput()
     let mutable threeEnd = 0

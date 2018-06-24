@@ -3,7 +3,7 @@
 //
 // contributed by Jimmy Tang
 // multithreaded by Anthony Lloyd
-module Rev1
+module Rev2
 
 open System
 open System.Threading
@@ -27,6 +27,7 @@ let test() =
                 else read (offset+bytesRead) (count-bytesRead)
             let bytesRead = read 0 PageSize
             pages.[readCount] <- buffer
+            //Thread.MemoryBarrier()
             readCount <- readCount + 1
             if bytesRead<>PageSize then lastPageSize <- bytesRead else loop()
         loop()
@@ -45,6 +46,7 @@ let test() =
                 if PageSize=lo then
                     loPageID <- loPageID+1
                     if previous.IsNone || not previous.Value.IsAlive then
+                        //Thread.MemoryBarrier()
                         canWriteCount <- loPageID
                     loPage <- pages.[loPageID]
                     lo <- 0
@@ -65,16 +67,17 @@ let test() =
                     lo <- lo+1
                     hi <- hi-1
             if previous.IsSome then previous.Value.Join()
+            //Thread.MemoryBarrier()
             canWriteCount <- endPage
 
         let rec reverseAll page i previousThread =
             let rec skipHeader page i =
-                while page = readCount do Thread.SpinWait 0
+                while page = readCount do Thread.MemoryBarrier()
                 let i = Array.IndexOf(pages.[page],'\n'B, i, PageSize-i)
                 if -1<>i then page,i+1 else skipHeader (page+1) 0
             let loPageID, lo = skipHeader page i
             let rec findNextAndReverse pageID i previousThread =
-                while pageID = readCount do Thread.SpinWait 0
+                while pageID = readCount do Thread.MemoryBarrier()
                 let onLastPage = pageID + 1 = readCount && lastPageSize <> -1
                 let thisPageSize = if onLastPage then lastPageSize else PageSize
                 let i = Array.IndexOf(pages.[pageID],'>'B, i, thisPageSize-i)
@@ -85,6 +88,7 @@ let test() =
                     reverseAll pageID i (Some newThread)
                 elif onLastPage then
                     reverse loPageID lo pageID (lastPageSize-1) previousThread
+                    //Thread.MemoryBarrier()
                     canWriteCount <- readCount
                 else findNextAndReverse (pageID+1) 0 previousThread
             findNextAndReverse loPageID lo previousThread
@@ -93,7 +97,7 @@ let test() =
 
     let stream = Stream.Null
     let rec loop writtenCount =
-        while writtenCount = canWriteCount do Thread.SpinWait 0
+        while writtenCount = canWriteCount do Thread.MemoryBarrier()
         if writtenCount+1 = readCount && lastPageSize <> -1 then
             stream.Write(pages.[writtenCount], 0, lastPageSize)
         else
