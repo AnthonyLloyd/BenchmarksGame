@@ -12,7 +12,7 @@ let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
 
 
 //[<EntryPoint>]
-let main (_:string[]) : int =
+let main (_:string[]) =
   let threeStart,threeBlocks,threeEnd =
     let input = IO.File.OpenRead(@"C:\temp\input25000000.txt") //Console.OpenStandardInput()
     let mutable threeEnd = 0
@@ -209,12 +209,13 @@ let main (_:string[]) : int =
     ]
     |> Async.RunSynchronously
   
-  stdout.WriteLine results.[6]
-  stdout.WriteLine results.[5]
-  stdout.WriteLine results.[4]
-  stdout.WriteLine results.[3]
-  stdout.WriteLine results.[2]
-  stdout.WriteLine results.[0]
-  stdout.WriteLine results.[1]
+  String.Concat results
+//   stdout.WriteLine results.[6]
+//   stdout.WriteLine results.[5]
+//   stdout.WriteLine results.[4]
+//   stdout.WriteLine results.[3]
+//   stdout.WriteLine results.[2]
+//   stdout.WriteLine results.[0]
+//   stdout.WriteLine results.[1]
 
-  exit 0
+//   0

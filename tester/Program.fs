@@ -29,6 +29,6 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
-    isFasterThan (fun () -> Rev2.test())
-                (fun () -> Rev1.test()) ""
+    isFasterThan (fun () -> KNucleotideNew.main([||]))
+                 (fun () -> KNucleotideOld.main([||])) ""
     0
