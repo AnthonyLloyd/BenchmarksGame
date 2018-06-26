@@ -13,98 +13,102 @@ open System.Runtime.CompilerServices
 [<Literal>]
 let BLOCK_SIZE = 8388608 // 1024 * 1024 * 8
 
-type Incrementor32 (dictionary:Dictionary<int, int>) =
-    static let dType = typeof<Dictionary<int, int>>
-    static let flags = BindingFlags.NonPublic ||| BindingFlags.Instance
-    static let bucketsField = dType.GetField("_buckets", flags)
-    static let entriesField = dType.GetField("_entries", flags)
-    static let countField = dType.GetField("_count", flags)
-    static let resizeMethod = dType.GetMethod("Resize", flags, null, [||], null)
-    let mutable buckets = Array.empty
-    let mutable entries = IntPtr.Zero
-    let mutable handle = Unchecked.defaultof<_>
-    let mutable count = 0
-    let sync() =
-        buckets <- bucketsField.GetValue dictionary :?> int []
-        handle <- GCHandle.Alloc(entriesField.GetValue dictionary,
-                    GCHandleType.Pinned)
-        entries <- handle.AddrOfPinnedObject()
-        count <- countField.GetValue dictionary :?> int
-    do sync()
-    member __.Dispose() =
-        countField.SetValue(dictionary, count)
-        handle.Free()
-    member x.Increment(key:int) =
-        let hashCode = key.GetHashCode() &&& 0x7FFFFFFF
-        let mutable targetBucket = hashCode % buckets.Length
-        let rec loop i =
-            if uint32 i >= uint32 buckets.Length then
-                if count = buckets.Length then
-                    x.Dispose()
-                    resizeMethod.Invoke(dictionary, null) |> ignore
-                    sync()
-                    targetBucket <- hashCode % buckets.Length
-                Marshal.WriteInt32(entries, count * 16, hashCode)
-                Marshal.WriteInt32(entries, count * 16 + 4, buckets.[targetBucket] - 1)
-                Marshal.WriteInt32(entries, count * 16 + 8, key)
-                Marshal.WriteInt32(entries, count * 16 + 12, 1)
-                count <- count + 1
-                Array.set buckets targetBucket count
-            elif Marshal.ReadInt32(entries, i * 16 + 8) = key then
-                Marshal.WriteInt32(entries, i * 16 + 12,
-                    Marshal.ReadInt32(entries, i * 16 + 12) + 1)
-            else
-                Marshal.ReadInt32(entries, i * 16 + 4) |> loop
-        buckets.[targetBucket] - 1 |> loop
-let dType = typeof<Dictionary<int64, int>>
-let flags = BindingFlags.NonPublic ||| BindingFlags.Instance
-let bucketsField = dType.GetField("_buckets", flags)
-let entriesField = dType.GetField("_entries", flags)
-let countField = dType.GetField("_count", flags)
-let resizeMethod = dType.GetMethod("Resize", flags, null, [||], null)
-type Incrementor64() =
-    [<DefaultValue>] val mutable public dictionary : Dictionary<int64, int>
-    [<DefaultValue>] val mutable public buckets : int []
-    [<DefaultValue>] val mutable public handle : GCHandle
-    [<DefaultValue>] val mutable public entries : IntPtr
-    [<DefaultValue>] val mutable public count : int
-    member inline i.Sync() =
-        i.buckets <- bucketsField.GetValue i.dictionary :?> int []
-        i.handle <- GCHandle.Alloc(entriesField.GetValue i.dictionary,
-                        GCHandleType.Pinned)
-        i.entries <- i.handle.AddrOfPinnedObject()
-        i.count <- countField.GetValue i.dictionary :?> int
-    static member inline Create d =
-        let i = Incrementor64()
-        i.dictionary <- d
-        i.Sync()
-        i
-    member inline t.Close() =
-        countField.SetValue(t.dictionary, t.count)
-        t.handle.Free()
-    member inline t.Increment key =
-        let hashCode = key.GetHashCode() &&& 0x7FFFFFFF
-        let mutable targetBucket = hashCode % t.buckets.Length
-        let rec loop i =
-            if uint32 i >= uint32 t.buckets.Length then
-                if t.count = t.buckets.Length then
-                    t.Close()
-                    resizeMethod.Invoke(t.dictionary, null) |> ignore
-                    t.Sync()
-                    targetBucket <- hashCode % t.buckets.Length
-                Marshal.WriteInt32(t.entries, t.count * 24, hashCode)
-                Marshal.WriteInt32(t.entries, t.count * 24 + 4, t.buckets.[targetBucket] - 1)
-                Marshal.WriteInt64(t.entries, t.count * 24 + 8, key)
-                Marshal.WriteInt32(t.entries, t.count * 24 + 16, 1)
-                t.count <- t.count + 1
-                Array.set t.buckets targetBucket t.count
-            elif Marshal.ReadInt64(t.entries, i * 24 + 8) = key then
-                Marshal.WriteInt32(t.entries, i * 24 + 16,
-                    Marshal.ReadInt32(t.entries, i * 24 + 16) + 1)
-            else
-                Marshal.ReadInt32(t.entries, i * 24 + 4) |> loop
-        t.buckets.[targetBucket] - 1 |> loop
-// type Incrementor64 (dictionary:Dictionary<int64, int>) as x =
+// type Incrementor32 (dictionary:Dictionary<int, int>) =
+//     static let dType = typeof<Dictionary<int, int>>
+//     static let flags = BindingFlags.NonPublic ||| BindingFlags.Instance
+//     static let bucketsField = dType.GetField("_buckets", flags)
+//     static let entriesField = dType.GetField("_entries", flags)
+//     static let countField = dType.GetField("_count", flags)
+//     static let resizeMethod = dType.GetMethod("Resize", flags, null, [||], null)
+//     let mutable buckets = Array.empty
+//     let mutable entries = IntPtr.Zero
+//     let mutable handle = Unchecked.defaultof<_>
+//     let mutable count = 0
+//     let sync() =
+//         buckets <- bucketsField.GetValue dictionary :?> int []
+//         handle <- GCHandle.Alloc(entriesField.GetValue dictionary,
+//                     GCHandleType.Pinned)
+//         entries <- handle.AddrOfPinnedObject()
+//         count <- countField.GetValue dictionary :?> int
+//     do sync()
+//     member __.Dispose() =
+//         countField.SetValue(dictionary, count)
+//         handle.Free()
+//     member x.Increment(key:int) =
+//         let hashCode = key.GetHashCode() &&& 0x7FFFFFFF
+//         let mutable targetBucket = hashCode % buckets.Length
+//         let rec loop i =
+//             if uint32 i >= uint32 buckets.Length then
+//                 if count = buckets.Length then
+//                     x.Dispose()
+//                     resizeMethod.Invoke(dictionary, null) |> ignore
+//                     sync()
+//                     targetBucket <- hashCode % buckets.Length
+//                 Marshal.WriteInt32(entries, count * 16, hashCode)
+//                 Marshal.WriteInt32(entries, count * 16 + 4, buckets.[targetBucket] - 1)
+//                 Marshal.WriteInt32(entries, count * 16 + 8, key)
+//                 Marshal.WriteInt32(entries, count * 16 + 12, 1)
+//                 count <- count + 1
+//                 Array.set buckets targetBucket count
+//             elif Marshal.ReadInt32(entries, i * 16 + 8) = key then
+//                 Marshal.WriteInt32(entries, i * 16 + 12,
+//                     Marshal.ReadInt32(entries, i * 16 + 12) + 1)
+//             else
+//                 Marshal.ReadInt32(entries, i * 16 + 4) |> loop
+//         buckets.[targetBucket] - 1 |> loop
+
+// let dType = typeof<Dictionary<int64, int>>
+// let flags = BindingFlags.NonPublic ||| BindingFlags.Instance
+// let bucketsField = dType.GetField("_buckets", flags)
+// let entriesField = dType.GetField("_entries", flags)
+// let countField = dType.GetField("_count", flags)
+// let resizeMethod = dType.GetMethod("Resize", flags, null, [||], null)
+// type Incrementor64() =
+//     [<DefaultValue>] val mutable public dictionary : Dictionary<int64, int>
+//     [<DefaultValue>] val mutable public buckets : int []
+//     [<DefaultValue>] val mutable public handle : GCHandle
+//     [<DefaultValue>] val mutable public entries : IntPtr
+//     [<DefaultValue>] val mutable public count : int
+//     member inline i.Sync() =
+//         i.buckets <- bucketsField.GetValue i.dictionary :?> int []
+//         i.handle <- GCHandle.Alloc(entriesField.GetValue i.dictionary,
+//                         GCHandleType.Pinned)
+//         i.entries <- i.handle.AddrOfPinnedObject()
+//         i.count <- countField.GetValue i.dictionary :?> int
+//     static member inline Create d =
+//         let i = Incrementor64()
+//         i.dictionary <- d
+//         i.Sync()
+//         i
+//     member inline t.Close() =
+//         countField.SetValue(t.dictionary, t.count)
+//         t.handle.Free()
+//     member inline t.Increment key =
+//         let hashCode = key.GetHashCode() &&& 0x7FFFFFFF
+//         let mutable targetBucket = hashCode % t.buckets.Length
+//         let rec loop i =
+//             if uint32 i >= uint32 t.buckets.Length then
+//                 if t.count = t.buckets.Length then
+//                     t.Close()
+//                     resizeMethod.Invoke(t.dictionary, null) |> ignore
+//                     t.Sync()
+//                     targetBucket <- hashCode % t.buckets.Length
+//                 let index = t.count * 24
+//                 Marshal.WriteInt32(t.entries, index, hashCode)
+//                 Marshal.WriteInt32(t.entries, index + 4, t.buckets.[targetBucket] - 1)
+//                 Marshal.WriteInt64(t.entries, index + 8, key)
+//                 Marshal.WriteInt32(t.entries, index + 16, 1)
+//                 t.count <- t.count + 1
+//                 Array.set t.buckets targetBucket t.count
+//             elif Marshal.ReadInt64(t.entries, i * 24 + 8) = key then
+//                 Marshal.WriteInt32(t.entries, i * 24 + 16,
+//                     Marshal.ReadInt32(t.entries, i * 24 + 16) + 1)
+//             else
+//                 Marshal.ReadInt32(t.entries, i * 24 + 4) |> loop
+//         t.buckets.[targetBucket] - 1 |> loop
+
+
+// type Incrementor64(dictionary:Dictionary<int64, int>) =
 //     static let dType = typeof<Dictionary<int64, int>>
 //     static let flags = BindingFlags.NonPublic ||| BindingFlags.Instance
 //     static let bucketsField = dType.GetField("_buckets", flags)
@@ -113,21 +117,28 @@ type Incrementor64() =
 //     static let resizeMethod = dType.GetMethod("Resize", flags, null, [||], null)
 //     let mutable buckets = Array.empty
 //     let mutable entries = IntPtr.Zero
-//     [<DefaultValue>] val mutable public handle : GCHandle
+//     let mutable handle = Unchecked.defaultof<_>
 //     let mutable count = 0
-//     member inline x.Sync() =
-        
-//     do x.Sync()
-//     member inline x.Dispose() =
+//     member __.Sync() =
+//         buckets <- bucketsField.GetValue dictionary :?> int []
+//         handle <- GCHandle.Alloc(entriesField.GetValue dictionary,
+//                     GCHandleType.Pinned)
+//         entries <- handle.AddrOfPinnedObject()
+//         count <- countField.GetValue dictionary :?> int
+//     static member Create d =
+//         let d = Incrementor64 d
+//         d.Sync()
+//         d
+//     member __.Close() =
 //         countField.SetValue(dictionary, count)
-//         x.handle.Free()
+//         handle.Free()
 //     member x.Increment(key:int64) =
 //         let hashCode = key.GetHashCode() &&& 0x7FFFFFFF
 //         let mutable targetBucket = hashCode % buckets.Length
 //         let rec loop i =
 //             if uint32 i >= uint32 buckets.Length then
 //                 if count = buckets.Length then
-//                     x.Dispose()
+//                     x.Close()
 //                     resizeMethod.Invoke(dictionary, null) |> ignore
 //                     x.Sync()
 //                     targetBucket <- hashCode % buckets.Length
@@ -291,13 +302,14 @@ let main (_:string[]) =
              startKey (l-1) (start+1)
     startKey l threeStart
     let dict = Dictionary 1024
-    let incrementor = Incrementor64.Create dict
     let inline check a lo hi =
         for i = lo to hi do
           let nb = Array.get a i
           if nb=b then
             rollingKey <- rollingKey &&& mask <<< 2 ||| int64 nb
-            incrementor.Increment rollingKey
+            match dict.TryGetValue rollingKey with
+            | true, v -> incr v
+            | false, _ -> dict.[rollingKey] <- ref 1
           elif nb<>255uy then
             rollingKey <- rollingKey &&& mask <<< 2 ||| int64 nb
 
@@ -308,7 +320,7 @@ let main (_:string[]) =
 
     let lastBlock = threeBlocks.[threeBlocks.Length-1]
     check lastBlock 0 (threeEnd-1)
-    incrementor.Close()
+    
     dict
 
   let count64 l mask (summary:_->string) = async {
@@ -317,7 +329,7 @@ let main (_:string[]) =
         |> Async.Parallel
       let d = Dictionary(dicts |> Array.sumBy (fun i -> i.Count))
       dicts |> Array.iter (fun di ->
-        di |> Seq.iter (fun kv -> d.[kv.Key] <- kv.Value)
+        di |> Seq.iter (fun kv -> d.[kv.Key] <- !kv.Value)
       )
       return summary d
     }
