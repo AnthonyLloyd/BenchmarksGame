@@ -9,7 +9,7 @@
 using System;
 using System.Threading;
 
-public static class FannkuchRedux
+public static class FannkuchReduxOld
 {
     static int taskCount;
     static int[] fact, chkSums, maxFlips;
@@ -22,7 +22,7 @@ public static class FannkuchRedux
             count[i] = d;
             if(d>0)
             {
-                idx -= d*fact[i];
+                idx = idx%fact[i];
                 for (int j=i ;j>=0; --j) pp[j] = p[j];
                 for (int j = 0; j <= i; ++j) p[j] = pp[(j+d)%(i+1)];
             }
@@ -82,7 +82,7 @@ public static class FannkuchRedux
             for(int i=1; i<taskSize; i++)
             {
                 flips = countFlips(nextPermutation(p, count), p, pp);
-                chksum += (1-(i&1)*2) * flips;
+                chksum += (1-(i%2)*2) * flips;
                 if(flips>maxflips) maxflips = flips;
             }
         }

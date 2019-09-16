@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.cs" />
-    <Compile Include="ReverseComplement.cs" />
+    <Compile Include="FannkuchRedux.cs" />
+    <Compile Include="FannkuchRedux2.cs" />
   </ItemGroup>
 </Project>
