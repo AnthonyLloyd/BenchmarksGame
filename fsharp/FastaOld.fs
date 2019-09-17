@@ -3,6 +3,7 @@
 //
 // Contributed by Valentin Kraevskiy
 // Multithreaded by Anthony Lloyd
+module FastaOld
 
 [<Literal>]
 let Width = 60
@@ -14,10 +15,11 @@ let LinesPerBlock = 1024
 open System
 open System.Threading.Tasks
 
-[<EntryPoint>]
-let main args =
+//[<EntryPoint>]
+let main (args:string []) =
+
     let n = if args.Length=0 then 1000 else Int32.Parse(args.[0])
-    let out = Console.OpenStandardOutput()
+    let out = new IO.MemoryStream()//Console.OpenStandardOutput()
     let blockSize = Width*LinesPerBlock
     let noTasks = (3*n-1)/blockSize+(5*n-1)/blockSize+3
     let tasks = Array.zeroCreate<Task<_>> noTasks
@@ -111,4 +113,4 @@ let main args =
            i+1) |> write
     write 0
     out.WriteByte '\n'B
-    0
+    out.ToArray()
