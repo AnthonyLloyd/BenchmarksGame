@@ -21,8 +21,7 @@ open System.Threading.Tasks
 let main (args:string []) =
     let n = if args.Length=0 then 1000 else Int32.Parse(args.[0])
     let out = new IO.MemoryStream()//Console.OpenStandardOutput()
-    let noTasks = (3*n-1)/BlockSize+(5*n-1)/BlockSize+4
-    let tasks = Array.zeroCreate<Task<_>> noTasks
+    let tasks = Array.zeroCreate ((3*n-1)/BlockSize+(5*n-1)/BlockSize+4)
     let bytePool = Buffers.ArrayPool.Shared
     
     let writeRandom n offset d seed (vs:byte[]) (ps:float[]) =
@@ -40,7 +39,7 @@ let main (args:string []) =
                 seed <- (seed * 3877 + 29573) % 139968
                 a.[i] <- seed
             a
-        let inline bytes l d (rnds:int[]) =
+        let bytes l d (rnds:int[]) =
             let a = bytePool.Rent (l+(l+d)/Width)
             let inline lookup probability =
                 let rec search i =
@@ -52,18 +51,17 @@ let main (args:string []) =
             intPool.Return rnds
             for i = 1 to (l+d)/Width do
                 a.[i*Width1-1] <- '\n'B
-            a        
+            a, l+(l+d)/Width
         for i = offset+1 to offset+(n-1)/BlockSize do
             let rnds = rnds BlockSize
-            tasks.[i] <- Task.Run(fun () ->
-                bytes BlockSize 0 rnds, BlockSize+BlockSize/Width)
+            tasks.[i] <- Task.Run(fun () -> bytes BlockSize 0 rnds)
         let remaining = (n-1)%BlockSize+1
         let rnds = rnds remaining
-        tasks.[offset+(n-1)/BlockSize+1] <- Task.Run(fun () ->
-            bytes remaining d rnds, remaining+(remaining+d)/Width)
+        tasks.[offset+(n-1)/BlockSize+1] <-
+            Task.Run(fun () -> bytes remaining d rnds)
         seed
 
-    tasks.[0] <-
+    tasks.[0] <- Task.Run(fun () ->
         ">ONE Homo sapiens alu\n"B |> fun i -> out.Write(i,0,i.Length)
         let table =
             "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG\
@@ -86,8 +84,8 @@ let main (args:string []) =
         if remaining<>0 then
             out.Write(repeatedBytes, 0, remaining+(remaining-1)/Width)
         bytePool.Return repeatedBytes
-        let two = "\n>TWO IUB ambiguity codes\n"B
-        Task.FromResult(two,two.Length)
+        "\n>TWO IUB ambiguity codes\n"B, 26
+    )
 
     let seed =
         [|0.27;0.12;0.12;0.27;0.02;0.02;0.02;
@@ -95,15 +93,14 @@ let main (args:string []) =
         |> writeRandom (3*n) 0 -1 42 "acgtBDHKMNRSVWY"B
           
     tasks.[(3*n-1)/BlockSize+2] <-
-        let three = "\n>THREE Homo sapiens frequency\n"B
-        Task.FromResult(three,three.Length)
+        Task.FromResult("\n>THREE Homo sapiens frequency\n"B, 31)
 
     [|0.3029549426680;0.1979883004921;0.1975473066391;0.3015094502008|]
     |> writeRandom (5*n) ((3*n-1)/BlockSize+2) 0 seed "acgt"B
     |> ignore
 
     async {
-        for i = 0 to noTasks-1 do
+        for i = 0 to tasks.Length-1 do
             let t = tasks.[i]
             let! bs,l = Async.AwaitTask t
             out.Write(bs,0,l)
