@@ -91,7 +91,7 @@ let main (args:string []) =
         [|0.27;0.12;0.12;0.27;0.02;0.02;0.02;
             0.02;0.02;0.02;0.02;0.02;0.02;0.02;0.02|]
         |> writeRandom (3*n) 0 -1 42 "acgtBDHKMNRSVWY"B
-          
+         
     tasks.[(3*n-1)/BlockSize+2] <-
         Task.FromResult("\n>THREE Homo sapiens frequency\n"B, 31)
 

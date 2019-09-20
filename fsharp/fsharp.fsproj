@@ -6,7 +6,7 @@
     <Compile Remove="**/*.fs" />
     <Compile Include="FastaOld.fs" />
     <Compile Include="FastaNew.fs" />
-    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.0" />
+    <PackageReference Include="System.Numerics.Vectors" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
   </ItemGroup>
 </Project>
