@@ -10,9 +10,7 @@ let Width = 60
 [<Literal>]
 let Width1 = 61
 [<Literal>]
-let LinesPerBlock = 1024
-[<Literal>]
-let BlockSize = 61440 // Width * LinesPerBlock
+let LinesPerBlock = 2048
 
 open System
 open System.Threading.Tasks
@@ -21,17 +19,19 @@ open System.Threading.Tasks
 let main (args:string []) =
     let n = if args.Length=0 then 1000 else Int32.Parse(args.[0])
     let out = new IO.MemoryStream()//Console.OpenStandardOutput()
-    let tasks = Array.zeroCreate ((3*n-1)/BlockSize+(5*n-1)/BlockSize+3)
+    let tasks = 
+        ((3*n-1)/(Width*LinesPerBlock)+(5*n-1)/(Width*LinesPerBlock)+3)
+        |> Array.zeroCreate 
     let bytePool = Buffers.ArrayPool.Shared
-    
+    let intPool = Buffers.ArrayPool.Shared
+
     let writeRandom n offset d seed (vs:byte[]) (ps:float[]) =
         // cumulative probability
         let mutable total = ps.[0]
         for i = 1 to ps.Length-1 do
             total <- total + ps.[i]
             ps.[i] <- total
-            
-        let intPool = Buffers.ArrayPool.Shared
+        
         let mutable seed = seed
         let inline rnds l =
             let a = intPool.Rent l
@@ -52,12 +52,21 @@ let main (args:string []) =
             for i = 1 to (l+d)/Width do
                 a.[i*Width1-1] <- '\n'B
             a, l+(l+d)/Width
-        for i = offset to offset+(n-1)/BlockSize-1 do
-            let rnds = rnds BlockSize
-            tasks.[i] <- Task.Run(fun () -> bytes BlockSize 0 rnds)
-        let remaining = (n-1)%BlockSize+1
+
+        for i = offset to offset+(n-1)/(Width*LinesPerBlock)-1 do
+            let rnds = rnds (Width*LinesPerBlock)
+            tasks.[i] <- Task.Run(fun () -> bytes (Width*LinesPerBlock) 0 rnds)
+
+        //let nBlocks = offset+(n-1)/(Width*LinesPerBlock)-1
+        //let rec createBlock i =
+        //    let rnds = rnds (Width*LinesPerBlock)
+        //    tasks.[i] <- Task.Run(fun () -> bytes (Width*LinesPerBlock) 0 rnds)
+        //    if i < nBlocks then createBlock (i+1)
+        //createBlock offset
+
+        let remaining = (n-1)%(Width*LinesPerBlock)+1
         let rnds = rnds remaining
-        tasks.[offset+(n-1)/BlockSize] <-
+        tasks.[offset+(n-1)/(Width*LinesPerBlock)] <-
             Task.Run(fun () -> bytes remaining d rnds)
         seed
 
@@ -67,10 +76,10 @@ let main (args:string []) =
                 [|0.27;0.12;0.12;0.27;0.02;0.02;0.02;
                   0.02;0.02;0.02;0.02;0.02;0.02;0.02;0.02|]
         
-        tasks.[(3*n-1)/BlockSize+1] <-
+        tasks.[(3*n-1)/(Width*LinesPerBlock)+1] <-
             Task.FromResult("\n>THREE Homo sapiens frequency\n"B, 31)
         
-        writeRandom (5*n) ((3*n-1)/BlockSize+2) 0 seed "acgt"B
+        writeRandom (5*n) ((3*n-1)/(Width*LinesPerBlock)+2) 0 seed "acgt"B
             [|0.3029549426680;0.1979883004921;0.1975473066391;0.3015094502008|]
         |> ignore
     ) |> ignore
@@ -99,16 +108,6 @@ let main (args:string []) =
     bytePool.Return repeatedBytes
     out.Write("\n>TWO IUB ambiguity codes\n"B, 0, 26)
 
-    //async {
-    //    for i = 0 to tasks.Length-1 do
-    //        let t = tasks.[i]
-    //        let! bs,l = Async.AwaitTask t
-    //        out.Write(bs,0,l)
-    //        if l>200 then bytePool.Return bs
-    //    out.WriteByte '\n'B
-    //    return out.ToArray()
-    //}
-    //|> Async.RunSynchronously
     let rec write i =
         if i<>tasks.Length then
             let t = tasks.[i]
