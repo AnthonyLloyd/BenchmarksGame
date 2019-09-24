@@ -25,16 +25,18 @@ module IO =
         mre.WaitOne() |> ignore
     let fork (IO run) : IO<IO<'a>> =
         IO (fun contFork ->
-            let mutable o = null
+            let mutable o = None
             ThreadPool.UnsafeQueueUserWorkItem (fun _ ->
                 run (fun a ->
-                    let o = Interlocked.CompareExchange(&o, a, null)
-                    if isNull o |> not then (o :?> 'a->unit) a
+                    match Interlocked.CompareExchange(&o, Some(box a), None) with
+                    | Some o -> (o :?> 'a->unit) a
+                    | None -> ()
                 )
             ,null) |> ignore
             IO (fun cont ->
-                let o = Interlocked.CompareExchange(&o, cont, null)
-                if isNull o |> not then cont (o :?> 'a)
+                match Interlocked.CompareExchange(&o, Some(box cont), None) with
+                | Some o -> cont (o :?> 'a)
+                | None -> ()
             ) |> contFork
         )
 
@@ -47,7 +49,7 @@ type IOBuilder() =
             )
         )
     member inline _.Return value = IO (fun cont -> cont value)
-    member inline _.Zero() = IO (fun cont -> cont Unchecked.defaultof<_>)
+    member inline _.Zero() = IO (fun cont -> cont ())
 
 let io = IOBuilder()
 
@@ -107,21 +109,14 @@ let main (args:string []) =
                             writeRandom (5*n) ((3*n-1)/(Width*LinesPerBlock)+2) 0 seed "acgt"B
                                 [|0.3029549426680;0.1979883004921;0.1975473066391;0.3015094502008|]
                             |> IO.fork                    
-                        randsIO.[i+3] <- next
-                        return 1
-                    else
-                        return 1 } |> IO.fork
+                        randsIO.[i+3] <- next } |> IO.fork
                 randsIO.[i+1] <- r
-                return 1
             else
                 let! r = createBlock (i+1) |> IO.fork
                 randsIO.[i+1] <- r
-                return 1
         }
 
-        let! rr = createBlock offset
-
-        return rr
+        do! createBlock offset
     }
 
     let inline first() =
@@ -160,8 +155,7 @@ let main (args:string []) =
 
         first()
 
-        randsIO.[(3*n-1)/(Width*LinesPerBlock)+1] <-
-            io { return 1 }
+        randsIO.[(3*n-1)/(Width*LinesPerBlock)+1] <- io.Zero()
         bytesIO.[(3*n-1)/(Width*LinesPerBlock)+1] <-
             io { return "\n>THREE Homo sapiens frequency\n"B, 31 }
 
