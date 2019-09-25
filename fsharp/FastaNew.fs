@@ -10,168 +10,115 @@ let Width = 60
 [<Literal>]
 let Width1 = 61
 [<Literal>]
-let LinesPerBlock = 2048
-
-[<Struct;NoEquality;NoComparison>]
-type IO<'a> = IO of (('a -> unit) -> unit)
-
-module IO =
-    open System.Threading
-    let run (IO run) : unit =
-        use mre = new ManualResetEvent false
-        ThreadPool.UnsafeQueueUserWorkItem (fun _ ->
-            run (fun () -> mre.Set() |> ignore)
-        ,null) |> ignore
-        mre.WaitOne() |> ignore
-    let fork (IO run) : IO<IO<'a>> =
-        IO (fun contFork ->
-            let mutable o = None
-            ThreadPool.UnsafeQueueUserWorkItem (fun _ ->
-                run (fun a ->
-                    match Interlocked.CompareExchange(&o, Some(box a), None) with
-                    | Some o -> (o :?> 'a->unit) a
-                    | None -> ()
-                )
-            ,null) |> ignore
-            IO (fun cont ->
-                match Interlocked.CompareExchange(&o, Some(box cont), None) with
-                | Some o -> cont (o :?> 'a)
-                | None -> ()
-            ) |> contFork
-        )
-
-type IOBuilder() =
-    member inline _.Bind(IO run, f:'a->IO<'b>) : IO<'b> =
-        IO (fun cont ->
-            run (fun o ->
-                let (IO run) = f o
-                run cont
-            )
-        )
-    member inline _.Return value = IO (fun cont -> cont value)
-    member inline _.Zero() = IO (fun cont -> cont ())
-
-let io = IOBuilder()
+let LinesPerBlock = 2048 // 2048 // 16384
 
 open System
 
 //[<EntryPoint>]
 let main (args:string []) =
+
     let n = if args.Length=0 then 1000 else Int32.Parse(args.[0])
     let out = new IO.MemoryStream()//Console.OpenStandardOutput()
     let noTasks = (3*n-1)/(Width*LinesPerBlock)+(5*n-1)/(Width*LinesPerBlock)+3
-    let randsIO = Array.zeroCreate noTasks
-    let bytesIO = Array.zeroCreate noTasks
+    let tasks = Array.zeroCreate noTasks
     let bytePool = Buffers.ArrayPool.Shared
     let intPool = Buffers.ArrayPool.Shared
-
-    let rec writeRandom nn offset d seed (vs:byte[]) (ps:float[]) = io {
-        do // cumulative probability
+    
+    Threading.ThreadPool.QueueUserWorkItem(fun _ ->
+        let writeRandom n offset seed (vs:byte[]) (ps:float[]) =
+            // cumulative probability
             let mutable total = ps.[0]
             for i = 1 to ps.Length-1 do
                 total <- total + ps.[i]
                 ps.[i] <- total
-        
-        let mutable seed = seed
-        let inline rnds l =
-            let a = intPool.Rent l
-            for i = 0 to l-1 do
-                seed <- (seed * 3877 + 29573) % 139968
-                a.[i] <- seed
-            a
-        let inline bytes l d (rnds:int[]) =
-            let a = bytePool.Rent (l+(l+d)/Width)
-            let inline lookup probability =
-                let rec search i =
-                    if ps.[i]>=probability then i
-                    else search (i+1)
-                vs.[search 0]
-            for i = 0 to l-1 do
-                a.[i+i/Width] <- 1.0/139968.0 * float rnds.[i] |> lookup
-            intPool.Return rnds
-            for i = 1 to (l+d)/Width do
-                a.[i*Width1-1] <- '\n'B
-            a, l+(l+d)/Width
+            
+            let mutable seed = seed
+            let inline rnds l j =
+                let a = intPool.Rent (Width*LinesPerBlock+1)
+                for i = 0 to l-1 do
+                    seed <- (seed * 3877 + 29573) % 139968
+                    a.[i] <- seed
+                a.[l] <- j
+                a
+            let inline bytes l (rnds:int[]) =
+                let a = bytePool.Rent (Width*LinesPerBlock+(Width*LinesPerBlock)/Width)
+                let inline lookup probability =
+                    let rec search i =
+                        if ps.[i]>=probability then i
+                        else search (i+1)
+                    vs.[search 0]
+                for i = 0 to l-1 do
+                    a.[1+i+i/Width] <- 1.0/139968.0 * float rnds.[i] |> lookup
+                intPool.Return rnds
+                for i = 0 to (l-1)/Width do
+                    a.[i*Width1] <- '\n'B
+                a        
+            for i = offset to offset+(n-1)/(Width*LinesPerBlock)-1 do
+                let rnds = rnds (Width*LinesPerBlock) i
+                Threading.ThreadPool.QueueUserWorkItem(fun o ->
+                    let rnds = o :?> int[]
+                    tasks.[rnds.[Width*LinesPerBlock]] <-
+                        ((bytes (Width*LinesPerBlock) rnds, (Width*LinesPerBlock)+(Width*LinesPerBlock)/Width) |> box)
+                , box rnds) |> ignore
+                
+            let remaining = (n-1)%(Width*LinesPerBlock)+1
+            let rnds = rnds remaining (offset+(n-1)/(Width*LinesPerBlock))
+            Threading.ThreadPool.QueueUserWorkItem(fun o ->
+                let rnds = o :?> int[]
+                tasks.[rnds.[remaining]] <-
+                    box(bytes remaining rnds, remaining+(remaining-1)/Width+1)
+            , box rnds) |> ignore
+            seed 
+    
+        let seed =
+            [|0.27;0.12;0.12;0.27;0.02;0.02;0.02;
+              0.02;0.02;0.02;0.02;0.02;0.02;0.02;0.02|]
+            |> writeRandom (3*n) 0 42 "acgtBDHKMNRSVWY"B
 
-        let lastFullBlock = offset+(nn-1)/(Width*LinesPerBlock)-1
-        let rec createBlock i = io {
-            let rndsA = rnds (Width*LinesPerBlock)
-            let! a = io { return bytes (Width*LinesPerBlock) 0 rndsA } |> IO.fork
-            bytesIO.[i] <- a
-            if i = lastFullBlock then
-                let! r = io {
-                    let remaining = (nn-1)%(Width*LinesPerBlock)+1
-                    let rnds = rnds remaining
-                    let! a = io { return bytes remaining d rnds } |> IO.fork
-                    bytesIO.[i+1] <- a
-                    if offset=0 then
-                        let! next = 
-                            writeRandom (5*n) ((3*n-1)/(Width*LinesPerBlock)+2) 0 seed "acgt"B
-                                [|0.3029549426680;0.1979883004921;0.1975473066391;0.3015094502008|]
-                            |> IO.fork                    
-                        randsIO.[i+3] <- next } |> IO.fork
-                randsIO.[i+1] <- r
-            else
-                let! r = createBlock (i+1) |> IO.fork
-                randsIO.[i+1] <- r
-        }
+        [|0.3029549426680;0.1979883004921;0.1975473066391;0.3015094502008|]
+        |> writeRandom (5*n) ((3*n-1)/(Width*LinesPerBlock)+2) seed "acgt"B
+        |> ignore
+    , null) |> ignore
 
-        do! createBlock offset
-    }
+    ">ONE Homo sapiens alu\n"B |> fun i -> out.Write(i,0,i.Length)
+    let table =
+        "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG\
+         GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA\
+         CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT\
+         ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA\
+         GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG\
+         AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC\
+         AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"B
+    let tableLength = 287
+    let linesPerBlock = (LinesPerBlock/tableLength+1) * tableLength
+    let repeatedBytes = bytePool.Rent (Width1*linesPerBlock)
+    for i = 0 to linesPerBlock*Width-1 do
+        repeatedBytes.[i+i/Width] <- table.[i%tableLength]
+    for i = 1 to linesPerBlock do
+        repeatedBytes.[i*Width1-1] <- '\n'B
+    for __ = 1 to (2*n-1)/(Width*linesPerBlock) do
+        out.Write(repeatedBytes, 0, Width1*linesPerBlock)
+    let remaining = (2*n-1)%(Width*linesPerBlock)+1
+    if remaining<>0 then
+        out.Write(repeatedBytes, 0, remaining+(remaining-1)/Width)
+    bytePool.Return repeatedBytes
+    out.Write("\n>TWO IUB ambiguity codes"B,0,25)
 
-    let inline first() =
-        ">ONE Homo sapiens alu\n"B |> fun i -> out.Write(i,0,i.Length)
-        let table =
-            "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG\
-             GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA\
-             CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT\
-             ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA\
-             GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG\
-             AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC\
-             AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA"B
-        let tableLength = 287
-        let linesPerBlock = (LinesPerBlock/tableLength+1) * tableLength
-        let repeatedBytes = bytePool.Rent (Width1*linesPerBlock)
-        for i = 0 to linesPerBlock*Width-1 do
-            repeatedBytes.[i+i/Width] <- table.[i%tableLength]
-        for i = 1 to linesPerBlock do
-            repeatedBytes.[i*Width1-1] <- '\n'B
-        for _ = 1 to (2*n-1)/(Width*linesPerBlock) do
-            out.Write(repeatedBytes, 0, Width1*linesPerBlock)
-        let remaining = (2*n-1)%(Width*linesPerBlock)+1
-        if remaining<>0 then
-            out.Write(repeatedBytes, 0, remaining+(remaining-1)/Width)
-        bytePool.Return repeatedBytes
-        out.Write("\n>TWO IUB ambiguity codes\n"B, 0, 26)
+    tasks.[(3*n-1)/(Width*LinesPerBlock)+1] <-
+        box("\n>THREE Homo sapiens frequency"B, 30)
 
-    io {
+    for i = 0 to noTasks-1 do
+        let mutable t = tasks.[i]
+        while isNull t do
+            Threading.Thread.Sleep 0
+            t <- tasks.[i]
+        let bs,l = t :?> byte[]*int
+        out.Write(bs,0,l)
+        if l>200 then bytePool.Return bs
 
-        let! r =
-            writeRandom (3*n) 0 -1 42 "acgtBDHKMNRSVWY"B
-                [|0.27;0.12;0.12;0.27;0.02;0.02;0.02;
-                    0.02;0.02;0.02;0.02;0.02;0.02;0.02;0.02|]
-            |> IO.fork
-        randsIO.[0] <- r
-
-        first()
-
-        randsIO.[(3*n-1)/(Width*LinesPerBlock)+1] <- io.Zero()
-        bytesIO.[(3*n-1)/(Width*LinesPerBlock)+1] <-
-            io { return "\n>THREE Homo sapiens frequency\n"B, 31 }
-
-        let rec write i = io {
-            if i < noTasks then
-                let! _ =  randsIO.[i]
-                let! bs,l = bytesIO.[i]
-                out.Write(bs,0,l)
-                do if l>200 then bytePool.Return bs
-                do! write (i+1)
-        }
-
-        do! write 0
-
-        out.WriteByte '\n'B
-
-    } |> IO.run
-
+    out.WriteByte '\n'B
     out.ToArray()
+
+// Create single delegate upfront
+// /n at start of some and /n at end of remaining 
+// My pools
