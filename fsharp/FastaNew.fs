@@ -41,7 +41,7 @@ let main (args:string []) =
                 a.[l] <- j
                 a
             let inline bytes l (rnds:int[]) =
-                let a = bytePool.Rent (Width*LinesPerBlock+(Width*LinesPerBlock)/Width)
+                let a = bytePool.Rent (Width1*LinesPerBlock)
                 let inline lookup probability =
                     let rec search i =
                         if ps.[i]>=probability then i
@@ -58,7 +58,7 @@ let main (args:string []) =
                 Threading.ThreadPool.QueueUserWorkItem(fun o ->
                     let rnds = o :?> int[]
                     tasks.[rnds.[Width*LinesPerBlock]] <-
-                        ((bytes (Width*LinesPerBlock) rnds, (Width*LinesPerBlock)+(Width*LinesPerBlock)/Width) |> box)
+                        box(bytes (Width*LinesPerBlock) rnds, Width1*LinesPerBlock)
                 , box rnds) |> ignore
                 
             let remaining = (n-1)%(Width*LinesPerBlock)+1
