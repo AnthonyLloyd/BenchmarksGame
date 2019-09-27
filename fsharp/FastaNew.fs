@@ -10,19 +10,19 @@ let Width = 60
 [<Literal>]
 let Width1 = 61
 [<Literal>]
-let LinesPerBlock = 2048 // 2048 // 16384
+let LinesPerBlock = 2048
 
 open System
 
 //[<EntryPoint>]
 let main (args:string []) =
-    let n = if args.Length=0 then 1000 else Int32.Parse(args.[0])
+    let n = if args.Length=0 then 1000 else Int32.Parse args.[0]
     let out = new IO.MemoryStream()//Console.OpenStandardOutput()
     let blocks = (3*n-1)/(Width*LinesPerBlock)+(5*n-1)/(Width*LinesPerBlock)+3
                  |> Array.zeroCreate
     let bytePool = Buffers.ArrayPool.Shared
     let intPool = Buffers.ArrayPool.Shared
-    
+
     Threading.ThreadPool.QueueUserWorkItem(fun _ ->
         let writeRandom n offset seed (vs:byte[]) (ps:float[]) =
             // cumulative probability
@@ -30,7 +30,7 @@ let main (args:string []) =
             for i = 1 to ps.Length-1 do
                 total <- total + ps.[i]
                 ps.[i] <- total
-            
+
             let mutable seed = seed
             let inline rnds l j =
                 let a = intPool.Rent (Width*LinesPerBlock+1)
@@ -58,9 +58,9 @@ let main (args:string []) =
                 Threading.ThreadPool.QueueUserWorkItem(fun o ->
                     let rnds = o :?> int[]
                     blocks.[rnds.[Width*LinesPerBlock]] <-
-                        box(bytes (Width*LinesPerBlock) rnds, Width1*LinesPerBlock)
+                    box(bytes (Width*LinesPerBlock) rnds, Width1*LinesPerBlock)
                 , rnds) |> ignore
-                
+
             let remaining = (n-1)%(Width*LinesPerBlock)+1
             let rnds = rnds remaining (offset+(n-1)/(Width*LinesPerBlock))
             Threading.ThreadPool.QueueUserWorkItem(fun o ->
@@ -68,14 +68,14 @@ let main (args:string []) =
                 blocks.[rnds.[remaining]] <-
                     box(bytes remaining rnds, remaining+(remaining-1)/Width+1)
             , rnds) |> ignore
-            seed 
+            seed
            
         let seed = writeRandom (3*n) 0 42 "acgtBDHKMNRSVWY"B
                     [|0.27;0.12;0.12;0.27;0.02;0.02;0.02;
                       0.02;0.02;0.02;0.02;0.02;0.02;0.02;0.02|]
 
         writeRandom (5*n) ((3*n-1)/(Width*LinesPerBlock)+2) seed "acgt"B
-            [|0.3029549426680;0.1979883004921;0.1975473066391;0.3015094502008|] 
+            [|0.3029549426680;0.1979883004921;0.1975473066391;0.3015094502008|]
         |> ignore
     , null) |> ignore
 
@@ -94,7 +94,7 @@ let main (args:string []) =
         repeatedBytes.[1+i+i/Width] <- table.[i%287]
     for i = 0 to (Width*linesPerBlock-1)/Width do
         repeatedBytes.[i*Width1] <- '\n'B
-    for __ = 1 to (2*n-1)/(Width*linesPerBlock) do
+    for _ = 1 to (2*n-1)/(Width*linesPerBlock) do
         out.Write(repeatedBytes, 0, Width1*linesPerBlock)
     let remaining = (2*n-1)%(Width*linesPerBlock)+1
     out.Write(repeatedBytes, 0, remaining+(remaining-1)/Width+1)
@@ -111,7 +111,7 @@ let main (args:string []) =
             t <- blocks.[i]
         let bs,l = t :?> byte[]*int
         out.Write(bs,0,l)
-        if l>200 then bytePool.Return bs
+        if l=Width1*LinesPerBlock then bytePool.Return bs
 
     out.WriteByte '\n'B
     out.ToArray()
