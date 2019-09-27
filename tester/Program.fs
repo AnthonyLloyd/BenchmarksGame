@@ -11,6 +11,7 @@ let private allDiffs (s1:byte array) (s2:byte array) =
       | onFrom,_ -> onFrom, l
   ) (None,[])
   |> snd
+  |> List.last
 
 /// Expects function `f1` is faster than `f2`. Measurer used to measure only a
 /// subset of the functions. Statistical test to 99.99% confidence level.
