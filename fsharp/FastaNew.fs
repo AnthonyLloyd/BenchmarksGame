@@ -16,7 +16,7 @@ open System
 
 //[<EntryPoint>]
 let main (args:string []) =
-    let n = if args.Length=0 then 1000 else Int32.Parse args.[0]
+    let n = if Array.isEmpty args then 1000 else Int32.Parse args.[0]
     let out = new IO.MemoryStream()//Console.OpenStandardOutput()
     let blocks = (3*n-1)/(Width*LinesPerBlock)+(5*n-1)/(Width*LinesPerBlock)+3
                  |> Array.zeroCreate
@@ -39,12 +39,12 @@ let main (args:string []) =
                     a.[i] <- seed
                 a.[l] <- j
                 a
+
             let inline bytes l (rnds:int[]) =
                 let a = bytePool.Rent (Width1*LinesPerBlock)
                 let inline lookup probability =
                     let rec search i =
-                        if ps.[i]>=probability then i
-                        else search (i+1)
+                        if ps.[i]>=probability then i else search (i+1)
                     vs.[search 0]
                 for i = 0 to l-1 do
                     a.[1+i+i/Width] <- 1.0/139968.0 * float rnds.[i] |> lookup
@@ -54,20 +54,18 @@ let main (args:string []) =
                 a
 
             for i = offset to offset+(n-1)/(Width*LinesPerBlock)-1 do
-                let rnds = rnds (Width*LinesPerBlock) i
                 Threading.ThreadPool.QueueUserWorkItem(fun o ->
                     let rnds = o :?> int[]
                     blocks.[rnds.[Width*LinesPerBlock]] <-
                     box(bytes (Width*LinesPerBlock) rnds, Width1*LinesPerBlock)
-                , rnds) |> ignore
+                , rnds (Width*LinesPerBlock) i) |> ignore
 
             let remaining = (n-1)%(Width*LinesPerBlock)+1
-            let rnds = rnds remaining (offset+(n-1)/(Width*LinesPerBlock))
             Threading.ThreadPool.QueueUserWorkItem(fun o ->
                 let rnds = o :?> int[]
                 blocks.[rnds.[remaining]] <-
                     box(bytes remaining rnds, remaining+(remaining-1)/Width+1)
-            , rnds) |> ignore
+            , rnds remaining (offset+(n-1)/(Width*LinesPerBlock))) |> ignore
             seed
            
         let seed = writeRandom (3*n) 0 42 "acgtBDHKMNRSVWY"B
