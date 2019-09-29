@@ -18,8 +18,7 @@ open System
 let main (args:string []) =
     let n = if Array.isEmpty args then 1000 else Int32.Parse args.[0]
     let out = new IO.MemoryStream()//Console.OpenStandardOutput()
-    let blocks = (3*n-1)/(Width*LinesPerBlock)+(5*n-1)/(Width*LinesPerBlock)+3
-                 |> Array.zeroCreate
+    let blocks = Array.zeroCreate ((8*n-2)/(Width*LinesPerBlock)+3)
     let bytePool = Buffers.ArrayPool.Shared
     let intPool = Buffers.ArrayPool.Shared
 
@@ -47,7 +46,7 @@ let main (args:string []) =
                         if ps.[i]>=probability then i else search (i+1)
                     vs.[search 0]
                 for i = 0 to l-1 do
-                    a.[1+i+i/Width] <- 1.0/139968.0 * float rnds.[i] |> lookup
+                    a.[1+i+i/Width] <- lookup (1.0/139968.0 * float rnds.[i])
                 intPool.Return rnds
                 for i = 0 to (l-1)/Width do
                     a.[i*Width1] <- '\n'B
@@ -67,7 +66,7 @@ let main (args:string []) =
                     box(bytes remaining rnds, remaining+(remaining-1)/Width+1)
             , rnds remaining (offset+(n-1)/(Width*LinesPerBlock))) |> ignore
             seed
-           
+
         let seed = writeRandom (3*n) 0 42 "acgtBDHKMNRSVWY"B
                     [|0.27;0.12;0.12;0.27;0.02;0.02;0.02;
                       0.02;0.02;0.02;0.02;0.02;0.02;0.02;0.02|]
