@@ -47,6 +47,6 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
-    isFasterThan (fun () -> FastaNew.main([|"25000000"|]))
-                 (fun () -> FastaOld.main([|"25000000"|])) ""
+    isFasterThan (fun () -> FastaNew.Main([|"25000000"|]))
+                 (fun () -> FastaOld.Main([|"25000000"|])) ""
     0

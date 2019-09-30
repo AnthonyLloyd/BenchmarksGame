@@ -1,5 +1,5 @@
 /* The Computer Language Benchmarks Game
-  http://benchmarksgame.alioth.debian.org/
+  https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 
   contributed by Serge Smith
   further optimized (rewrote threading, random generation loop) by Jan de Vaan
@@ -16,7 +16,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-public class Fasta
+public/**/ class FastaOld
 {
     const int LineLength = 60;
 
@@ -25,18 +25,20 @@ public class Fasta
     const int IC = 29573;
     static int seed = 42;
 
-    public static void Main(string[] args)
+    public static byte[] /*void*/ Main(string[] args)
     {
         int n = args.Length > 0 ? Int32.Parse(args[0]) : 1000;
 
         MakeCumulative(IUB);
         MakeCumulative(HomoSapiens);
 
-        using (var s = Console.OpenStandardOutput())//Stream.Null)//
+        using (var s = new MemoryStream()) //Console.OpenStandardOutput())
         {
             MakeRepeatFasta("ONE", "Homo sapiens alu", Encoding.ASCII.GetBytes(ALU), n * 2, s);
             MakeRandomFasta("TWO", "IUB ambiguity codes", IUB, n * 3, s);
             MakeRandomFasta("THREE", "Homo sapiens frequency", HomoSapiens, n * 5, s);
+
+            return s.ToArray();
         }
     }
 
@@ -257,14 +259,14 @@ public class Fasta
         ,new Frequency ('V', 0.02)
         ,new Frequency ('W', 0.02)
         ,new Frequency ('Y', 0.02)
-    };
+};
 
     static Frequency[] HomoSapiens = {
     new Frequency ('a', 0.3029549426680)
         ,new Frequency ('c', 0.1979883004921)
         ,new Frequency ('g', 0.1975473066391)
         ,new Frequency ('t', 0.3015094502008)
-    };
+};
 
 
     private static void FillRandom(int[] result)
