@@ -7,5 +7,6 @@
     <Compile Remove="**/*.cs" />
     <Compile Include="FastaNew.cs" />
     <Compile Include="FastaOld.cs" />
+    <ProjectReference Include="..\antdbg\antdbg.fsproj" />
   </ItemGroup>
 </Project>
