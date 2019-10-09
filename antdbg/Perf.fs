@@ -11,6 +11,7 @@ type Estimate = Estimate of median:float * error:float
     with
     static member (-)(a:float,Estimate(m,e)) = Estimate(a-m, e)
     static member (-)(Estimate(m,e),a:float) = Estimate(m-a, e)
+    static member (-)(Estimate(m1,e1),Estimate(m2,e2)) = Estimate(m1-m2, sqrt(sqr e1+sqr e2))
     static member (*)(Estimate(m,e),a:float) = Estimate(m*a, e*a)
     static member (/)(Estimate(m1,e1),Estimate(m2,e2)) =
         Estimate(m1/m2, sqrt(sqr(e1/m1)+sqr(e2/m2))*abs(m1/m2))
@@ -18,7 +19,7 @@ type Estimate = Estimate of median:float * error:float
         let (Estimate(m,e)) = e
         m.ToString("0.0").PadLeft 5 + " ±" + e.ToString("0.0").PadLeft 4
 
-module private Statistics =
+module internal Statistics =
     let estimate (s:ListSlim<int>) =
         let l = s.Count
         let m = if l % 2 = 0 then float(s.[l/2] + s.[l/2-1]) * 0.5
@@ -104,9 +105,9 @@ module Perf =
             delayOnSince <- 0L
             delayCount <- 0
             totalDelay <- 0L
-            let fStart = Stopwatch.GetTimestamp()
+            let start = Stopwatch.GetTimestamp()
             f()
-            int(Stopwatch.GetTimestamp() - fStart - totalDelay)
+            int(Stopwatch.GetTimestamp() - start - totalDelay)
         let clear() = times <- ListSlim times.Count
         run (CollectTimes,null,0) |> ignore
         clear()
@@ -167,5 +168,6 @@ module Perf =
                 "Iterations: "; string i; "                 \n"
                 createReport()
             |] |> System.String.Concat |> stdout.Write
+            stdout.Write "                             \u001b[29D"
 
         perfRun <- Nothing

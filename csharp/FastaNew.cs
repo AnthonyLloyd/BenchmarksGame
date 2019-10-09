@@ -41,12 +41,14 @@ public/**/ class FastaNew
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int[] Rnds(int l, int j, ref int seed)
     {
+        var perfSimple = PerfSimple.regionStart("rnds");
         var perf = Perf.regionStart("rnds");
         var a = intPool.Rent(BlockSize + 1);
         var s = a.AsSpan(0, l);
         for (int i = 0; i < s.Length; i++)
             s[i] = seed = (seed * 3877 + 29573) % 139968;
         a[l] = j;
+        PerfSimple.regionEnd(perfSimple);
         Perf.regionEnd(perf);
         return a;
     }
@@ -59,11 +61,13 @@ public/**/ class FastaNew
 
         void create(object o)
         {
+            var perfSimple = PerfSimple.regionStart("bytes");
             var perf = Perf.regionStart("bytes");
             var rnds = (int[])o;
             blocks[rnds[BlockSize]] =
             Tuple.Create(Bytes(BlockSize, rnds, vs, ps),
                 Width1 * LinesPerBlock);
+            PerfSimple.regionEnd(perfSimple);
             Perf.regionEnd(perf);
         }
 
@@ -109,6 +113,7 @@ public/**/ class FastaNew
 
         });
 
+        var perfSimpleOne = PerfSimple.regionStart("one");
         var perfOne = Perf.regionStart("one");
         o.Write(Encoding.ASCII.GetBytes(">ONE Homo sapiens alu"), 0, 21);
         var table = Encoding.ASCII.GetBytes(
@@ -131,6 +136,7 @@ public/**/ class FastaNew
         o.Write(repeatedBytes, 0, remaining + (remaining - 1) / Width + 1);
         bytePool.Return(repeatedBytes);
         o.Write(Encoding.ASCII.GetBytes("\n>TWO IUB ambiguity codes"), 0, 25);
+        PerfSimple.regionEnd(perfSimpleOne);
         Perf.regionEnd(perfOne);
 
         blocks[(3 * n - 1) / BlockSize + 1] = Tuple.Create
@@ -140,9 +146,11 @@ public/**/ class FastaNew
         {
             Tuple<byte[], int> t;
             while ((t = blocks[i]) == null) Thread.Sleep(0);
+            var perfSimpleWrite = PerfSimple.regionStart("write");
             var perfWrite = Perf.regionStart("write");
             o.Write(t.Item1, 0, t.Item2);
             if (t.Item2 == Width1 * LinesPerBlock) bytePool.Return(t.Item1);
+            PerfSimple.regionEnd(perfSimpleWrite);
             Perf.regionEnd(perfWrite);
         }
 
