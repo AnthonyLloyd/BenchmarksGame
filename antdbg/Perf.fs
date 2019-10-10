@@ -17,7 +17,8 @@ type Estimate = Estimate of median:float * error:float
         Estimate(m1/m2, sqrt(sqr(e1/m1)+sqr(e2/m2))*abs(m1/m2))
     override e.ToString() =
         let (Estimate(m,e)) = e
-        m.ToString("0.0").PadLeft 5 + " ±" + e.ToString("0.0").PadLeft 4
+        (max m -99.9 |> min 99.9).ToString("0.0").PadLeft 5 + " ±" +
+        (min e 99.9).ToString("0.0").PadLeft 4
 
 module internal Statistics =
     let estimate (s:ListSlim<int>) =
