@@ -47,10 +47,11 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
 
 [<EntryPoint>]
 let main argv =
-    printfn "Simple"
-    PerfSimple.causalProfiling 300 (fun () -> FastaNew.Main([|"25000000"|]) |> ignore)
-    printfn "Faithful"
-    Perf.causalProfiling 300 (fun () -> FastaNew.Main([|"25000000"|]) |> ignore)
-    //isFasterThan (fun () -> FastaNew.Main([|"25000000"|]))
-    //             (fun () -> FastaOld.Main([|"25000000"|])) ""
+    //let n = 300
+    //printfn "Simple"
+    //PerfSimple.causalProfiling n (fun () -> FastaNew.Main([|"25000000"|]) |> ignore)
+    //printfn "Faithful"
+    //Perf.causalProfiling n (fun () -> FastaNew.Main([|"25000000"|]) |> ignore)
+    isFasterThan (fun () -> FastaNew.Main([|"25000000"|]))
+                 (fun () -> FastaOld.Main([|"25000000"|])) ""
     0

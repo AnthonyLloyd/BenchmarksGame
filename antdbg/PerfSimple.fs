@@ -1,14 +1,15 @@
 ﻿namespace global
 
-open System.Diagnostics
+open System
 open System.Threading
+open System.Diagnostics
 
 [<Struct>]
 type PerfRegionSimple = PerfRegionSimple of string * int64
 
 module PerfSimple =
     [<Struct>]
-    type private PerfDelay = Nothing | CollectTimes | Delay
+    type private PerfRun = Nothing | CollectTimes | Delay
     let mutable private perfRun = Nothing
     let mutable private delayName = null
     let mutable private delayTime = 0
@@ -29,10 +30,9 @@ module PerfSimple =
             elif delayTime<>0 && ((delayTime < 0) <> (delayName = name)) then
                 let wait = now + (now-start) * int64(abs delayTime) / 100L
                 while Stopwatch.GetTimestamp() < wait do ()
-
     let causalProfiling n (f:unit->unit) =
         printfn "Causal profiling..."
-        let run (d:PerfDelay,dName:string,dTime:int) =
+        let run (d:PerfRun,dName:string,dTime:int) =
             perfRun <- d
             delayName <- dName
             delayTime <- dTime
@@ -43,7 +43,9 @@ module PerfSimple =
         run (CollectTimes,null,0) |> ignore
         clear()
         let summary =
-            let totalTimePct = float(run (CollectTimes,null,0)) * 0.01
+            let totalTimePct =
+                float(run (CollectTimes,null,0) * Environment.ProcessorCount)
+                * 0.01
             times.ToSeq()
             |> Seq.groupBy (fun struct (n,_) -> n)
             |> Seq.map (fun (r,s) ->
@@ -71,23 +73,23 @@ module PerfSimple =
         let median d = Statistics.estimate results.[Delay,fst d,snd d]
 
         let createReport() =
-            let totalTimePct = median(null,0) * 0.01
+            let totalPct = median(null,0) * 0.01
             "| Region         |  Count  |  Time%  |     +10%     \
              |      +5%     |      -5%     |     -10%     |     -15%     \
              |     -20%     |\n|:---------------|--------:|--------:\
              |-------------:|-------------:|-------------:|-------------:\
              |-------------:|-------------:|      \n"
             + (summary |> Seq.map (fun (KeyValue(name,s)) ->
-                  "| " + name.PadRight 14 +
-                  " | " + s.Count.ToString().PadLeft 7 +
-                  " | " + s.Time.ToString("0.0").PadLeft 7 +
-                  " | " + string(100.0 - median(name, 10)/totalTimePct) +
-                  "  | " + string(100.0 - median(name,  5)/totalTimePct) +
-                  "  | " + string((median(null, -5) - median(name, -5))/totalTimePct) +
-                  "  | " + string((median(null,-10) - median(name,-10))/totalTimePct) +
-                  "  | " + string((median(null,-15) - median(name,-15))/totalTimePct) +
-                  "  | " + string((median(null,-20) - median(name,-20))/totalTimePct) +
-                  "  |\n"
+               "| " + name.PadRight 14 +
+               " | " + s.Count.ToString().PadLeft 7 +
+               " | " + s.Time.ToString("0.0").PadLeft 7 +
+               " | "  + string(100.0 - median(name, 10)/totalPct) +
+               "  | " + string(100.0 - median(name,  5)/totalPct) +
+               "  | " + string((median(null, -5)-median(name, -5))/totalPct) +
+               "  | " + string((median(null,-10)-median(name,-10))/totalPct) +
+               "  | " + string((median(null,-15)-median(name,-15))/totalPct) +
+               "  | " + string((median(null,-20)-median(name,-20))/totalPct) +
+               "  |\n"
               ) |> System.String.Concat)
 
         for i = 1 to n do

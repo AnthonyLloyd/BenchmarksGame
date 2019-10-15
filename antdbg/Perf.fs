@@ -1,7 +1,8 @@
 ﻿namespace global
 
-open System.Diagnostics
+open System
 open System.Threading
+open System.Diagnostics
 
 [<AutoOpen>]
 module private Auto =
@@ -29,21 +30,22 @@ module internal Statistics =
         for i = s.Count-1 downto 0 do
             s2 <- s2 + sqr(float s.[i]-m)
         Estimate(m, sqrt(s2/float(l*(l-1))) * 1.253)
+    let runMedian 
 
 [<Struct>]
 type PerfRegion =
-    PerfRegion of string * int64 * totalDelay: int64 * delayOnSince: int64
+    PerfRegion of string * int64 * totalDelay: int64 * onSince: int64
 
 module Perf =
     [<Struct>]
-    type private PerfDelay = Nothing | CollectTimes | Delay
+    type private PerfRun = Nothing | CollectTimes | Delay
     let mutable private perfRun = Nothing
     let mutable private delayName = null
     let mutable private delayTime = 0
     let mutable private lock = SpinLock false
     let mutable private times = ListSlim()
     let mutable private delayCount = 0
-    let mutable private delayOnSince = 0L
+    let mutable private onSince = 0L
     let mutable private totalDelay = 0L
     let regionStart (name:string) =
         if perfRun = Nothing then PerfRegion(null, 0L, 0L, 0L)
@@ -53,13 +55,13 @@ module Perf =
             lock.Enter &lockTaken
             if delayName=name && delayTime<0 then
                 if delayCount = 0 then
-                    if delayOnSince <> 0L then failwithf "um %i" delayOnSince
-                    delayOnSince <- now
+                    if onSince <> 0L then failwithf "um %i" onSince
+                    onSince <- now
                 delayCount <- delayCount + 1
-            let pr = PerfRegion (name, now, totalDelay, delayOnSince)
+            let pr = PerfRegion (name, now, totalDelay, onSince)
             if lockTaken then lock.Exit false
             pr
-    let regionEnd (PerfRegion (name,start,startTotalDelay,startDelayOnSince)) =
+    let regionEnd (PerfRegion (name,start,startTotalDelay,startOnSince)) =
         if perfRun = Nothing then ()
         else
             let now = Stopwatch.GetTimestamp()
@@ -73,20 +75,20 @@ module Perf =
                     if name=delayName then
                         delayCount <- delayCount - 1
                         if delayCount = 0 then
-                            if delayOnSince=0L then failwith "o no" //////////////////////////////
+                            if onSince=0L then failwith "o no" //////////////////////////////
                             totalDelay <- totalDelay
-                                + (now-delayOnSince) * int64 delayTime / -100L
-                            delayOnSince <- 0L
+                                + (now-onSince) * int64 delayTime / -100L
+                            onSince <- 0L
                         if lockTaken then lock.Exit false
                     else
-                        if (delayCount = 0) <> (delayOnSince = 0L) then failwithf "oh %i %i" delayCount delayOnSince
+                        if (delayCount = 0) <> (onSince = 0L) then failwithf "oh %i %i" delayCount onSince
                         let wait =
                             now + totalDelay - startTotalDelay +
-                            ((if delayOnSince=0L then 0L else now-delayOnSince)
-                             +  if startDelayOnSince=0L then 0L
-                                else startDelayOnSince-start
+                            ((if onSince=0L then 0L else now-onSince)
+                             +  if startOnSince=0L then 0L
+                                else startOnSince-start
                             ) * int64 delayTime / -100L
-                        if (wait-now) / Stopwatch.Frequency > 1L then printfn "%i %i %i %i %i %i %i %i %i\u001b[1F" ((wait-now)/Stopwatch.Frequency) delayTime wait start now totalDelay startTotalDelay delayOnSince startDelayOnSince
+                        if (wait-now) / Stopwatch.Frequency > 1L then printfn "%i %i %i %i %i %i %i %i %i\u001b[1F" ((wait-now)/Stopwatch.Frequency) delayTime wait start now totalDelay startTotalDelay onSince startOnSince
                         if lockTaken then lock.Exit false
                         while Stopwatch.GetTimestamp() < wait do ()
                 elif delayTime>0 && name=delayName then
@@ -96,14 +98,13 @@ module Perf =
                     while Stopwatch.GetTimestamp() < wait do ()
                 else
                     if lockTaken then lock.Exit false
-
     let causalProfiling n (f:unit->unit) =
         printfn "Causal profiling..."
-        let run (d:PerfDelay,dName:string,dTime:int) =
+        let run (d:PerfRun,dName:string,dTime:int) =
             perfRun <- d
             delayName <- dName
             delayTime <- dTime
-            delayOnSince <- 0L
+            onSince <- 0L
             delayCount <- 0
             totalDelay <- 0L
             let start = Stopwatch.GetTimestamp()
@@ -113,7 +114,10 @@ module Perf =
         run (CollectTimes,null,0) |> ignore
         clear()
         let summary =
-            let totalTimePct = float(run (CollectTimes,null,0)) * 0.01
+            let n = 5
+            let totalTimePct =
+                float(run (CollectTimes,null,0) * Environment.ProcessorCount)
+                * 0.01
             times.ToSeq()
             |> Seq.groupBy (fun struct (n,_) -> n)
             |> Seq.map (fun (r,s) ->
@@ -137,23 +141,23 @@ module Perf =
         let median d = Statistics.estimate results.[Delay,fst d,snd d]
 
         let createReport() =
-            let totalTimePct = median(null,0) * 0.01
+            let totalPct = median(null,0) * 0.01
             "| Region         |  Count  |  Time%  |     +10%     \
              |      +5%     |      -5%     |     -10%     |     -15%     \
              |     -20%     |\n|:---------------|--------:|--------:\
              |-------------:|-------------:|-------------:|-------------:\
              |-------------:|-------------:|      \n"
             + (summary |> Seq.map (fun (KeyValue(name,s)) ->
-                  "| " + name.PadRight 14 +
-                  " | " + s.Count.ToString().PadLeft 7 +
-                  " | " + s.Time.ToString("0.0").PadLeft 7 +
-                  " | " + string(100.0 - median(name, 10)/totalTimePct) +
-                  "  | " + string(100.0 - median(name,  5)/totalTimePct) +
-                  "  | " + string(100.0 - median(name, -5)/totalTimePct) +
-                  "  | " + string(100.0 - median(name,-10)/totalTimePct) +
-                  "  | " + string(100.0 - median(name,-15)/totalTimePct) +
-                  "  | " + string(100.0 - median(name,-20)/totalTimePct) +
-                  "  |\n"
+                "| " + name.PadRight 14 +
+                " | " + s.Count.ToString().PadLeft 7 +
+                " | " + s.Time.ToString("0.0").PadLeft 7 +
+                " | " + string(100.0 - median(name, 10)/totalPct) +
+                "  | " + string(100.0 - median(name,  5)/totalPct) +
+                "  | " + string(100.0 - median(name, -5)/totalPct) +
+                "  | " + string(100.0 - median(name,-10)/totalPct) +
+                "  | " + string(100.0 - median(name,-15)/totalPct) +
+                "  | " + string(100.0 - median(name,-20)/totalPct) +
+                "  |\n"
               ) |> System.String.Concat)
 
         for i = 1 to n do

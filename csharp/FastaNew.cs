@@ -18,57 +18,61 @@ public/**/ class FastaNew
     const int Width1 = 61;
     const int LinesPerBlock = 2048;
     const int BlockSize = Width * LinesPerBlock;
+    const int IM = 139968;
+    const int IA = 3877;
+    const int IC = 29573;
+    const int SEED = 42;
     static readonly ArrayPool<byte> bytePool = ArrayPool<byte>.Shared;
     static readonly ArrayPool<int> intPool = ArrayPool<int>.Shared;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static byte[] Bytes(int l, int[] rnds, byte[] vs, double[] ps)
+    static byte[] Bytes(int i, int[] rnds, byte[] vs, double[] ps)
     {
+        int r = 0, w = 0;
         var a = bytePool.Rent(Width1 * LinesPerBlock);
-        for (int i = 0; i < l; i++)
+        var s = a.AsSpan(0, (i-1)/Width + i + 1);
+        for (i = 0; i < s.Length; i++)
         {
-            var probability = 1.0 / 139968.0 * rnds[i];
-            int j = 0;
-            while (ps[j] < probability) j++;
-            a[1 + i + i / Width] = vs[j];
+            if (w-- == 0)
+            {
+                w = Width;
+                s[i] = (byte)'\n';
+            }
+            else
+            {
+                var probability = rnds[r++];
+                int j = 0;
+                while (ps[j] < probability) j++;
+                s[i] = vs[j];
+            }
         }
-        intPool.Return(rnds);
-        for (int i = 0; i <= (l - 1) / Width; i++)
-            a[i * Width1] = (byte)'\n';
         return a;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int[] Rnds(int l, int j, ref int seed)
+    static int[] Rnds(int l, int j,  ref int seed)
     {
-        var perfSimple = PerfSimple.regionStart("rnds");
-        var perf = Perf.regionStart("rnds");
         var a = intPool.Rent(BlockSize + 1);
         var s = a.AsSpan(0, l);
         for (int i = 0; i < s.Length; i++)
-            s[i] = seed = (seed * 3877 + 29573) % 139968;
+            s[i] = seed = (seed * IA + IC) % IM;
         a[l] = j;
-        PerfSimple.regionEnd(perfSimple);
-        Perf.regionEnd(perf);
         return a;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int WriteRandom(int n, int offset, int seed, byte[] vs, double[] ps, Tuple<byte[], int>[] blocks)
     {
-        var total = ps[0]; // cumulative probability
-        for (int i = 1; i < ps.Length; i++) ps[i] = total += ps[i];
+        var total = 0.0; // cumulative probability
+        for (int i = 0; i < ps.Length; i++) ps[i] = total += ps[i] * IM;
 
         void create(object o)
         {
-            var perfSimple = PerfSimple.regionStart("bytes");
-            var perf = Perf.regionStart("bytes");
             var rnds = (int[])o;
             blocks[rnds[BlockSize]] =
             Tuple.Create(Bytes(BlockSize, rnds, vs, ps),
                 Width1 * LinesPerBlock);
-            PerfSimple.regionEnd(perfSimple);
-            Perf.regionEnd(perf);
+            intPool.Return(rnds);
         }
 
         var createDel = (WaitCallback)create;
@@ -85,6 +89,7 @@ public/**/ class FastaNew
             blocks[rnds[remaining]] =
             Tuple.Create(Bytes(remaining, rnds, vs, ps),
                 remaining + (remaining - 1) / Width + 1);
+            intPool.Return(rnds);
         }, Rnds(remaining, offset + (n - 1) / BlockSize, ref seed));
 
         return seed;
@@ -98,7 +103,7 @@ public/**/ class FastaNew
 
         ThreadPool.QueueUserWorkItem(_ =>
         {
-            var seed = WriteRandom(3 * n, 0, 42,
+            var seed = WriteRandom(3 * n, 0, SEED,
                 new[] { (byte)'a', (byte)'c', (byte)'g', (byte)'t',
                     (byte)'B', (byte)'D', (byte)'H', (byte)'K', (byte)'M',
                     (byte)'N', (byte)'R', (byte)'S', (byte)'V', (byte)'W',
@@ -113,8 +118,6 @@ public/**/ class FastaNew
 
         });
 
-        var perfSimpleOne = PerfSimple.regionStart("one");
-        var perfOne = Perf.regionStart("one");
         o.Write(Encoding.ASCII.GetBytes(">ONE Homo sapiens alu"), 0, 21);
         var table = Encoding.ASCII.GetBytes(
             "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG" +
@@ -136,8 +139,6 @@ public/**/ class FastaNew
         o.Write(repeatedBytes, 0, remaining + (remaining - 1) / Width + 1);
         bytePool.Return(repeatedBytes);
         o.Write(Encoding.ASCII.GetBytes("\n>TWO IUB ambiguity codes"), 0, 25);
-        PerfSimple.regionEnd(perfSimpleOne);
-        Perf.regionEnd(perfOne);
 
         blocks[(3 * n - 1) / BlockSize + 1] = Tuple.Create
             (Encoding.ASCII.GetBytes("\n>THREE Homo sapiens frequency"), 30);
@@ -146,12 +147,8 @@ public/**/ class FastaNew
         {
             Tuple<byte[], int> t;
             while ((t = blocks[i]) == null) Thread.Sleep(0);
-            var perfSimpleWrite = PerfSimple.regionStart("write");
-            var perfWrite = Perf.regionStart("write");
             o.Write(t.Item1, 0, t.Item2);
             if (t.Item2 == Width1 * LinesPerBlock) bytePool.Return(t.Item1);
-            PerfSimple.regionEnd(perfSimpleWrite);
-            Perf.regionEnd(perfWrite);
         }
 
         o.WriteByte((byte)'\n');
