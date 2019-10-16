@@ -4,6 +4,7 @@
 // contributed by Serge Smith
 // further optimized (rewrote threading, random generation loop) by Jan de Vaan
 // modified by Josh Goldfoot (fasta-repeat buffering)
+// ported from F# with improvements version by Anthony Lloyd
 
 using System;
 using System.Text;
@@ -28,7 +29,7 @@ public/**/ class FastaNew
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static byte[] Bytes(int i, int[] rnds, int[] ps, byte[] vs)
     {
-        var a = bytePool.Rent(i);
+        var a = bytePool.Rent(BlockSize1);
         var s = a.AsSpan(0, i);
         for (i = 1; i < s.Length; i++)
         {
@@ -43,11 +44,21 @@ public/**/ class FastaNew
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int[] Rnds(int i, int j, ref int seed)
     {
-        var a = intPool.Rent(i);
+        var a = intPool.Rent(BlockSize1);
         var s = a.AsSpan(0, i);
         s[0] = j;
-        for (i = 1, j = Width; i < s.Length; i++, j = j == 0 ? Width : j - 1)
-            s[i] = j == 0 ? IM * 3 / 2 : seed = (seed * IA + IC) % IM;
+        for (i = 1, j = Width; i < s.Length; i++)
+        {
+            if (j-- == 0)
+            {
+                j = Width;
+                s[i] = IM * 3 / 2;
+            }
+            else
+            {
+                s[i] = seed = (seed * IA + IC) % IM;
+            }
+        }
         return a;
     }
 
