@@ -1,10 +1,9 @@
-/* The Computer Language Benchmarks Game
-  https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
-
-  contributed by Serge Smith
-  further optimized (rewrote threading, random generation loop) by Jan de Vaan
-  modified by Josh Goldfoot (fasta-repeat buffering)
-*/
+// The Computer Language Benchmarks Game
+// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+//
+// contributed by Serge Smith
+// further optimized (rewrote threading, random generation loop) by Jan de Vaan
+// modified by Josh Goldfoot (fasta-repeat buffering)
 
 using System;
 using System.Text;
@@ -27,38 +26,28 @@ public/**/ class FastaNew
     static readonly ArrayPool<int> intPool = ArrayPool<int>.Shared;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static byte[] Bytes(int i, int[] rnds, byte[] vs, int[] ps)
+    static byte[] Bytes(int i, int[] rnds, int[] ps, byte[] vs)
     {
-        var a = bytePool.Rent(BlockSize1);
-        var s = a.AsSpan(0, (i - 1) / Width + i + 1);
+        var a = bytePool.Rent(i);
+        var s = a.AsSpan(0, i);
         for (i = 1; i < s.Length; i++)
         {
-            var probability = rnds[i];
+            var p = rnds[i];
             int j = 0;
-            while (ps[j] < probability) j++;
+            while (ps[j] < p) j++;
             s[i] = vs[j];
         }
         return a;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int[] Rnds(int i, int j,  ref int seed)
+    static int[] Rnds(int i, int j, ref int seed)
     {
-        var a = intPool.Rent(BlockSize1);
-        var s = a.AsSpan(0, (i - 1) / Width + i + 1);
+        var a = intPool.Rent(i);
+        var s = a.AsSpan(0, i);
         s[0] = j;
-        for (i = 1, j = Width; i < s.Length; i++)
-        {
-            if (j-- == 0)
-            {
-                j = Width;
-                s[i] = IM * 3 / 2;
-            }
-            else
-            {
-                s[i] = seed = (seed * IA + IC) % IM;
-            }
-        }
+        for (i = 1, j = Width; i < s.Length; i++, j = j == 0 ? Width : j - 1)
+            s[i] = j == 0 ? IM * 3 / 2 : seed = (seed * IA + IC) % IM;
         return a;
     }
 
@@ -76,7 +65,7 @@ public/**/ class FastaNew
         {
             var rnds = (int[])o;
             blocks[rnds[0]] =
-            Tuple.Create(Bytes(BlockSize, rnds, vs, psIM), BlockSize1);
+                Tuple.Create(Bytes(BlockSize1, rnds, psIM, vs), BlockSize1);
             intPool.Return(rnds);
         }
 
@@ -85,18 +74,17 @@ public/**/ class FastaNew
         for (int i = offset; i < offset + (n - 1) / BlockSize; i++)
         {
             ThreadPool.QueueUserWorkItem(createDel,
-                Rnds(BlockSize, i, ref seed));
+                Rnds(BlockSize1, i, ref seed));
         }
 
         var remaining = (n - 1) % BlockSize + 1;
+        var l = remaining + (remaining - 1) / Width + 1;
         ThreadPool.QueueUserWorkItem(o =>
         {
             var rnds = (int[])o;
-            blocks[rnds[0]] =
-            Tuple.Create(Bytes(remaining, rnds, vs, psIM),
-                remaining + (remaining - 1) / Width + 1);
+            blocks[rnds[0]] = Tuple.Create(Bytes(l, rnds, psIM, vs), l);
             intPool.Return(rnds);
-        }, Rnds(remaining, offset + (n - 1) / BlockSize, ref seed));
+        }, Rnds(l, offset + (n - 1) / BlockSize, ref seed));
 
         return seed;
     }
