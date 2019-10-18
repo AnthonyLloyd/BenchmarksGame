@@ -8,7 +8,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.cs" />
+    <Compile Include="BinaryTreesNew.cs" />
+    <Compile Include="BinaryTreesOld.cs" />
+    <!--<Compile Include="Fasta.cs" />
     <Compile Include="FastaNew.cs" />
-    <Compile Include="FastaOld.cs" />
+    <Compile Include="FastaOld.cs" />-->
   </ItemGroup>
 </Project>

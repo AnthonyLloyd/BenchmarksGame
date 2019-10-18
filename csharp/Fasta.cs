@@ -1,4 +1,4 @@
-// The Computer Language Benchmarks Game
+﻿// The Computer Language Benchmarks Game
 // https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // contributed by Serge Smith
@@ -12,7 +12,7 @@ using System.Buffers;
 using System.Threading;
 using System.Runtime.CompilerServices;
 
-public/**/ class FastaNew
+class Fasta
 {
     const int Width = 60;
     const int Width1 = 61;
@@ -100,10 +100,10 @@ public/**/ class FastaNew
         return seed;
     }
 
-    public static byte[] /*void*/ Main(string[] args)
+    public static void Main(string[] args)
     {
         int n = args.Length == 0 ? 1000 : int.Parse(args[0]);
-        var o = new System.IO.MemoryStream();//Console.OpenStandardOutput();
+        var o = Console.OpenStandardOutput();
         var blocks = new Tuple<byte[], int>[
             (3 * n - 1) / BlockSize + (5 * n - 1) / BlockSize + 3];
 
@@ -134,8 +134,8 @@ public/**/ class FastaNew
             "GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG" +
             "AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC" +
             "AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA");
-        var linesPerBlock = (LinesPerBlock / 287) * 287;
-        var repeatedBytes = bytePool.Rent(BlockSize1);
+        var linesPerBlock = (LinesPerBlock / 287 + 1) * 287;
+        var repeatedBytes = bytePool.Rent(Width1 * linesPerBlock);
         for (int i = 0; i <= linesPerBlock * Width - 1; i++)
             repeatedBytes[1 + i + i / Width] = table[i % 287];
         for (int i = 0; i <= (Width * linesPerBlock - 1) / Width; i++)
@@ -160,6 +160,5 @@ public/**/ class FastaNew
         }
 
         o.WriteByte((byte)'\n');
-        return o.ToArray();
     }
 }
