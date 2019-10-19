@@ -1,53 +1,92 @@
 ﻿// The Computer Language Benchmarks Game
-// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/ 
+// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // contributed by Marek Safar
 // *reset*
 // concurrency added by Peperud
 // fixed long-lived tree by Anthony Lloyd
+// ported from F# version by Anthony Lloyd
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 public /**/ class BinaryTreesNew
 {
+    struct TreeNode
+    {
+        class Next { public TreeNode left, right; }
+        readonly Next next;
+
+        TreeNode(TreeNode left, TreeNode right) =>
+            next = new Next { left = left, right = right };
+
+        internal static TreeNode Create(int d)
+        {
+            return d == 1 ? new TreeNode(new TreeNode(), new TreeNode())
+                          : new TreeNode(Create(d - 1), Create(d - 1));
+        }
+
+        internal int ItemCheck()
+        {
+            int c = 1;
+            var current = next;
+            while (current != null)
+            {
+                c += current.right.ItemCheck() + 1;
+                current = current.left.next;
+            }
+            return c;
+        }
+    }
+
     const int MinDepth = 4;
 
     public static byte[] /*void*/ Main(string[] args)
     {
-        int maxDepth = args.Length == 0 ? 10 
+        int maxDepth = args.Length == 0 ? 10
             : Math.Max(MinDepth + 2, int.Parse(args[0]));
         int stretchDepth = maxDepth + 1;
 
         var stretchTreeCheck = Task.Run(() =>
             "stretch tree of depth " + stretchDepth + "\t check: " +
-                TreeNode.BottomUpTree(stretchDepth).ItemCheck());
+                TreeNode.Create(stretchDepth).ItemCheck());
 
         var longLivedTree = Task.Run(() =>
         {
-            var tree = TreeNode.BottomUpTree(maxDepth);
-            return ("long lived tree of depth "+ maxDepth +
+            var tree = TreeNode.Create(maxDepth);
+            return ("long lived tree of depth " + maxDepth +
                 "\t check: " + tree.ItemCheck(), tree);
         });
 
         var results = new Task<string>[(maxDepth - MinDepth) / 2 + 1];
 
-        for (int d = MinDepth; d <= maxDepth; d += 2)
+        for (int i = 0; i < results.Length; i++)
         {
-            int safe_d = d;
-            results[(safe_d - MinDepth) / 2] = Task.Run(() =>
+            int depth = i * 2 + MinDepth;
+            results[i] = Task.Run(() =>
             {
-                int n = 1 << (maxDepth - safe_d + MinDepth);
+                int pc = Environment.ProcessorCount * 2;
+                int n = (1 << (maxDepth - depth + MinDepth)) / pc;
+                var tasks = new Task<int>[pc - 1];
+                for (int i = 0; i < tasks.Length; i++)
+                    tasks[i] = Task.Run(() =>
+                    {
+                        var check = 0;
+                        for (int i = 0; i < n; i++)
+                            check += TreeNode.Create(depth).ItemCheck();
+                        return check;
+                    });
+
                 int check = 0;
-                Parallel.For(0, Environment.ProcessorCount, _ =>
-                {
-                    var c = 0;
-                    for(int i = 0; i < n/Environment.ProcessorCount; i++)
-                        c += TreeNode.BottomUpTree(safe_d).ItemCheck();
-                    Interlocked.Add(ref check, c);
-                });
-                return $"{n}\t trees of depth {safe_d}\t check: {check}";
+                for (int i = 0; i < n; i++)
+                    check += TreeNode.Create(depth).ItemCheck();
+
+                var s = (n * pc) + "\t trees of depth " + depth + "\t check: ";
+
+                for (int i = 0; i < tasks.Length; i++)
+                    check += tasks[i].Result;
+
+                return s + check;
             });
         }
 
@@ -65,26 +104,5 @@ public /**/ class BinaryTreesNew
 
         sw.Flush();
         return ms.ToArray();
-    }
-
-    struct TreeNode
-    {
-        class Next { public TreeNode left, right; }
-        Next next;
-
-        internal static TreeNode BottomUpTree(int depth)
-        {
-            return depth == 0 ? new TreeNode()
-              : new TreeNode(BottomUpTree(depth - 1), BottomUpTree(depth - 1));
-        }
-
-        TreeNode(TreeNode left, TreeNode right) =>
-            next = new Next { left = left, right = right };
-
-        internal int ItemCheck()
-        {
-            return next == null ? 1
-                : 1 + next.left.ItemCheck() + next.right.ItemCheck();
-        }
     }
 }
