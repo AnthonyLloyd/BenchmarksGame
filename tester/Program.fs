@@ -54,4 +54,6 @@ let main argv =
     //Perf.causalProfiling n (fun () -> FastaNew.Main([|"25000000"|]) |> ignore)
     isFasterThan (fun () -> BinaryTreesNew.Main([|"21"|]))
                  (fun () -> BinaryTreesOld.Main([|"21"|])) ""
+    //isFasterThan (fun () -> FastaNew.Main([|"25000"|]))
+    //             (fun () -> FastaOld.Main([|"25000"|])) ""
     0

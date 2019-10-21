@@ -20,6 +20,7 @@ public/**/ class FastaNew
     const int BlockSize = Width * LinesPerBlock;
     const int BlockSize1 = Width1 * LinesPerBlock;
     const int IM = 139968;
+    const float FIM = 1F/139968F;
     const int IA = 3877;
     const int IC = 29573;
     const int SEED = 42;
@@ -27,13 +28,13 @@ public/**/ class FastaNew
     static readonly ArrayPool<int> intPool = ArrayPool<int>.Shared;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static byte[] Bytes(int i, int[] rnds, int[] ps, byte[] vs)
+    static byte[] Bytes(int i, int[] rnds, float[] ps, byte[] vs)
     {
         var a = bytePool.Rent(BlockSize1);
         var s = a.AsSpan(0, i);
         for (i = 1; i < s.Length; i++)
         {
-            var p = rnds[i];
+            var p = rnds[i] * FIM;
             int j = 0;
             while (ps[j] < p) j++;
             s[i] = vs[j];
@@ -63,20 +64,19 @@ public/**/ class FastaNew
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int WriteRandom(int n, int offset, int seed, byte[] vs, double[] ps,
+    static int WriteRandom(int n, int offset, int seed, byte[] vs, float[] ps,
         Tuple<byte[], int>[] blocks)
     {
         // make cumulative int
-        var psIM = new int[ps.Length];
-        var total = 0.0;
-        for (int i = 0; i < ps.Length; i++)
-            psIM[i] = (int)(total += ps[i] * IM);
+        var total = ps[0];
+        for (int i = 1; i < ps.Length; i++)
+            ps[i] = total += ps[i];
 
         void create(object o)
         {
             var rnds = (int[])o;
             blocks[rnds[0]] =
-                Tuple.Create(Bytes(BlockSize1, rnds, psIM, vs), BlockSize1);
+                Tuple.Create(Bytes(BlockSize1, rnds, ps, vs), BlockSize1);
             intPool.Return(rnds);
         }
 
@@ -93,7 +93,7 @@ public/**/ class FastaNew
         ThreadPool.QueueUserWorkItem(o =>
         {
             var rnds = (int[])o;
-            blocks[rnds[0]] = Tuple.Create(Bytes(l, rnds, psIM, vs), l);
+            blocks[rnds[0]] = Tuple.Create(Bytes(l, rnds, ps, vs), l);
             intPool.Return(rnds);
         }, Rnds(l, offset + (n - 1) / BlockSize, ref seed));
 
@@ -114,15 +114,15 @@ public/**/ class FastaNew
                     (byte)'B', (byte)'D', (byte)'H', (byte)'K', (byte)'M',
                     (byte)'N', (byte)'R', (byte)'S', (byte)'V', (byte)'W',
                     (byte)'Y', (byte)'\n' },
-                new[] { 0.27,0.12,0.12,0.27,0.02,0.02,0.02,0.02,
-                        0.02,0.02,0.02,0.02,0.02,0.02,0.02,1.00 }, blocks);
+                new[] { 0.27F,0.12F,0.12F,0.27F,0.02F,0.02F,0.02F,0.02F,
+                        0.02F,0.02F,0.02F,0.02F,0.02F,0.02F,0.02F,1.00F }, blocks);
 
             WriteRandom(5 * n, (3 * n - 1) / BlockSize + 2, seed,
                 new byte[] { (byte)'a', (byte)'c', (byte)'g', (byte)'t',
                     (byte)'\n' },
-                new[] { 0.3029549426680, 0.1979883004921,
-                        0.1975473066391, 0.3015094502008,
-                        1.0 }, blocks);
+                new[] { 0.3029549426680F, 0.1979883004921F,
+                        0.1975473066391F, 0.3015094502008F,
+                        1.0F }, blocks);
         });
 
         o.Write(Encoding.ASCII.GetBytes(">ONE Homo sapiens alu"), 0, 21);
