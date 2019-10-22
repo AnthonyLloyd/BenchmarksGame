@@ -38,7 +38,7 @@ public /**/ class BinaryTreesNew
     }
 
     const int MinDepth = 4;
-
+    const int NP = 2;
     public static byte[] /*void*/ Main(string[] args)
     {
         int maxDepth = args.Length == 0 ? 10
@@ -48,7 +48,7 @@ public /**/ class BinaryTreesNew
 
         TreeNode longLivedTree;
         string longLivedTreeCheck = null;
-        var checks = new int[(maxDepth - MinDepth)/2 + 1];
+        var checks = new int[((maxDepth - MinDepth) / 2 + 1) * NP];
         System.Threading.Tasks.Parallel.For(-1, checks.Length, i =>
         {
             if (i == -1)
@@ -62,19 +62,20 @@ public /**/ class BinaryTreesNew
             }
             else
             {
-                int depth = i * 2 + MinDepth;
+                int depth = i / NP * 2 + MinDepth;
                 var check = 0;
-                for (int j = 1 << maxDepth - depth + MinDepth; j-- > 0;)
+                for (int j = (1 << maxDepth - depth + MinDepth) / NP; j-- > 0;)
                     check += TreeNode.Create(depth).Check();
                 checks[i] = check;
             }
         });
 
-        for (int i = 0; i < checks.Length; i++)
+        for (int i = 0; i < checks.Length; i += NP)
         {
-            int depth = i * 2 + MinDepth;
-            sw.WriteLine((1 << maxDepth - depth + MinDepth) +
-                "\t trees of depth " + depth + "\t check: " + checks[i]);
+            int depth = i / NP * 2 + MinDepth;
+            int n = 1 << maxDepth - depth + MinDepth;
+            int c = checks[i] + checks[i + 1];
+            sw.WriteLine(n + "\t trees of depth " + depth + "\t check: " + c);
         }
 
         sw.WriteLine(longLivedTreeCheck);
