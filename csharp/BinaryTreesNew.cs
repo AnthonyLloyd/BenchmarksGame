@@ -2,7 +2,6 @@
 // https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // contributed by Marek Safar
-// *reset*
 // concurrency added by Peperud
 // fixed long-lived tree by Anthony Lloyd
 // ported from F# version by Anthony Lloyd
@@ -14,10 +13,10 @@ public /**/ class BinaryTreesNew
     struct TreeNode
     {
         class Next { public TreeNode left, right; }
-        readonly Next next;
+        readonly Next n;
 
         TreeNode(TreeNode left, TreeNode right) =>
-            next = new Next { left = left, right = right };
+            n = new Next { left = left, right = right };
 
         internal static TreeNode Create(int d)
         {
@@ -28,29 +27,29 @@ public /**/ class BinaryTreesNew
         internal int Check()
         {
             int c = 1;
-            var current = next;
+            var current = n;
             while (current != null)
             {
                 c += current.right.Check() + 1;
-                current = current.left.next;
+                current = current.left.n;
             }
             return c;
         }
     }
 
     const int MinDepth = 4;
-    const int NP = 4;
+
     public static byte[] /*void*/ Main(string[] args)
     {
         int maxDepth = args.Length == 0 ? 10
-            : Math.Max(MinDepth + 2, int.Parse(args[0]));
+                : Math.Max(MinDepth + 2, int.Parse(args[0]));
         var ms = new System.IO.MemoryStream();
         var sw = new System.IO.StreamWriter(ms);//Console.OpenStandardOutput();
 
         TreeNode longLivedTree;
         string longLivedTreeCheck = null;
-        var checks = new int[(maxDepth - MinDepth) / 2 + 1];
-        System.Threading.Tasks.Parallel.For(-1, checks.Length * NP, i =>
+        var checks = new int[(maxDepth - MinDepth)/2 + 1];
+        System.Threading.Tasks.Parallel.For(-1, checks.Length, i =>
         {
             if (i == -1)
             {
@@ -63,21 +62,19 @@ public /**/ class BinaryTreesNew
             }
             else
             {
-                i /= NP;
                 int depth = i * 2 + MinDepth;
-                int n = (1 << (maxDepth - depth + MinDepth)) / NP;
                 var check = 0;
-                for (int j = 0; j < n; j++)
+                for (int j = 1 << maxDepth - depth + MinDepth; j-- > 0;)
                     check += TreeNode.Create(depth).Check();
-                System.Threading.Interlocked.Add(ref checks[i], check);
+                checks[i] = check;
             }
         });
 
         for (int i = 0; i < checks.Length; i++)
         {
             int depth = i * 2 + MinDepth;
-            int n = 1 << (maxDepth - depth + MinDepth);
-            sw.WriteLine(n + "\t trees of depth " + depth + "\t check: " + checks[i]);
+            sw.WriteLine((1 << maxDepth - depth + MinDepth) +
+                "\t trees of depth " + depth + "\t check: " + checks[i]);
         }
 
         sw.WriteLine(longLivedTreeCheck);
