@@ -1,5 +1,5 @@
 // The Computer Language Benchmarks Game
-// http://benchmarksgame.alioth.debian.org/
+// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // Based on C# version by Isaac Gouy, The Anh Tran, Alan McGovern
 // Contributed by Don Syme

@@ -43,8 +43,7 @@ let isFasterThan (f1:unit->'a) (f2:unit->'a) message =
   isFasterThanSub (fun measurer -> measurer f1 ())
                   (fun measurer -> measurer f2 ())
                   message
-
-
+                  
 [<EntryPoint>]
 let main argv =
     //let n = 300
@@ -52,8 +51,10 @@ let main argv =
     //PerfSimple.causalProfiling n (fun () -> FastaNew.Main([|"25000000"|]) |> ignore)
     //printfn "Faithful"
     //Perf.causalProfiling n (fun () -> FastaNew.Main([|"25000000"|]) |> ignore)
-    isFasterThan (fun () -> BinaryTreesNew.Main([|"21"|]))
-                 (fun () -> BinaryTreesOld.Main([|"21"|])) ""
+    //isFasterThan (fun () -> BinaryTreesNew.Main([|"21"|]))
+    //             (fun () -> BinaryTreesOld.Main([|"21"|])) ""
     //isFasterThan (fun () -> FastaNew.Main([|"25000"|]))
     //             (fun () -> FastaOld.Main([|"25000"|])) ""
+    isFasterThan (fun () -> SpectralNormNew.main([|"5500"|]))
+                 (fun () -> SpectralNormOld.main([|"5500"|])) ""
     0

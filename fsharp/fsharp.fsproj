@@ -1,15 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.fs" />
-    <Compile Include="RegexRedux.fs" />
+    <Compile Include="SpectralNormOld.fs" />
+    <Compile Include="SpectralNormNew.fs" />
     <PackageReference Include="PCRE.NET" Version="0.10.2" />
   </ItemGroup>
 </Project>

@@ -3,17 +3,13 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="**/*.fs" />
     <Compile Include="Performance.fs" />
     <Compile Include="Program.fs" />
-    <ProjectReference Include="..\csharp\csharp.csproj" />
-    <!--<ProjectReference Include="..\fsharp\fsharp.fsproj" />-->
+    <!--<ProjectReference Include="..\csharp\csharp.csproj" />-->
+    <ProjectReference Include="..\fsharp\fsharp.fsproj" />
   </ItemGroup>
 </Project>

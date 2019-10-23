@@ -2,7 +2,6 @@
 // https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // contributed by Marek Safar
-// *reset*
 // concurrency added by Peperud
 // fixed long-lived tree by Anthony Lloyd
 // ported from F# version by Anthony Lloyd
@@ -40,7 +39,7 @@ public /**/ class BinaryTreesNew
     }
 
     const int MinDepth = 4;
-
+    const int NoTasks = 4;
     public static byte[] /*void*/ Main(string[] args)
     {
         int maxDepth = args.Length == 0 ? 10
@@ -60,35 +59,28 @@ public /**/ class BinaryTreesNew
                 "\t check: " + tree.Check(), tree);
         });
 
-        var results = new Task<string>[(maxDepth - MinDepth) / 2 + 1];
+        var results = new string[(maxDepth - MinDepth) / 2 + 1];
 
         for (int i = 0; i < results.Length; i++)
         {
             int depth = i * 2 + MinDepth;
-            results[i] = Task.Run(() =>
+            int n = (1 << maxDepth - depth + MinDepth) / NoTasks;
+            var tasks = new Task<int>[NoTasks];
+            for (int t = 0; t < tasks.Length; t++)
             {
-                int n = 1 << maxDepth - depth + MinDepth - 2;
-                var tasks = new Task<int>[3];
-                for (int i = 0; i < tasks.Length; i++)
-                    tasks[i] = Task.Run(() =>
-                    {
-                        var check = 0;
-                        for (int i = n; i > 0; i--)
-                            check += TreeNode.Create(depth).Check();
-                        return check;
-                    });
-
-                int check = 0;
-                for (int i = n; i > 0; i--)
-                    check += TreeNode.Create(depth).Check();
-
-                var s = (n * 4) + "\t trees of depth " + depth + "\t check: ";
-
-                for (int i = 0; i < tasks.Length; i++)
-                    check += tasks[i].Result;
-
-                return s + check;
-            });
+                tasks[t] = Task.Run(() =>
+                {
+                    var check = 0;
+                    for (int i = n; i > 0; i--)
+                        check += TreeNode.Create(depth).Check();
+                    return check;
+                });
+            }
+            var check = tasks[0].Result;
+            for (int t = 1; t < tasks.Length; t++)
+                check += tasks[t].Result;
+            results[i] = (n * NoTasks) + "\t trees of depth " + depth +
+                         "\t check: " + check;
         }
 
         var ms = new System.IO.MemoryStream();
@@ -98,7 +90,7 @@ public /**/ class BinaryTreesNew
 
         for (int i = 0; i < results.Length; i++)
         {
-            sw.WriteLine(results[i].Result);
+            sw.WriteLine(results[i]);
         }
 
         sw.WriteLine(longLivedTree.Result.Item1);
