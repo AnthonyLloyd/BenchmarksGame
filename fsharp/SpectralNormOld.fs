@@ -95,6 +95,6 @@ let RunGame n =
 let main (args:string[]) =
     let n = try int <| args.[0] with _ -> 2500
 
-    RunGame n
+    (RunGame n).ToString("f9")
     //System.Console.WriteLine("{0:f9}", RunGame n);
     //0
