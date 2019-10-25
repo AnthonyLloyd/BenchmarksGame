@@ -11,41 +11,43 @@ open System.Threading
 open System.Runtime.Intrinsics
 open System.Runtime.Intrinsics.X86
 
-type f2 = Vector128<float>
+//type Barrier(threads:int) =
+//    let mutable current = threads
+//    let mutable handle = new ManualResetEventSlim(false)
+//    member _.SignalAndWait() =
+//        let h = handle
+//        if Interlocked.Decrement(&current) > 0 then
+//            h.Wait() |> ignore
+//        else
+//            handle <- new ManualResetEventSlim(false)
+//            Interlocked.Exchange(&current, threads) |> ignore
+//            h.Set() |> ignore
+//            //h.Reset() |> ignore
+//            h.Dispose()
 
-let approximate (u:f2[]) (v:f2[]) (tmp:f2[]) s e (barrier:Barrier) =
+let approximate u v tmp s e (barrier:Barrier) =
 
-    let inline A i j =
-        Vector128.Create(
-            1.0 / float((i + j) * (i + j + 1) / 2 + i + 1),
-            1.0 / float((i + j + 1) * (i + j + 2) / 2 + i + 1)
-        )
+    let inline A i j = 1.0 / float((i + j) * (i + j + 1) / 2 + i + 1)
 
-    let inline At i j =
-        Vector128.Create(
-            1.0 / float((i + j) * (i + j + 1) / 2 + j + 1),
-            1.0 / float((i + j + 1) * (i + j + 2) / 2 + j + 2)
-        )
-
-    let inline multiplyAv (v:f2[]) (Av:f2[]) =
+    let inline multiplyAv (v:_[]) (Av:_[]) =
+        let inline A2 i j = Vector128.Create(A i j, A i (j+1))
         for i = s to e do
-            let mutable sum1 = Ssse3.Multiply(A (i*2) 0, v.[0])
-            let mutable sum2 = Ssse3.Multiply(A (i*2+1) 0, v.[0])
-            for j = 1 to v.Length - 1 do
-                sum1 <- Ssse3.Add(sum1, Ssse3.Multiply(A (i*2) (j*2), v.[j]))
-                sum2 <- Ssse3.Add(sum2, Ssse3.Multiply(A (i*2+1) (j*2), v.[j]))
+            let mutable sum1, sum2 = Vector128.Zero, Vector128.Zero
+            for j = 0 to v.Length - 1 do
+              sum1 <- Ssse3.Add(sum1, Ssse3.Multiply(A2 (i*2) (j*2), v.[j]))
+              sum2 <- Ssse3.Add(sum2, Ssse3.Multiply(A2 (i*2+1) (j*2), v.[j]))
             Av.[i] <- Ssse3.HorizontalAdd(sum1, sum2)
 
-    let inline multiplyAtv (v:f2[]) (atv:f2[]) =
+    let inline multiplyAtv (v:_[]) (atv:_[]) =
+        let inline A2t i j = Vector128.Create(A j i, A (j+1) i)
         for i = s to e do
-            let mutable sum1 = Ssse3.Multiply(At (i*2) 0, v.[0])
-            let mutable sum2 = Ssse3.Multiply(At (i*2+1) 0, v.[0])
-            for j = 1 to v.Length - 1 do
-                sum1 <- Ssse3.Add(sum1, Ssse3.Multiply(At (i*2) (j*2), v.[j]))
-                sum2 <- Ssse3.Add(sum2, Ssse3.Multiply(At (i*2+1) (j*2), v.[j]))
+            let mutable sum1, sum2 = Vector128.Zero, Vector128.Zero
+            for j = 0 to v.Length - 1 do
+              sum1 <- Ssse3.Add(sum1, Ssse3.Multiply(A2t (i*2) (j*2), v.[j]))
+              sum2 <- Ssse3.Add(sum2, Ssse3.Multiply(A2t (i*2+1) (j*2), v.[j]))
             atv.[i] <- Ssse3.HorizontalAdd(sum1, sum2)
 
-    let multiplyatAv (v:f2[]) (tmp:f2[]) (atAv:f2[]) =
+    let inline multiplyatAv v tmp atAv =
         multiplyAv v tmp
         barrier.SignalAndWait()
         multiplyAtv tmp atAv
@@ -55,41 +57,37 @@ let approximate (u:f2[]) (v:f2[]) (tmp:f2[]) s e (barrier:Barrier) =
         multiplyatAv u tmp v
         multiplyatAv v tmp u
 
-    let mutable vBv = f2.Zero
-    let mutable vv = f2.Zero
-
+    let mutable vBv, vv = Vector128.Zero, Vector128.Zero
     for i = s to e do
-        let v = v.[i]
-        vBv <- Ssse3.Add(vBv, Ssse3.Multiply(u.[i], v))
-        vv <- Ssse3.Add(vv, Ssse3.Multiply(v, v))
-
-    vBv, vv
+        vBv <- Ssse3.Add(vBv, Ssse3.Multiply(u.[i], v.[i]))
+        vv <- Ssse3.Add(vv, Ssse3.Multiply(v.[i], v.[i]))
+    Ssse3.HorizontalAdd(vBv, vv)
 
 //[<EntryPoint>]
 let main (args:string[]) =
-    let n = try int args.[0] with _ -> 2500
-    let n = (n + 1) / 2
+    let n = try int args.[0] / 2 with _ -> 1250
     let u = Vector128.Create 1.0 |> Array.create n
-    let tmp = Array.zeroCreate<f2> n
-    let v = Array.zeroCreate<f2> n
+    let tmp = Array.zeroCreate n
+    let v = Array.zeroCreate n
     let NP = Environment.ProcessorCount
     let barrier = new Barrier(NP)
     let chunk = n / NP
     let aps = Async.Parallel [
-                for i = 0 to NP - 2 do
+                for i = 0 to NP-1 do
                     let s = i * chunk
-                    async { return approximate u v tmp s (s+chunk-1) barrier }
-                async { return approximate u v tmp ((NP-1)*chunk) (n-1) barrier }
+                    let e = if i = NP-1 then n-1 else s+chunk-1
+                    async { return approximate u v tmp s e barrier }
               ] |> Async.RunSynchronously
 
-    let mutable vBv,vv = aps.[0]
-
+    let mutable ap = aps.[0]
     for i = 1 to aps.Length-1 do
-        let t,b = aps.[i]
-        vBv <- Ssse3.Add(vBv, t)
-        vv <- Ssse3.Add(vv, b)
-    vBv <- Ssse3.HorizontalAdd(vBv, vv)
-    sqrt(vBv.GetElement 0 / vBv.GetElement 1).ToString("f9")
+        ap <- Ssse3.Add(ap, aps.[i])
+    sqrt(ap.ToScalar() / ap.GetElement 1).ToString("f9")
     
     //System.Console.WriteLine("{0:f9}", RunGame n);
     //0
+
+// Barrier
+// float array and pointer?
+// inline
+// sum0, temp var etc
