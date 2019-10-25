@@ -15,19 +15,10 @@ type f2 = Vector128<float>
 
 let approximate (u:f2[]) (v:f2[]) (tmp:f2[]) s e (barrier:Barrier) =
 
-    let A i j =
-        Vector128.Create(
-            1.0 / float((i + j) * (i + j + 1) / 2 + i + 1),
-            1.0 / float((i + j + 1) * (i + j + 2) / 2 + i + 1)
-        )
-
-    let At i j =
-        Vector128.Create(
-            1.0 / float((i + j) * (i + j + 1) / 2 + j + 1),
-            1.0 / float((i + j + 1) * (i + j + 2) / 2 + j + 2)
-        )
+    let inline a i j = 1.0 / float((i + j) * (i + j + 1) / 2 + i + 1)
 
     let multiplyAv (v:f2[]) (Av:f2[]) =
+        let A i j = Vector128.Create(a i j, a i (j+1))
         for i = s to e do
             let mutable sum1 = Ssse3.Multiply(A (i*2) 0, v.[0])
             let mutable sum2 = Ssse3.Multiply(A (i*2+1) 0, v.[0])
@@ -37,6 +28,7 @@ let approximate (u:f2[]) (v:f2[]) (tmp:f2[]) s e (barrier:Barrier) =
             Av.[i] <- Ssse3.HorizontalAdd(sum1, sum2)
 
     let multiplyAtv (v:f2[]) (atv:f2[]) =
+        let At i j = Vector128.Create(a j i, a (j+1) i)
         for i = s to e do
             let mutable sum1 = Ssse3.Multiply(At (i*2) 0, v.[0])
             let mutable sum2 = Ssse3.Multiply(At (i*2+1) 0, v.[0])
