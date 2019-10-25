@@ -11,19 +11,15 @@ open System.Threading
 open System.Runtime.Intrinsics
 open System.Runtime.Intrinsics.X86
 
-//type Barrier(threads:int) =
-//    let mutable current = threads
-//    let mutable handle = new ManualResetEventSlim(false)
-//    member _.SignalAndWait() =
-//        let h = handle
-//        if Interlocked.Decrement(&current) > 0 then
-//            h.Wait() |> ignore
-//        else
-//            handle <- new ManualResetEventSlim(false)
-//            Interlocked.Exchange(&current, threads) |> ignore
-//            h.Set() |> ignore
-//            //h.Reset() |> ignore
-//            h.Dispose()
+type Barrier(threads:int) =
+    [<VolatileField>]
+    let mutable current, iteration = threads, 0
+    member _.SignalAndWait() =
+        let i = iteration
+        if Interlocked.Decrement(&current) = 0 then
+            current <- threads
+            iteration <- i + 1
+        else while iteration = i do ()
 
 let approximate u v tmp s e (barrier:Barrier) =
 
@@ -87,7 +83,7 @@ let main (args:string[]) =
     //System.Console.WriteLine("{0:f9}", RunGame n);
     //0
 
-// Barrier
+// Barrier - without seems better, try int
 // float array and pointer?
 // inline
 // sum0, temp var etc
