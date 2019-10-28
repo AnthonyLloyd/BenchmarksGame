@@ -4,8 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.fs" />
-    <Compile Include="SpectralNormOld.fs" />
-    <Compile Include="SpectralNormNew.fs" />
     <PackageReference Include="PCRE.NET" Version="0.10.2" />
   </ItemGroup>
 </Project>

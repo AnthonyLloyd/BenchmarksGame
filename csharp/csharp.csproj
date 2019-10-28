@@ -1,14 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.cs" />
-    <Compile Include="BinaryTreesNew.cs" />
-    <Compile Include="BinaryTreesOld.cs" />
+    <Compile Include="FannkuchReduxNew.cs" />
+    <Compile Include="FannkuchReduxOld.cs" />
   </ItemGroup>
 </Project>

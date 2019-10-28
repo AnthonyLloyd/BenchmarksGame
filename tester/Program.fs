@@ -55,6 +55,6 @@ let main argv =
     //             (fun () -> BinaryTreesOld.Main([|"21"|])) ""
     //isFasterThan (fun () -> FastaNew.Main([|"25000"|]))
     //             (fun () -> FastaOld.Main([|"25000"|])) ""
-    isFasterThan (fun () -> SpectralNormNew.main([|"5500"|]))
-                 (fun () -> SpectralNormOld.main([|"5500"|])) ""
+    isFasterThan (fun () -> FannkuchReduxNew.Main([|"12"|]))
+                 (fun () -> FannkuchReduxOld.Main([|"12"|])) ""
     0

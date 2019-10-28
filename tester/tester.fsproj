@@ -9,7 +9,7 @@
     <Compile Remove="**/*.fs" />
     <Compile Include="Performance.fs" />
     <Compile Include="Program.fs" />
-    <!--<ProjectReference Include="..\csharp\csharp.csproj" />-->
-    <ProjectReference Include="..\fsharp\fsharp.fsproj" />
+    <ProjectReference Include="..\csharp\csharp.csproj" />
+    <!--<ProjectReference Include="..\fsharp\fsharp.fsproj" />-->
   </ItemGroup>
 </Project>
