@@ -114,7 +114,7 @@ public unsafe static class FannkuchReduxOld
         maxFlips[-taskId - 1] = maxflips;
     }
 
-    public static int Main(string[] args)
+    public static string Main(string[] args)
     {
         int n = args.Length > 0 ? int.Parse(args[0]) : 7;
         fact = new int[n + 1];
@@ -142,6 +142,6 @@ public unsafe static class FannkuchReduxOld
             threads[i].Join();
         }
         //Console.Out.WriteLineAsync(chkSums.Sum() + "\nPfannkuchen(" + n + ") = " + maxFlips.Max());
-        return chkSums.Sum() * 1000 + n * 100 + maxFlips.Max();
+        return chkSums.Sum() + "\nPfannkuchen(" + n + ") = " + maxFlips.Max();
     }
 }
