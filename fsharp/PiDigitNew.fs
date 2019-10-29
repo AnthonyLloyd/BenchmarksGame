@@ -72,20 +72,34 @@ let main (args:string[]) =
         mpz_mul_ui(&den, &den, k2)
         mpz_mul_ui(&num, &num, k)
 
-    let n = uint32 args.[0]
+    let n = int args.[0]
+    let bytes = Array.create 23 '\n'B
+    bytes.[10] <- '\t'B; bytes.[11] <- ':'B; bytes.[13] <- '0'B
+
     let out = new System.IO.MemoryStream()//System.Console.OpenStandardOutput()
-    let encoding = System.Text.Encoding.ASCII
-    let mutable i, k = 0u, 0u
+    let mutable i, j, k, z = 0, 0, 0u, 1
     while i < n do
         k <- k + 1u
         next_term k
         if mpz_cmp(&num, &acc) <= 0 then
             let d = extract_digit 3u
             if d = extract_digit 4u then
-                out.WriteByte(byte(d+48u))
-                i <- i + 1u
-                if i % 10u = 0u then
-                    let bs = encoding.GetBytes("\t:" + string i + "\n")
-                    out.Write(bs, 0, bs.Length)
+                bytes.[j] <- byte d + 48uy
+                j <- j + 1
+                if j = 10 then
+                    j <- 0
+                    i <- i + 10
+                    let rec setInt i p =
+                        let i,r = System.Math.DivRem(i, 10)
+                        bytes.[p] <- byte(r + 48)
+                        if r=0 then
+                            if p=12 then
+                                bytes.[12] <- '1'B
+                                z <- z + 1
+                                for k = 1 to z do
+                                    bytes.[12+k] <- '0'B
+                            else setInt i (p-1)
+                    setInt (i/10) (11+z)
+                    out.Write(bytes, 0, 14+z)
                 eliminate_digit d
     out.ToArray()

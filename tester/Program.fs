@@ -56,6 +56,9 @@ let main argv =
     //isFasterThan (fun () -> FastaNew.Main([|"25000"|]))
     //             (fun () -> FastaOld.Main([|"25000"|])) ""
     //PerfSimple.causalProfiling 100 (fun () -> PiDigitNew.main([|"10000"|]) |> ignore)
+
+    //let bs = PiDigitNew.main([|"10000"|])
+    //Console.OpenStandardOutput().Write(bs, 0, bs.Length)
     isFasterThan (fun () -> PiDigitNew.main([|"10000"|]))
                  (fun () -> PiDigitOld.main([|"10000"|])) ""
     0
