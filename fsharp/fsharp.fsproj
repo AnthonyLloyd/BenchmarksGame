@@ -4,6 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.fs" />
-    <PackageReference Include="PCRE.NET" Version="0.10.2" />
+    <Compile Include="PiDigitNew.fs" />
+    <Compile Include="PiDigitOlds.fs" />
+    <ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />
   </ItemGroup>
 </Project>

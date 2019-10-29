@@ -55,6 +55,7 @@ let main argv =
     //             (fun () -> BinaryTreesOld.Main([|"21"|])) ""
     //isFasterThan (fun () -> FastaNew.Main([|"25000"|]))
     //             (fun () -> FastaOld.Main([|"25000"|])) ""
-    isFasterThan (fun () -> FannkuchReduxNew.Main([|"12"|]))
-                 (fun () -> FannkuchReduxOld.Main([|"12"|])) ""
+    //PerfSimple.causalProfiling 100 (fun () -> PiDigitNew.main([|"10000"|]) |> ignore)
+    isFasterThan (fun () -> PiDigitNew.main([|"10000"|]))
+                 (fun () -> PiDigitOld.main([|"10000"|])) ""
     0

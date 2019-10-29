@@ -1,8 +1,10 @@
 ﻿// The Computer Language Benchmarks Game
-// http://benchmarksgame.alioth.debian.org/
+// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // Port to F# by Jomo Fisher of the C#
 // Small optimisations by Anthony Lloyd
+
+module PiDigitOld
 
 #nowarn "9"
 
@@ -14,26 +16,26 @@ type MPZ =
    val _mp_size:int
    val ptr:System.IntPtr
 
-[<DllImport ("gmp",EntryPoint="__gmpz_init",ExactSpelling=true)>]
+[<DllImport ("gmp.so.10",EntryPoint="__gmpz_init",ExactSpelling=true)>]
 extern void mpzInit(MPZ& _value)
 
-[<DllImport ("gmp",EntryPoint="__gmpz_mul_si",ExactSpelling=true)>]
+[<DllImport ("gmp.so.10",EntryPoint="__gmpz_mul_si",ExactSpelling=true)>]
 extern void mpzMul(MPZ& _dest, MPZ&_src, int _value)
 
-[<DllImport ("gmp",EntryPoint="__gmpz_add",ExactSpelling=true)>]
+[<DllImport ("gmp.so.10",EntryPoint="__gmpz_add",ExactSpelling=true)>]
 extern void mpzAdd(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport ("gmp",EntryPoint="__gmpz_tdiv_q",ExactSpelling=true)>]
+[<DllImport ("gmp.so.10",EntryPoint="__gmpz_tdiv_q",ExactSpelling=true)>]
 extern void mpzTdiv(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport ("gmp",EntryPoint="__gmpz_set_si",ExactSpelling=true)>]
+[<DllImport ("gmp.so.10",EntryPoint="__gmpz_set_si",ExactSpelling=true)>]
 extern void mpzSet(MPZ& _src, int _value)
 
-[<DllImport ("gmp",EntryPoint="__gmpz_get_si",ExactSpelling=true)>]
+[<DllImport ("gmp.so.10",EntryPoint="__gmpz_get_si",ExactSpelling=true)>]
 extern int mpzGet(MPZ& _src)
 
-[<EntryPoint>]
-let main args =
+//[<EntryPoint>]
+let main (args:string[]) =
 
     let inline init() =
         let mutable result = MPZ()
@@ -85,29 +87,35 @@ let main args =
         mpzTdiv(&w, &u, &v)
         mpzGet(&w)
 
-    let out = System.Console.OpenStandardOutput()
+    let out = new System.IO.MemoryStream()//System.Console.OpenStandardOutput()
     let n = int args.[0]
     let bytes = Array.zeroCreate 12
     bytes.[10] <- '\t'B; bytes.[11] <- ':'B
     let mutable i = 0
     let mutable k = 1
-    while true do
+    let encoding = System.Text.Encoding.ASCII
+    let mutable notDone = true
+    while notDone do
         let y = extract 3
         if y = extract 4 then
             bytes.[i%10] <- byte(48+y)
             i<-i+1
             if i%10=0 then
                 out.Write(bytes,0,12)
-                System.Console.WriteLine i
+                let s = string i + "\n"
+                let nsb = encoding.GetBytes s
+                out.Write(nsb, 0, nsb.Length)
             if i=n then
                 if i%10<>0 then
                     for c = i%10 to 9 do
                         bytes.[c] <- ' 'B
                     out.Write(bytes,0,12)
-                    System.Console.WriteLine n
-                exit 0
+                    let s = string n + "\n"
+                    let nsb = encoding.GetBytes s
+                    out.Write(nsb, 0, nsb.Length)
+                notDone <- false
             else composeR 10 (-10*y) 0 1
         else
             composeL k (4*k+2) 0 (2*k+1)
             k<-k+1
-    exit 0
+    out.ToArray()
