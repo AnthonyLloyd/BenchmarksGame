@@ -11,6 +11,6 @@
     <Compile Include="Program.fs" />
     <!--<ProjectReference Include="..\csharp\csharp.csproj" />-->
     <ProjectReference Include="..\fsharp\fsharp.fsproj" />
-    <ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />
+    <!--<ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />-->
   </ItemGroup>
 </Project>

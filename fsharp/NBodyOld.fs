@@ -1,20 +1,21 @@
 // The Computer Language Benchmarks Game
-// http://benchmarksgame.alioth.debian.org/
+// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // contributed by Valentin Kraevskiy
 // modified by Peter Kese
 
 module NBodyOld
+
 let pi = 3.141592653589793
 let daysPerYear = 365.24
-let solarMass = 4.0 * pi * pi
+let solarMass = 4.0 * pi ** 2.0
 
 type Body =
     {mutable X: float; mutable Y: float; mutable Z: float
      mutable VX: float; mutable VY: float; mutable VZ: float
      Mass: float}
 
-let inline jupiter() =
+let jupiter =
     {X = 4.84143144246472090e+00
      Y = -1.16032004402742839e+00
      Z = -1.03622044471123109e-01
@@ -23,7 +24,7 @@ let inline jupiter() =
      VZ = -6.90460016972063023e-05 * daysPerYear
      Mass = 9.54791938424326609e-04 * solarMass}
 
-let inline saturn() =
+let saturn =
     {X = 8.34336671824457987e+00
      Y = 4.12479856412430479e+00
      Z = -4.03523417114321381e-01
@@ -32,7 +33,7 @@ let inline saturn() =
      VZ = 2.30417297573763929e-05 * daysPerYear
      Mass = 2.85885980666130812e-04 * solarMass}
 
-let inline uranus() =
+let uranus =
     {X = 1.28943695621391310e+01
      Y = -1.51111514016986312e+01
      Z = -2.23307578892655734e-01
@@ -41,7 +42,7 @@ let inline uranus() =
      VZ = -2.96589568540237556e-05 * daysPerYear
      Mass = 4.36624404335156298e-05 * solarMass}
 
-let inline neptune() =
+let neptune =
     {X = 1.53796971148509165e+01
      Y = -2.59193146099879641e+01
      Z = 1.79258772950371181e-01
@@ -69,8 +70,8 @@ type Bodies = {
     bodies: Body list;
     pairs: (Body * Body) list;
 }
-let initBodies() =
-    let planets = [jupiter(); saturn(); uranus(); neptune()]
+let initBodies =
+    let planets = [jupiter; saturn; uranus; neptune]
     let svx,svy,svz = sunMomentum planets
     let sun = { X=0.0; Y=0.0; Z=0.0; VX=svx; VY=svy; VZ=svz; Mass=solarMass }
     let bodies = sun::planets
@@ -109,9 +110,9 @@ let energy {bodies=bodies;pairs=pairs} =
 //[<EntryPoint>]
 let main (args:string[]) =
     let repetitions = try int args.[0] with _ -> 20000000
-    let bodies = initBodies()
-    //energy bodies |> printf "%.9f Old\n"
+    let bodies = initBodies
+    let bs = energy bodies |> sprintf "%.9f\n" //s
     simulate bodies repetitions 0.01
-    //energy bodies |> printf "%.9f Old\n"
-    energy bodies
-    //0
+    let be = energy bodies |> sprintf "%.9f\n" //s
+
+    bs,be //0
