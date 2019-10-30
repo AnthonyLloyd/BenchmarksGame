@@ -4,8 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.fs" />
+    <Compile Include="PiDigitOld.fs" />
     <Compile Include="PiDigitNew.fs" />
-    <Compile Include="PiDigitOlds.fs" />
     <ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />
   </ItemGroup>
 </Project>

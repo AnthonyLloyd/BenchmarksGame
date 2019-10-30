@@ -4,45 +4,42 @@
 // Port to F# by Jomo Fisher of the C#
 // Port of the C version by Anthony Lloyd
 
-module PiDigitNew
-
-open System
 open System.Runtime.InteropServices
 
 [<Struct;StructLayout(LayoutKind.Sequential)>]
 type MPZ =
     val alloc: int
     val size: int
-    val ptr: IntPtr
+    val ptr: System.IntPtr
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_init",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_init",ExactSpelling=true)>]
 extern void private mpzInit(MPZ& _value)
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_init_set_ui",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_init_set_ui",ExactSpelling=true)>]
 extern void private mpzInitSetUi(MPZ& _dest, int _value)
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_mul_ui",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_mul_ui",ExactSpelling=true)>]
 extern void private mpzMulUi(MPZ& _dest, MPZ& _src, int _value)
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_add",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_add",ExactSpelling=true)>]
 extern void private mpzAdd(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_tdiv_q",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_tdiv_q",ExactSpelling=true)>]
 extern void private mpzTdivQ(MPZ& _dest, MPZ& _src, MPZ& _src2)
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_get_ui",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_get_ui",ExactSpelling=true)>]
 extern int private mpzGetUi(MPZ& _src)
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_submul_ui",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_submul_ui",ExactSpelling=true)>]
 extern void private mpzSubmulUi(MPZ& _dest, MPZ& _src, int _value)
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_addmul_ui",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_addmul_ui",ExactSpelling=true)>]
 extern void private mpzAddmulUi(MPZ& _dest, MPZ& _src, int _value)
 
-[<DllImport("gmp.so.10",EntryPoint="__gmpz_cmp",ExactSpelling=true)>]
+[<DllImport("gmp",EntryPoint="__gmpz_cmp",ExactSpelling=true)>]
 extern int private mpzCmp(MPZ& _op1, MPZ& _op2)
 
-//[<EntryPoint>]
+[<EntryPoint>]
 let main (args:string[]) =
 
     let mutable tmp1, tmp2, acc, den, num = MPZ(), MPZ(), MPZ(), MPZ(), MPZ()
@@ -71,7 +68,7 @@ let main (args:string[]) =
         mpzMulUi(&den, &den, k2)
         mpzMulUi(&num, &num, k)
 
-    let out = new IO.MemoryStream()//Console.OpenStandardOutput()
+    let out = System.Console.OpenStandardOutput()
     let bytes = "0123456789\t:00\n\n\n\n\n\n\n\n"B
     let mutable i, j, k, n = 0, 12, 0, int args.[0]
  
@@ -101,4 +98,5 @@ let main (args:string[]) =
                      else i + 1
                 eliminateDigit d
                 n <- n - 1
-    out.ToArray()
+
+    0
