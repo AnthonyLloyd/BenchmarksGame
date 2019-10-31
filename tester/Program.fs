@@ -59,8 +59,8 @@ let main argv =
 
     //let bs = PiDigitNew.main([|"10000"|])
     //Console.OpenStandardOutput().Write(bs, 0, bs.Length)
-    //let bs = PiDigitNew.main([|"1000"|])
-    //Console.OpenStandardOutput().Write(bs, 0, bs.Length)
+    //let bs = NBodyNew.main([|"50000000"|])
+    //printfn "%A" bs
     isFasterThan (fun () -> NBodyNew.main([|"50000000"|]))
                  (fun () -> NBodyOld.main([|"50000000"|])) ""
     0
