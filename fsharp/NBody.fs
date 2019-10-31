@@ -3,8 +3,7 @@
 //
 // contributed by Valentin Kraevskiy
 // modified by Peter Kese
-
-module NBodyNew
+// Use hardware intrinsics by Anthony Lloyd
 
 open System.Runtime.Intrinsics
 open System.Runtime.Intrinsics.X86
@@ -23,7 +22,7 @@ let daysPerYear = 365.24
 [<Literal>]
 let solarMass = 39.4784176043574 //4.0 * pi ** 2.0
 
-//[<EntryPoint>]
+[<EntryPoint>]
 let main (args:string[]) =
 
     let inline scalar2 (a:float) = Vector128.Create(a, a)
@@ -82,12 +81,12 @@ let main (args:string[]) =
         
         bodies
 
-
     let pairs = [|
         for i = 0 to 4 do
             for j = i+1 to 4 do
                 bodies.[i], bodies.[j]
     |]
+
     let energy() =
         let ePlanets = Array.sumBy (fun b -> sumSqr b.VXY b.VZ * b.Mass) bodies
                             * 0.5
@@ -96,7 +95,7 @@ let main (args:string[]) =
             b1.Mass * b2.Mass / sqrt sumSq2) pairs
         ePlanets - ePairs
 
-    let bs = energy() |> sprintf "%.9f\n" //s
+    energy() |> printf "%.9f\n"
 
     let dtV = scalar2 dt
 
@@ -117,6 +116,6 @@ let main (args:string[]) =
             body.XY <- Ssse3.Add(body.XY, Ssse3.Multiply(body.VXY, dtV))
             body.Z <- body.Z + body.VZ * dt
 
-    let be = energy() |> sprintf "%.9f\n" //s
+    energy() |> printf "%.9f\n"
 
-    bs,be //0
+    0
