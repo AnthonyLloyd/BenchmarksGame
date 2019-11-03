@@ -61,6 +61,6 @@ let main argv =
     //Console.OpenStandardOutput().Write(bs, 0, bs.Length)
     //let bs = NBodyNew.main([|"50000000"|])
     //printfn "%A" bs
-    isFasterThan (fun () -> NBodyNew.main([|"50000000"|]))
-                 (fun () -> NBodyOld.main([|"50000000"|])) ""
+    isFasterThan (fun () -> SpectralNormNew.main([|"5500"|]))
+                 (fun () -> SpectralNormOld.main([|"5500"|])) ""
     0
