@@ -1,10 +1,7 @@
 /* The Computer Language Benchmarks Game
    https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 
-   contributed by Isaac Gouy, transliterated from Oleg Mazurov's Java program
-   concurrency fix and minor improvements by Peperud
-   parallel and small optimisations by Anthony Lloyd
-   "unsafe" array access by Jan de Vaan
+   contributed by Flim Nik
 */
 
 using System;
@@ -60,7 +57,16 @@ public unsafe static class FannkuchReduxOld
         if (start[first] == 0)
             return first == 0 ? 0 : 1;
 
-        for (int i = 0; i < length; i++)
+        var startL = (long*)start;
+        var stateL = (long*)state;
+        var lengthL = length / 4;
+
+        for (int i = 0; i < lengthL; i++)
+        {
+            stateL[i] = startL[i];
+        }
+
+        for (int i = lengthL * 4; i < length; i++)
         {
             state[i] = start[i];
         }

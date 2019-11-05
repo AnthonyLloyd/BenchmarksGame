@@ -3,15 +3,11 @@
 //
 // Based on C# version by Isaac Gouy, The Anh Tran, Alan McGovern
 // Contributed by Don Syme
+// Optimisations by Anthony Lloyd
 
-module SpectralNormOld
+let approximate u v tmp rbegin rend (barrier:System.Threading.Barrier) =
 
-open System
-open System.Threading
-
-let approximate u v tmp rbegin rend (barrier:Barrier) =
-
-    let A i j = 2.0 / float((i + j) * (i + j + 1) + (i + 1) * 2)
+    let A i j = 2.0 / float((i + j) * (i + j + 1) + i * 2 + 2)
 
     let multiplyAv (v:_[]) (Av:_[]) =
         for i = rbegin to rend do
@@ -47,7 +43,7 @@ let runGame n =
     let u = Array.create n 1.0
     let tmp = Array.zeroCreate n
     let v = Array.zeroCreate n
-    let barrier = new Barrier(4)
+    let barrier = new System.Threading.Barrier(4)
     let chunk = n / 4
     let aps =
         Array.Parallel.init 4 (fun i ->
@@ -55,10 +51,10 @@ let runGame n =
             let r2 = if i=3 then n-1 else r1+chunk-1
             approximate u v tmp r1 r2 barrier
         )
-    Math.Sqrt(Array.sumBy fst aps / Array.sumBy snd aps)
+    System.Math.Sqrt(Array.sumBy fst aps / Array.sumBy snd aps)
 
-//[<EntryPoint>]
+[<EntryPoint>]
 let main (args:string[]) =
     let n = try int args.[0] with _ -> 2500
-    (runGame n).ToString("f9")//System.Console.WriteLine("{0:f9}", RunGame n);
-    //0
+    System.Console.WriteLine((runGame n).ToString("f9"))
+    0

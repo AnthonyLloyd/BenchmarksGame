@@ -1,10 +1,7 @@
 /* The Computer Language Benchmarks Game
    https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 
-   contributed by Isaac Gouy, transliterated from Oleg Mazurov's Java program
-   concurrency fix and minor improvements by Peperud
-   parallel and small optimisations by Anthony Lloyd
-   "unsafe" array access by Jan de Vaan
+   contributed by Flim Nik
 */
 
 using System;

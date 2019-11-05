@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.fs" />
-    <Compile Include="SpectralNormNew.fs" />
-    <Compile Include="SpectralNormOld.fs" />
+    <Compile Include="SpectralNorm.fs" />    
     <!--<ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />-->
   </ItemGroup>
 </Project>

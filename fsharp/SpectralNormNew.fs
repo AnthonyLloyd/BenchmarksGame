@@ -9,28 +9,18 @@ module SpectralNormNew
 open System
 open System.Threading
 
-type Barrier(threads:int) =
-    [<VolatileField>]
-    let mutable current, iteration = threads, 0
-    member _.SignalAndWait() =
-        let i = iteration
-        if Interlocked.Decrement(&current) = 0 then
-            current <- threads
-            iteration <- i + 1
-        else while iteration = i do ()
-
 let approximate u v tmp rbegin rend (barrier:Barrier) =
 
-    let A i j = 2.0 / float((i + j) * (i + j + 1) + (i + 1) * 2)
+    let A i j = 2.0 / float((i + j) * (i + j + 1) + i * 2 + 2)
 
-    let multiplyAv (v:_[]) (Av:_[]) =
+    let inline multiplyAv (v:_[]) (Av:_[]) =
         for i = rbegin to rend do
             let mutable sum = 0.0
             for j = 0 to v.Length - 1 do
                 sum <- sum + A i j * v.[j]
             Av.[i] <- sum
 
-    let multiplyAtv (v:_[]) (atv:_[]) =
+    let inline multiplyAtv (v:_[]) (atv:_[]) =
         for i = rbegin to rend do
             let mutable sum = 0.0
             for j = 0 to v.Length - 1 do
