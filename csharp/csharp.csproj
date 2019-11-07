@@ -7,5 +7,6 @@
     <Compile Remove="**/*.cs" />
     <Compile Include="FannkuchReduxNew.cs" />
     <Compile Include="FannkuchReduxOld.cs" />
+    <ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />
   </ItemGroup>
 </Project>

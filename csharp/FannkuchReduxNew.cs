@@ -51,45 +51,44 @@ public unsafe static class FannkuchReduxNew
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static unsafe int CountFlips(short* start, short* state, int length)
+    static unsafe int CountFlips2(int first, short* state)
     {
-        int first = start[0];
-        if (start[first] == 0)
-            return first == 0 ? 0 : 1;
-
-        var startL = (long*)start;
-        var stateL = (long*)state;
-        var lengthL = length / 4;
-
-        for (int i = 0; i < lengthL; i++)
+        for (int flips = 2; ; flips++)
         {
-            stateL[i] = startL[i];
-        }
-
-        for (int i = lengthL * 4; i < length; i++)
-        {
-            state[i] = start[i];
-        }
-
-        int flips = 2;
-        for (; ; flips++)
-        {
-            short* lo = state + 1;
-            short* hi = state + first - 1;
-
-            for (; lo < hi; lo++, hi--)
+            for (short* lo = state + 1, hi = state + first - 1; lo < hi; lo++, hi--)
             {
                 var temp = *lo;
                 *lo = *hi;
                 *hi = temp;
             }
             var tp = state[first];
-            if (state[tp] == 0)
-                return flips;
-
+            if (state[tp] == 0) return flips;
             state[first] = (short)first;
             first = tp;
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static unsafe int CountFlips(short* start, short* state, int length)
+    {
+        int first = start[0];
+        if (start[first] == 0) return first == 0 ? 0 : 1;
+
+        var startL = (long*)start;
+        var stateL = (long*)state;
+        var lengthL = length / 4;
+
+        int i = 0;
+        for (; i < lengthL; i++)
+        {
+            stateL[i] = startL[i];
+        }
+        for (i = lengthL * 4; i < length; i++)
+        {
+            state[i] = start[i];
+        }
+
+        return CountFlips2(first, state);
     }
 
     static unsafe void Run(int n, int taskSize)
@@ -131,13 +130,13 @@ public unsafe static class FannkuchReduxNew
             fact[i] = fact[i - 1] * i;
         }
 
-        taskCount = n > 11 ? fact[n] / (9 * 8 * 7 * 6 * 5 * 4 * 3 * 2) : Environment.ProcessorCount;
+        var PC = 4;
+        taskCount = n > 11 ? fact[n] / (9 * 8 * 7 * 6 * 5 * 4 * 3 * 2) : PC;
         int taskSize = fact[n] / taskCount;
-        int nThreads = Environment.ProcessorCount;
-        chkSums = new int[nThreads];
-        maxFlips = new int[nThreads];
-        var threads = new Thread[nThreads];
-        for (int i = 1; i < nThreads; i++)
+        chkSums = new int[PC];
+        maxFlips = new int[PC];
+        var threads = new Thread[PC];
+        for (int i = 1; i < PC; i++)
         {
             (threads[i] = new Thread(() => Run(n, taskSize))).Start();
         }

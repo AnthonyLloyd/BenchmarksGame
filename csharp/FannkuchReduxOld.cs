@@ -131,13 +131,13 @@ public unsafe static class FannkuchReduxOld
             fact[i] = fact[i - 1] * i;
         }
 
-        taskCount = n > 11 ? fact[n] / (9 * 8 * 7 * 6 * 5 * 4 * 3 * 2) : Environment.ProcessorCount;
+        var PC = 4;
+        taskCount = n > 11 ? fact[n] / (9 * 8 * 7 * 6 * 5 * 4 * 3 * 2) : PC;
         int taskSize = fact[n] / taskCount;
-        int nThreads = Environment.ProcessorCount;
-        chkSums = new int[nThreads];
-        maxFlips = new int[nThreads];
-        var threads = new Thread[nThreads];
-        for (int i = 1; i < nThreads; i++)
+        chkSums = new int[PC];
+        maxFlips = new int[PC];
+        var threads = new Thread[PC];
+        for (int i = 1; i < PC; i++)
         {
             (threads[i] = new Thread(() => Run(n, taskSize))).Start();
         }
