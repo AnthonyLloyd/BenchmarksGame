@@ -4,7 +4,6 @@
    contributed by Flim Nik
 */
 
-using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -13,24 +12,26 @@ public unsafe static class FannkuchReduxNew
 {
     static int taskCount;
     static int[] fact, chkSums, maxFlips;
-    static void FirstPermutation(short* p, int[] count, int idx)
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static unsafe void FirstPermutation(short* p, short* pp, int* count, int n, int idx)
     {
-        short[] pp = new short[count.Length];
-        for (int i = 0; i < count.Length; ++i) p[i] = (byte)i;
-        for (int i = count.Length - 1; i > 0; --i)
+        for (int i = 0; i < n; ++i) p[i] = (byte)i;
+        for (int i = n - 1; i > 0; --i)
         {
             int d = idx / fact[i];
             count[i] = d;
             if (d > 0)
             {
-                idx = idx % fact[i];
+                idx %= fact[i];
                 for (int j = i; j >= 0; --j) pp[j] = p[j];
                 for (int j = 0; j <= i; ++j) p[j] = pp[(j + d) % (i + 1)];
             }
         }
     }
 
-    static void NextPermutation(short* p, int[] count)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static unsafe void NextPermutation(short* p, int* count)
     {
         var first = p[1];
         p[1] = p[0];
@@ -41,78 +42,79 @@ public unsafe static class FannkuchReduxNew
             count[i++] = 0;
             var next = p[1];
             p[0] = next;
-            for (int j = 1; j < i;)
-            {
-                p[j] = p[++j];
-            }
+            for (int j = 1; j < i;) p[j] = p[++j];
             p[i] = first;
             first = next;
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static unsafe int CountFlips2(int first, short* state)
+    static unsafe void Copy(short* p, short* pp, int n)
     {
-        for (int flips = 2; ; flips++)
-        {
-            for (short* lo = state + 1, hi = state + first - 1; lo < hi; lo++, hi--)
-            {
-                var temp = *lo;
-                *lo = *hi;
-                *hi = temp;
-            }
-            var tp = state[first];
-            if (state[tp] == 0) return flips;
-            state[first] = (short)first;
-            first = tp;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static unsafe int CountFlips(short* start, short* state, int length)
-    {
-        int first = start[0];
-        if (start[first] == 0) return first == 0 ? 0 : 1;
-
-        var startL = (long*)start;
-        var stateL = (long*)state;
-        var lengthL = length / 4;
-
+        var startL = (long*)p;
+        var stateL = (long*)pp;
+        var lengthL = n / 4;
         int i = 0;
         for (; i < lengthL; i++)
         {
             stateL[i] = startL[i];
         }
-        for (i = lengthL * 4; i < length; i++)
+        for (i = lengthL * 4; i < n; i++)
         {
-            state[i] = start[i];
+            pp[i] = p[i];
         }
+    }
 
-        return CountFlips2(first, state);
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static unsafe int CountFlips(short* p, short* pp, int n)
+    {
+        int flips = 1;
+        int first = *p;
+        short temp;
+        if (p[first] != 0)
+        {
+            Copy(p, pp, n);
+            do
+            {
+                ++flips;
+                for (short* lo = pp + 1, hi = pp + first - 1; lo < hi; ++lo, --hi)
+                {
+                    temp = *lo;
+                    *lo = *hi;
+                    *hi = temp;
+                }
+                temp = pp[first];
+                pp[first] = (short)first;
+                first = temp;
+            } while (pp[first] != 0);
+        }
+        return flips;
     }
 
     static unsafe void Run(int n, int taskSize)
     {
-        int[] count = new int[n];
+        int* count = stackalloc int[n];
         int taskId, chksum = 0, maxflips = 0;
         short* p = stackalloc short[n];
-        short* state = stackalloc short[n];
-
+        short* pp = stackalloc short[n];
         while ((taskId = Interlocked.Decrement(ref taskCount)) >= 0)
         {
-            for (int i = 0; i < taskSize; i++)
+            FirstPermutation(p, pp, count, n, taskId * taskSize);
+            if (*p != 0)
             {
-                if (i == 0)
-                {
-                    FirstPermutation(p, count, taskId * taskSize);
-                }
-                else
-                {
-                    NextPermutation(p, count);
-                }
-                var flips = CountFlips(p, state, n);
-                chksum += (1 - (i & 1) * 2) * flips;
+                var flips = CountFlips(p, pp, n);
+                chksum += flips;
                 if (flips > maxflips) maxflips = flips;
+            }
+            for (int i = 1; i < taskSize; i++)
+            {
+                NextPermutation(p, count);
+                if (*p != 0)
+                {
+                    var flips = CountFlips(p, pp, n);
+                    chksum += (1 - (i & 1) * 2) * flips;
+                    if (flips > maxflips) maxflips = flips;
+                }
             }
         }
         chkSums[-taskId - 1] = chksum;
