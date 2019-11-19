@@ -1,8 +1,8 @@
-/* The Computer Language Benchmarks Game
-   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
-
-   contributed by Flim Nik
-*/
+// The Computer Language Benchmarks Game
+// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+//
+// contributed by Flim Nik
+// small optimisations by Anthony Lloyd
 
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -16,7 +16,7 @@ public unsafe static class FannkuchReduxNew
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static unsafe void FirstPermutation(short* p, short* pp, int* count, int n, int idx)
     {
-        for (int i = 0; i < n; ++i) p[i] = (byte)i;
+        for (int i = 0; i < n; ++i) p[i] = (short)i;
         for (int i = n - 1; i > 0; --i)
         {
             int d = idx / fact[i];
@@ -55,39 +55,35 @@ public unsafe static class FannkuchReduxNew
         var stateL = (long*)pp;
         var lengthL = n / 4;
         int i = 0;
-        for (; i < lengthL; i++)
-        {
-            stateL[i] = startL[i];
-        }
-        for (i = lengthL * 4; i < n; i++)
-        {
-            pp[i] = p[i];
-        }
+        for (; i < lengthL; i++) stateL[i] = startL[i];
+        for (i = lengthL * 4; i < n; i++) pp[i] = p[i];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static unsafe int CountFlips(short* p, short* pp, int n)
+    static int CountFlips(short* p, short* pp, int n)
     {
-        int flips = 1;
         int first = *p;
-        short temp;
-        if (p[first] != 0)
+        if (p[first] == 0) return 1;
+        Copy(p, pp, n);
+        int flips = 1;
+        do
         {
-            Copy(p, pp, n);
-            do
+            flips++;
+            short temp;
+            if (first > 2)
             {
-                ++flips;
-                for (short* lo = pp + 1, hi = pp + first - 1; lo < hi; ++lo, --hi)
+                short* lo = pp + 1, hi = pp + first - 1;
+                do
                 {
                     temp = *lo;
                     *lo = *hi;
                     *hi = temp;
-                }
-                temp = pp[first];
-                pp[first] = (short)first;
-                first = temp;
-            } while (pp[first] != 0);
-        }
+                } while (++lo < --hi);
+            }
+            temp = pp[first];
+            pp[first] = (short)first;
+            first = temp;
+        } while (pp[first] != 0);
         return flips;
     }
 
@@ -103,8 +99,8 @@ public unsafe static class FannkuchReduxNew
             if (*p != 0)
             {
                 var flips = CountFlips(p, pp, n);
-                chksum += flips;
                 if (flips > maxflips) maxflips = flips;
+                chksum += flips;
             }
             for (int i = 1; i < taskSize; i++)
             {
@@ -112,8 +108,8 @@ public unsafe static class FannkuchReduxNew
                 if (*p != 0)
                 {
                     var flips = CountFlips(p, pp, n);
-                    chksum += (1 - (i & 1) * 2) * flips;
                     if (flips > maxflips) maxflips = flips;
+                    chksum += (1 - (i & 1) * 2) * flips;
                 }
             }
         }
