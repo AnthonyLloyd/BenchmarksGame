@@ -69,7 +69,7 @@ public unsafe static class FannkuchReduxNew
     static unsafe int CountFlips(short* p, short* pp, int n)
     {
         int flips = 1;
-        int first = *p;
+        short first = *p;
         short temp;
         if (p[first] != 0)
         {
@@ -88,7 +88,7 @@ public unsafe static class FannkuchReduxNew
                     } while (++lo < --hi);
                 }
                 temp = pp[first];
-                pp[first] = (short)first;
+                pp[first] = first;
                 first = temp;
             } while (pp[first] != 0);
         }
