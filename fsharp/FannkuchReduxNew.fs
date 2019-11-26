@@ -13,11 +13,8 @@ open Microsoft.FSharp.NativeInterop
 let main (args:string[]) =
 
     let run n fact taskSize taskId =
-        let p = NativePtr.stackalloc<int16> n
-        let pp = NativePtr.stackalloc<int16> n
-        let count = NativePtr.stackalloc n
 
-        let inline firstPermutation idx =
+        let inline firstPermutation p pp count n idx =
             for i = 0 to n-1 do NativePtr.set p i (int16 i)
             let mutable idx = idx
             for i = n-1 downto 1 do
@@ -30,7 +27,7 @@ let main (args:string[]) =
                         NativePtr.get pp ((j+d) % (i+1)) |> NativePtr.set p j
                     idx <- idx % NativePtr.get fact i
 
-        let inline nextPermutation() =
+        let inline nextPermutation p count =
             let mutable first = NativePtr.get p 1
             NativePtr.read p |> NativePtr.set p 1
             NativePtr.write p first
@@ -47,7 +44,7 @@ let main (args:string[]) =
                 c <- NativePtr.get count i
             NativePtr.set count i (c+1)
 
-        let inline copy() =
+        let inline copy p pp n =
             let startL = NativePtr.toNativeInt p |> NativePtr.ofNativeInt<int64>
             let stateL = NativePtr.toNativeInt pp |> NativePtr.ofNativeInt<int64>
             let lengthL = n / 4
@@ -60,11 +57,11 @@ let main (args:string[]) =
                 NativePtr.get p i |> NativePtr.set pp i
                 i <- i + 1
 
-        let inline countFlips() =
+        let inline countFlips p pp n =
             let mutable flips = 1
             let mutable first = NativePtr.read p |> int
             if NativePtr.get p first <> 0s then
-                copy()
+                copy p pp n
                 while NativePtr.get pp first <> 0s do
                     flips <- flips + 1
                     if first > 2 then
@@ -81,15 +78,18 @@ let main (args:string[]) =
                     first <- int temp
             flips
 
-        firstPermutation (taskId*taskSize)
+        let p = NativePtr.stackalloc<int16> n
+        let pp = NativePtr.stackalloc<int16> n
+        let count = NativePtr.stackalloc n
+        firstPermutation p pp count n (taskId*taskSize)
         let mutable chksum =
             if NativePtr.read p = 0s then 0
-            else countFlips()
+            else countFlips p pp n
         let mutable maxflips = chksum
         for i = 1 to taskSize-1 do
-            nextPermutation()
+            nextPermutation p count
             if NativePtr.read p <> 0s then
-                let flips =  countFlips()
+                let flips =  countFlips p pp n
                 chksum <- chksum + (1-(i%2)*2) * flips
                 if flips>maxflips then maxflips <- flips
         chksum, maxflips
@@ -108,6 +108,6 @@ let main (args:string[]) =
             (fun i -> async { return run n fact taskSize i })
         |> Async.Parallel
         |> Async.RunSynchronously
-        |> Array.reduce (fun (c1,f1) (c2,f2) -> c1+c2,max f1 f2) 
+        |> Array.reduce (fun (c1,f1) (c2,f2) -> c1+c2,max f1 f2)
            
     string chksum+"\nPfannkuchen("+string n+") = "+string maxFlips
