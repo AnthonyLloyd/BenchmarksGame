@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.cs" />
-    <Compile Include="FannkuchReduxNew.cs" />
-    <Compile Include="FannkuchReduxOld.cs" />
-    <ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />
+    <Compile Include="FannkuchRedux.cs" />
+    <!--<ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />-->
   </ItemGroup>
 </Project>

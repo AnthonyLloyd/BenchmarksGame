@@ -1,11 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!--<OutputType>Exe</OutputType>-->
     <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.fs" />
-    <Compile Include="SpectralNorm.fs" />    
+    <Compile Include="FannkuchReduxNew.fs" />
+    <Compile Include="FannkuchReduxOld.fs" />    
     <!--<ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />-->
   </ItemGroup>
 </Project>

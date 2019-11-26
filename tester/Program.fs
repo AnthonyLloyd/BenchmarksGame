@@ -62,6 +62,6 @@ let main argv =
     //let bs = NBodyNew.main([|"50000000"|])
     //printfn "%A" bs
     //PerfSimple.causalProfiling 300 (fun () -> FannkuchReduxNew.Main([|"12"|]) |> ignore)
-    isFasterThan (fun () -> FannkuchReduxNew.Main([|"12"|]))
-                 (fun () -> FannkuchReduxOld.Main([|"12"|])) ""
+    isFasterThan (fun () -> FannkuchReduxNew.main([|"12"|]))
+                 (fun () -> FannkuchReduxOld.main([|"12"|])) ""
     0
