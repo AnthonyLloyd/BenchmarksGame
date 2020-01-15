@@ -1,5 +1,5 @@
 ﻿// The Computer Language Benchmarks Game
-// http://benchmarksgame.alioth.debian.org/
+// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
 // Modification by Don Syme & Jomo Fisher to use a nullable Next element
 // Based on F# version by Robert Pickering
@@ -19,18 +19,24 @@ let main args =
         if depth=0 then Tree Unchecked.defaultof<_>
         else Next (make (depth-1), make (depth-1)) |> Tree
 
-    let rec check (Tree n) =
-        if box n |> isNull then 1
-        else let (Next(l,r)) = n in 1 + check l + check r
+    let check t =
+        let rec tailCheck (Tree n) acc =
+            if box n |> isNull then acc
+            else
+                let (Next(l, r)) = n
+                tailCheck l (tailCheck r acc+2)
+        tailCheck t 1
 
     let stretchTreeCheck = System.Threading.Tasks.Task.Run(fun () ->
         let check = make stretchDepth |> check |> string
         "stretch tree of depth "+string stretchDepth+"\t check: "+check )
 
-    let longLivedTree = System.Threading.Tasks.Task.Run(fun () ->
+    let longLivedTree =
         let tree = make maxDepth
-        let check = check tree |> string
-        "long lived tree of depth "+string maxDepth+"\t check: "+check, tree )
+        tree, System.Threading.Tasks.Task.Run(fun () ->
+            let check = check tree |> string
+            "long lived tree of depth "+string maxDepth+"\t check: "+check
+        )
     
     let loopTrees = Array.init ((maxDepth-minDepth)/2+1) (fun d ->
         let d = minDepth+d*2
@@ -44,5 +50,5 @@ let main args =
 
     stretchTreeCheck.Result |> stdout.WriteLine
     loopTrees |> Array.iter stdout.WriteLine
-    longLivedTree.Result |> fst |> stdout.WriteLine
-    exit 0
+    (snd longLivedTree).Result |> stdout.WriteLine
+    0

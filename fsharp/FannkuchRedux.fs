@@ -3,14 +3,12 @@
 //
 // ported from C# version by Anthony Lloyd
 
-module FannkuchReduxOld
-
 #nowarn "9"
 
 open Microsoft.FSharp.NativeInterop
 
-//[<EntryPoint>]
-let main (args:string[]) =
+[<EntryPoint>]
+let main args =
 
     let run n fact taskSize taskId =
 
@@ -111,3 +109,6 @@ let main (args:string[]) =
         |> Array.reduce (fun (c1,f1) (c2,f2) -> c1+c2,max f1 f2)
            
     string chksum+"\nPfannkuchen("+string n+") = "+string maxFlips
+    |> stdout.WriteLine
+
+    0

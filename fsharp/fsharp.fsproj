@@ -5,8 +5,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="**/*.fs" />
-    <Compile Include="FannkuchReduxNew.fs" />
-    <Compile Include="FannkuchReduxOld.fs" />    
+    <!--<Compile Include="FannkuchRedux.fs" />-->
     <!--<ProjectReference Include="..\..\Causal\dbg\dbg.fsproj" />-->
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="NBodyNew.fs" />
+    <Compile Include="NBodyOld.fs" />
   </ItemGroup>
 </Project>

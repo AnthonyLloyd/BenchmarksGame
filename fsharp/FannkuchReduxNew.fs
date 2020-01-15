@@ -1,7 +1,7 @@
 // The Computer Language Benchmarks Game
 // https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 //
-// ported from C# version adding native by Anthony Lloyd
+// ported from C# version by Anthony Lloyd
 
 module FannkuchReduxNew
 
@@ -15,7 +15,7 @@ let main (args:string[]) =
     let run n fact taskSize taskId =
 
         let inline firstPermutation p pp count n idx =
-            for i = 0 to n-1 do NativePtr.set p i (int16 i)
+            for i = 0 to n-1 do NativePtr.set p i (byte i)
             let mutable idx = idx
             for i = n-1 downto 1 do
                 let d = idx/NativePtr.get fact i
@@ -27,7 +27,7 @@ let main (args:string[]) =
                         NativePtr.get pp ((j+d) % (i+1)) |> NativePtr.set p j
                     idx <- idx % NativePtr.get fact i
 
-        let inline nextPermutation p count =
+        let inline nextPermutation (p:nativeptr<byte>) count =
             let mutable first = NativePtr.get p 1
             NativePtr.read p |> NativePtr.set p 1
             NativePtr.write p first
@@ -44,15 +44,15 @@ let main (args:string[]) =
                 c <- NativePtr.get count i
             NativePtr.set count i (c+1)
 
-        let inline copy p pp n =
+        let inline copy (p:nativeptr<byte>) (pp:nativeptr<byte>) n =
             let startL = NativePtr.toNativeInt p |> NativePtr.ofNativeInt<int64>
             let stateL = NativePtr.toNativeInt pp |> NativePtr.ofNativeInt<int64>
-            let lengthL = n / 4
+            let lengthL = n / 8
             let mutable i = 0
             while i < lengthL do
                 NativePtr.get startL i |> NativePtr.set stateL i
                 i <- i + 1
-            i <- lengthL * 4
+            i <- lengthL * 8
             while i < n do
                 NativePtr.get p i |> NativePtr.set pp i
                 i <- i + 1
@@ -60,9 +60,9 @@ let main (args:string[]) =
         let inline countFlips p pp n =
             let mutable flips = 1
             let mutable first = NativePtr.read p |> int
-            if NativePtr.get p first <> 0s then
+            if NativePtr.get p first <> 0uy then
                 copy p pp n
-                while NativePtr.get pp first <> 0s do
+                while NativePtr.get pp first <> 0uy do
                     flips <- flips + 1
                     if first > 2 then
                         let mutable lo = 1
@@ -74,21 +74,21 @@ let main (args:string[]) =
                             lo <- lo+1
                             hi <- hi-1
                     let temp = NativePtr.get pp first
-                    NativePtr.set pp first (int16 first)
+                    NativePtr.set pp first (byte first)
                     first <- int temp
             flips
 
-        let p = NativePtr.stackalloc<int16> n
-        let pp = NativePtr.stackalloc<int16> n
+        let p = NativePtr.stackalloc<byte> n
+        let pp = NativePtr.stackalloc<byte> n
         let count = NativePtr.stackalloc n
         firstPermutation p pp count n (taskId*taskSize)
         let mutable chksum =
-            if NativePtr.read p = 0s then 0
+            if NativePtr.read p = 0uy then 0
             else countFlips p pp n
         let mutable maxflips = chksum
         for i = 1 to taskSize-1 do
             nextPermutation p count
-            if NativePtr.read p <> 0s then
+            if NativePtr.read p <> 0uy then
                 let flips =  countFlips p pp n
                 chksum <- chksum + (1-(i%2)*2) * flips
                 if flips>maxflips then maxflips <- flips
