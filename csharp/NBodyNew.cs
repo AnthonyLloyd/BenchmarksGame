@@ -6,7 +6,7 @@
 
 using System;
 
-public /*remove public*/ class NBodyNew
+public /*remove public*/ static class NBodyNew
 {
     const double Pi = 3.141592653589793;
     const double Solarmass = 4 * Pi * Pi;
@@ -14,12 +14,47 @@ public /*remove public*/ class NBodyNew
     const double Dt = 0.01;
     class Body { public double x, y, z, vx, vy, vz, mass; }
     class Pair { public Body bi, bj; }
-    private Body[] bodies;
-    private Pair[] pairs;
 
-    public NBodyNew()
+    static void Advance(Pair[] pairs, Body[] bodies, int n)
     {
-        bodies = new Body[] {
+        while (n-- > 0)
+        {
+            foreach (var p in pairs)
+            {
+                Body bi = p.bi, bj = p.bj;
+                double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
+                double d2 = dx * dx + dy * dy + dz * dz;
+                double mag = Dt / (d2 * Math.Sqrt(d2));
+                bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
+                bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
+                bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
+            }
+            foreach (var b in bodies)
+            {
+                b.x += Dt * b.vx; b.y += Dt * b.vy; b.z += Dt * b.vz;
+            }
+        }
+    }
+
+    static double Energy(Body[] bodies)
+    {
+        double e = 0.0;
+        for (int i = 0; i < bodies.Length; i++)
+        {
+            var bi = bodies[i];
+            e += 0.5 * bi.mass * (bi.vx * bi.vx + bi.vy * bi.vy + bi.vz * bi.vz);
+            for (int j = i + 1; j < bodies.Length; j++)
+            {
+                var bj = bodies[j];
+                double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
+                e -= (bi.mass * bj.mass) / Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            }
+        }
+        return e;
+    }
+    public static Tuple<double,double> Main(string[] args)
+    {
+        var bodies = new Body[] {
             new Body() { // Sun
                 mass = Solarmass,
             },
@@ -61,7 +96,7 @@ public /*remove public*/ class NBodyNew
             },
         };
 
-        pairs = new Pair[bodies.Length * (bodies.Length - 1) / 2];
+        var pairs = new Pair[bodies.Length * (bodies.Length - 1) / 2];
         int pi = 0;
         for (int i = 0; i < bodies.Length - 1; i++)
             for (int j = i + 1; j < bodies.Length; j++)
@@ -74,50 +109,9 @@ public /*remove public*/ class NBodyNew
         }
         var sol = bodies[0];
         sol.vx = -px / Solarmass; sol.vy = -py / Solarmass; sol.vz = -pz / Solarmass;
-    }
 
-    public void Advance(int n)
-    {
-        while (n-- > 0)
-        {
-            foreach (var p in pairs)
-            {
-                Body bi = p.bi, bj = p.bj;
-                double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
-                double d2 = dx * dx + dy * dy + dz * dz;
-                double mag = Dt / (d2 * Math.Sqrt(d2));
-                bi.vx -= dx * bj.mass * mag; bj.vx += dx * bi.mass * mag;
-                bi.vy -= dy * bj.mass * mag; bj.vy += dy * bi.mass * mag;
-                bi.vz -= dz * bj.mass * mag; bj.vz += dz * bi.mass * mag;
-            }
-            foreach (var b in bodies)
-            {
-                b.x += Dt * b.vx; b.y += Dt * b.vy; b.z += Dt * b.vz;
-            }
-        }
-    }
-
-    public double Energy()
-    {
-        double e = 0.0;
-        for (int i = 0; i < bodies.Length; i++)
-        {
-            var bi = bodies[i];
-            e += 0.5 * bi.mass * (bi.vx * bi.vx + bi.vy * bi.vy + bi.vz * bi.vz);
-            for (int j = i + 1; j < bodies.Length; j++)
-            {
-                var bj = bodies[j];
-                double dx = bi.x - bj.x, dy = bi.y - bj.y, dz = bi.z - bj.z;
-                e -= (bi.mass * bj.mass) / Math.Sqrt(dx * dx + dy * dy + dz * dz);
-            }
-        }
-        return e;
-    }
-    public static Tuple<double,double> Main(string[] args)
-    {
-        var bodies = new NBodyNew();
-        var s = bodies.Energy(); // Console.WriteLine("{0:f9}", bodies.Energy());
-        bodies.Advance(args.Length > 0 ? int.Parse(args[0]) : 10000);
-        return Tuple.Create(s, bodies.Energy()); // Console.WriteLine("{0:f9}", bodies.Energy());
+        var s = Energy(bodies); // Console.WriteLine("{0:f9}", bodies.Energy());
+        Advance(pairs, bodies, args.Length > 0 ? int.Parse(args[0]) : 10000);
+        return Tuple.Create(s, Energy(bodies)); // Console.WriteLine("{0:f9}", bodies.Energy());
     }
 }

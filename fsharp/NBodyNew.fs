@@ -86,7 +86,7 @@ let main (args:string[]) =
     let pairs = [|
         for i = 0 to 4 do
             for j = i+1 to 4 do
-                bodies.[i], bodies.[j]
+                    bodies.[i], bodies.[j]
     |]
     let energy() =
         let ePlanets = Array.sumBy (fun b -> sumSqr b.VXY b.VZ * b.Mass) bodies
